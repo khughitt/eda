@@ -1,0 +1,417 @@
+library('R6')
+
+EDADataSet <- R6Class("EDADataSet",
+    public = list(
+        # params
+        dat = NULL,
+        row_metadata = NULL,
+        col_metadata = NULL,
+
+        # constructor
+        initialize = function(dat, row_metadata=NULL, col_metadata=NULL,
+                              row_maxn=Inf, row_maxr=1.0,
+                              col_maxn=Inf, col_maxr=1.0,
+                              color_var=NULL, shape_var=NULL, label_var=NULL,
+                              color_pal='Set1', ggplot_theme=theme_bw) { 
+            # params
+            self$dat <- dat
+            self$row_metadata <- private$normalize_metadata_order(row_metadata, rownames(dat))
+            self$col_metadata <- private$normalize_metadata_order(col_metadata, colnames(dat))
+            
+            # default variables to use for plot color, shape, and labels
+            private$color_var <- color_var
+            private$shape_var <- shape_var
+            private$label_var <- label_var
+
+            private$colors <- private$get_var_colors(color_var, color_pal)
+            private$shapes <- private$get_var_shapes(shape_var)
+            private$labels <- private$get_var_labels(label_var)
+
+            private$ggplot_theme <- ggplot_theme
+
+            # determine subsampling indices
+            private$row_ind <- private$get_subsample_indices(row_maxn, row_maxr, nrow(dat))
+            private$col_ind <- private$get_subsample_indices(col_maxn, col_maxr, ncol(dat))
+        },
+
+
+        #' Measure the predictive power of each feature (col_metadata column)
+        #' and the principle components of the dataset using a simple linear
+        #' model.
+        #'
+        #' Based on code adapted from cbcbSEQ
+        #' (https://github.com/kokrah/cbcbSEQ/) originally written by Kwame Okrah.
+        #'
+        #' @author Kwame Okrah
+        #' @author V. Keith Hughitt, \email{khughitt@umd.edu}
+        #'
+        ###############################################################################
+        get_pca_feature_correlations = function() {
+            # Drop any covariates with only a single level
+            single_level <- apply(self$col_metadata, 2, function(x) {length(table(x))}) == 1
+
+            features <- self$col_metadata[,!single_level]
+
+            # SVD
+            s <- corpcor:::fast.svd(self$dat - rowMeans(self$dat))
+            rownames(s$v) <- colnames(self$dat)
+
+            # Create output dataframe
+            pc_var <- round((s$d^2) / sum(s$d^2) * 100, 2)
+
+            result <- data.frame(
+                pc_var=pc_var,
+                pc_var_cum=cumsum(pc_var) 
+            )
+
+            # Measure feature correlations
+            for (i in 1:ncol(features)) {
+                feature_cor <- function(y) {
+                    round(summary(lm(y~features[,i]))$r.squared*100, 2)
+                }
+                result <- cbind(result, apply(s$v, 2, feature_cor))
+            }
+            colnames(result) <- c('pc_var', 'pc_var_cum', colnames(features))
+            rownames(result) <- paste0("PC", 1:nrow(result)) 
+
+            return(result)
+        },
+
+        #
+        # plotting methods
+        #
+        plot_heatmap = function() { 
+            # generate correlation matrix
+            cor_mat <- cor(self$dat[private$row_ind, private$col_ind])
+
+            # for heatmaps, show binary/logical variables on one side of the heatmap and
+            # other variables on the other side; first column (patient_id) is excluded.
+            binary_vars <- apply(self$col_metadata, 2, function(x) { length(unique(x)) }) == 2
+
+            # additional arguments to heatmaply
+            args <- list(
+                x=cor_mat,
+                showticklabels=c(FALSE, FALSE),
+                subplot_widths=c(0.65, 0.35),
+                subplot_heights=c(0.35, 0.65)
+            )
+
+            # row and column annotations
+            if (ncol(self$col_metadata) == 1) {
+                metadata_col <- data.frame(self$col_metadata[private$col_ind])
+                colnames(metadata_col) <- colnames(self$col_metadata)
+
+                args[['row_side_colors']] <- metadata_col
+            } else {
+                if (sum(binary_vars) > 0) {
+                    args[['col_side_colors']] <- self$col_metadata[private$col_ind, binary_vars]
+                }
+
+                if (sum(!binary_vars) > 0) {
+                    args[['row_side_colors']] <- self$col_metadata[private$col_ind,!binary_vars]
+                }
+            }
+
+            if ('row_side_colors' %in% names(args)) {
+                args[['subplot_widths']] <- c(0.55, 0.3, 0.15)
+            }
+            if ('col_side_colors' %in% names(args)) {
+                args[['subplot_heights']] <- c(0.15, 0.3, 0.55)
+            }
+
+            do.call(heatmaply, args)
+        },
+
+        #
+        # plot_pca
+        #
+        # Helper function for generating PCA plots
+        #
+        # dat  matrix Data matrix to generate PCA plot for
+        # pc_x integer PC # to plot along x-axis (default: 1)
+        # pc_y integer PC # to plot along x-axis (default: 2)
+        #
+        plot_pca = function(pc_x=1, pc_y=2, scale=FALSE, color_var=NULL, plot_title='') {
+            prcomp_results <- prcomp(t(self$dat), scale=scale)
+            var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
+
+            xl <- sprintf("PC%d (%.2f%% variance)", pc_x, var_explained[pc_x])
+            yl <- sprintf("PC%d (%.2f%% variance)", pc_y, var_explained[pc_y])
+
+            df <- data.frame(id=colnames(self$dat), 
+                             pc1=prcomp_results$x[,pc_x],
+                             pc2=prcomp_results$x[,pc_y])
+
+            # color (optional)
+            if (!is.null(color_var)) {
+                df <- cbind(df, color_var=self$col_metadata[,color_var])
+                plot_aes <- aes(color=color_var)
+                plot_labels <- labs(col=color_var)
+            } else if (!is.null(private$color_var)) {
+                df <- cbind(df, color_var=self$col_metadata[,private$color_var])
+                plot_aes <- aes(color=color_var)
+                plot_labels <- labs(col=private$color_var)
+            } else {
+                plot_aes <- aes() 
+                plot_labels <- labs()
+            }
+
+            # PC1 vs PC2
+            ggplot(df, aes(pc1, pc2)) +
+                geom_point(stat="identity", size=1, plot_aes) +
+                geom_text(aes(label=id), angle=45, size=1, vjust=2) +
+                xlab(xl) + ylab(yl) +
+                ggtitle(plot_title) +
+                private$ggplot_theme() +
+                plot_labels +
+                theme(axis.ticks=element_blank(), 
+                      axis.text.x=element_text(angle=-90))
+        },
+
+        plot_tsne = function(plot_title='t-SNE', color_var=NULL, shape_var=NULL, ...) {
+            # perform t-sne and store results
+            if (is.null(private$tsne)) {
+                private$tsne <- Rtsne::Rtsne(t(self$dat), ...)
+            }
+
+            tsne_res <- as.data.frame(private$tsne$Y)
+            colnames(tsne_res) <- c('x', 'y')
+
+            # add color and shape info
+            tsne_res <- cbind(tsne_res,
+                              color_var=private$get_plot_color_column(color_var),
+                              shape_var=private$get_plot_color_column(color_var))
+
+            plot_aes <- private$get_plot_aes(color_var, shape_var)
+            plot_labs <- private$get_plot_legend_labels(color_var, shape_var)
+
+            # treatment response
+            ggplot(tsne_res, aes(x, y)) +
+                   geom_point(plot_aes, stat="identity", size=1) +
+                   ggtitle(plot_title) +
+                   plot_labs +
+                   private$ggplot_theme() +
+                   theme(axis.ticks=element_blank(), 
+                         axis.text.x=element_text(angle=-90),
+                         legend.text=element_text(size=8))
+        },
+
+        #' Plot median pairwise variable correlations
+        #'
+        #' Plots the median correlation of each variable (column)
+        #'
+        #' @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
+        #'
+        #' @return None
+        plot_var_correlations = function (main="", method='pearson',
+                                          mar=c(12,6,4,6)) {
+            # compute pairwise variable correlations
+            median_pairwise_cor <- apply(cor(self$dat * 1.0, method=method), 1, median)
+
+            quantiles <- quantile(median_pairwise_cor, probs=c(0.25, 0.75))
+            iqr <- diff(quantiles)
+
+            #outlimit
+            cutoff <- quantiles[1] - 1.5 * iqr
+
+            ylimit <- c(pmin(min(median_pairwise_cor), cutoff), 
+                        max(median_pairwise_cor))
+
+            # variable labels
+            if (!all(colnames(self$dat) == private$labels)) {
+                var_labels <- sprintf("%s (%s)", colnames(self$dat), private$labels)
+            } else {
+                var_labels <- colnames(self$dat)
+            }
+
+            # render plot
+            par(mar=mar)
+            plot(median_pairwise_cor, xaxt="n", ylim=ylimit,
+                 ylab="Median Pairwise Correlation", xlab="", main=main,
+                 col=private$colors, pch=16, cex=2.2)
+            axis(side=1, at=seq(along=median_pairwise_cor),
+                 labels=var_labels, las=2)
+            abline(h=cutoff, lty=2)
+            abline(v=1:length(var_labels), lty=3, col="black")
+        },
+
+        # class greeting
+        print = function() {
+            cat("=========================================\n")
+            cat("=\n")
+            cat("= EDADataSet\n")
+            cat("=\n")
+            cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
+            cat(sprintf("=   columns: %d\n", ncol(self$dat)))
+            cat("=\n")
+            cat("=========================================\n")
+        }
+    ),
+    #
+    # private
+    #
+    private = list(
+        # private params
+        row_ind = NULL,
+        col_ind = NULL,
+        color_var = NULL,
+        shape_var = NULL,
+        label_var = NULL,
+        colors = NULL,
+        shapes = NULL,
+        labels = NULL,
+        ggplot_theme = NULL,
+        tsne   = NULL,
+
+        # private methods
+        get_subsample_indices = function(maxn, maxr, n) {
+            maxn <- min(maxn, round(maxr * n))
+            
+            if (maxn < n) {
+                sort(sample(n, maxn))
+            } else {
+                1:n
+            }
+        },
+
+        get_plot_color_column = function(color_var) {
+            if (!is.null(color_var)) {
+                factor(as.character(self$col_metadata[,color_var]))
+            } else if (!is.null(private$color_var)) {
+                factor(as.character(self$col_metadata[,private$color_var]))
+            }
+        },
+
+        get_plot_shape_column = function(shape_var) {
+            if (!is.null(shape_var)) {
+                factor(as.character(self$col_metadata[,shape_var]))
+            } else if (!is.null(private$shape_var)) {
+                factor(as.character(self$col_metadata[,private$shape_var]))
+            }
+        },
+
+        get_plot_color_aes = function(color_var=NULL) {
+            if (!is.null(color_var)) {
+                aes(color=color_var)
+            } else if (!is.null(private$color_var)) {
+                aes(color=color_var)
+            } else {
+                aes() 
+            }
+        },
+
+        get_plot_shape_aes = function(shape_var=NULL) {
+            if (!is.null(shape_var)) {
+                aes(shape=shape_var)
+            } else if (!is.null(private$shape_var)) {
+                aes(shape=shape_var)
+            } else {
+                aes() 
+            }
+        },
+
+        # determine ggplot2 color and shape aesthetics to use
+        get_plot_aes = function(color_var=NULL, shape_var=NULL) {
+            color_aes <- private$get_plot_color_aes(color_var)
+            shape_aes <- private$get_plot_shape_aes(shape_var)
+
+            # combine color and shape aesthetics and return
+            modifyList(color_aes, shape_aes)
+        },
+
+        get_plot_color_legend_label = function(color_var=NULL) {
+            if (!is.null(color_var)) {
+                labs(col=color_var)
+            } else if (!is.null(private$color_var)) {
+                labs(col=private$color_var)
+            } else {
+                list()
+            }
+        },
+
+        get_plot_shape_legend_label = function(shape_var=NULL) {
+            if (!is.null(shape_var)) {
+                labs(shape=shape_var)
+            } else if (!is.null(private$shape_var)) {
+                labs(shape=private$shape_var)
+            } else {
+                list()
+            }
+        },
+
+        # determine ggplot2 color and shape aesthetics to use
+        get_plot_legend_labels = function(color_var=NULL, shape_var=NULL) {
+            color_label <- private$get_plot_color_legend_label(color_var)
+            shape_label <- private$get_plot_shape_legend_label(shape_var)
+
+            modifyList(color_label, shape_label)
+        },
+
+        # expects a categorical column variable
+        get_var_colors = function(color_var, color_pal) {
+            # if no variable is specified, use default black for plots
+            if (is.null(color_var)) {
+                return('black') 
+            }
+
+            # get column variable to use for assigning colors
+            column_var <- as.numeric(factor(self$col_metadata[,color_var]))
+    
+            # otherwise, assign colors based on the variable specified
+            pal <- RColorBrewer::brewer.pal(9, color_pal)
+            colors <- colorRampPalette(pal)(min(1E4, length(unique(column_var))))
+
+            # return vector of column color assignments
+            colors[as.integer(column_var)]
+        },
+
+        get_var_shapes = function(shape_var) {
+            if (is.null(shape_var)) {
+                return(NULL)
+            }
+            as.numeric(factor(self$col_metadata[,shape_var]))
+        },
+
+        get_var_labels = function(label_var) {
+            if (is.null(label_var)) {
+                return(colnames(self$dat))
+            }
+            self$col_metadata[,label_var]
+        },
+
+        # normalize dat / metadata order
+        normalize_metadata_order = function(metadata, to_match) {
+            # if already in the right order, return as-is
+            if (all(rownames(metadata) == to_match)) {
+                return(metadata)
+            }
+
+            # otherwise match metadata row order to row/col names specified
+            ind <- order(match(rownames(metadata), to_match))
+
+            # multi-column metadata
+            if (ncol(metadata) > 1) {
+                return(metadata[ind,])
+            }
+
+            # single-column metadata (need to recreate matrix after reordering)
+            rnames <- rownames(metadata)
+            cnames <- colnames(metadata)
+
+            metadata <- matrix(metadata[ind,])
+            rownames(metadata) <- rnames[ind]
+            colnames(metadata) <- cnames
+
+            metadata
+        }
+    ),
+    #
+    # active bindings
+    #
+    active = list(
+        t = function() {
+            EDADataSet$new(t(self$dat), self$col_metadata, self$row_metadata)
+        }
+    )
+)
+

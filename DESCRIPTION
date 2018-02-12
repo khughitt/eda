@@ -1,0 +1,9 @@
+Package: eda
+Title: Exploratory Data Analysis
+Version: 0.0.0.9000
+Authors@R: person("V. Keith", "Hughitt", email = "keith.hughitt@nih.gov", role = c("aut", "cre"))
+Description: This package provides some simple helper classes for performing exploratory data anlaysis (EDA) in R. Datasets and metadata (when available) are stored together, and helper methods are provided for common EDA operations.
+Depends: R (>= 3.4.3)
+License: BSD-2-Clause
+Encoding: UTF-8
+LazyData: true
