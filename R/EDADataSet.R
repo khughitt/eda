@@ -52,6 +52,17 @@ EDADataSet <- R6Class("EDADataSet",
             private$col_ind <- private$get_subsample_indices(col_maxn, col_maxr, ncol(dat))
         },
 
+        log = function(base=exp(1), offset=0) {
+            obj <- self$clone()
+            obj$dat <- log(obj$dat + offset, base)
+            obj
+        },
+
+        log1p = function() {
+            obj <- self$clone()
+            obj$dat <- log(obj$dat + 1)
+            obj
+        }
 
         #' Measure the predictive power of each feature (col_mdata column)
         #' and the principle components of the dataset using a simple linear
