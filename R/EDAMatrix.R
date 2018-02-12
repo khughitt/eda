@@ -3,9 +3,9 @@
 #' @section Arguments:
 #' \describe{
 #'   \item{dat}{An m x n dataset.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
-#'       \code{dat}.}
 #'   \item{row_mdata}{Data frame with rows corresponding to the column names of 
+#'       \code{dat}.}
+#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
 #'       \code{dat}.}
 #' }
 #'
@@ -19,17 +19,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
     inherit = EDADataSet,
     public = list(
         # EDAMatrix constructor
-        initialize = function(dat, row_mdata=NULL, col_mdata=NULL,
+        initialize = function(dat, col_mdata=NULL, row_mdata=NULL,
                               row_maxn=Inf, row_maxr=1.0,
                               col_maxn=Inf, col_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
-                              color_pal='Set1') { 
+                              color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            super$initialize(dat, row_mdata, col_mdata, row_maxn, row_maxr,
+            super$initialize(dat, col_mdata, row_mdata, row_maxn, row_maxr,
                              col_maxn, col_maxr, color_var, shape_var, label_var,
-                             color_pal)
+                             color_pal, ggplot_theme)
         },
 
         # class greeting

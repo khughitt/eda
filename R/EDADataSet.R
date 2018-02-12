@@ -3,9 +3,9 @@
 #' @section Arguments:
 #' \describe{
 #'   \item{dat}{An m x n dataset.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
-#'       \code{dat}.}
 #'   \item{row_mdata}{Data frame with rows corresponding to the column names of 
+#'       \code{dat}.}
+#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
 #'       \code{dat}.}
 #' }
 #'
@@ -22,19 +22,19 @@ EDADataSet <- R6Class("EDADataSet",
     public = list(
         # params
         dat = NULL,
-        row_mdata = NULL,
         col_mdata = NULL,
+        row_mdata = NULL,
 
         # constructor
-        initialize = function(dat, row_mdata=NULL, col_mdata=NULL,
-                              row_maxn=Inf, row_maxr=1.0,
+        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, 
                               col_maxn=Inf, col_maxr=1.0,
+                              row_maxn=Inf, row_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
                               color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
             # params
             self$dat <- dat
-            self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
             self$col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
+            self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
             
             # default variables to use for plot color, shape, and labels
             private$color_var <- color_var
@@ -399,6 +399,11 @@ EDADataSet <- R6Class("EDADataSet",
 
         # normalize dat / metadata order
         normalize_metadata_order = function(metadata, to_match) {
+            # If no metadata was provided, do nothing
+            if (is.null(metadata)) {
+                return(NULL)
+            }
+
             # if already in the right order, return as-is
             if (all(rownames(metadata) == to_match)) {
                 return(metadata)
