@@ -27,8 +27,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            super$initialize(dat, col_mdata, row_mdata, row_maxn, row_maxr,
-                             col_maxn, col_maxr, color_var, shape_var, label_var,
+            super$initialize(dat, col_mdata, row_mdata, col_maxn, col_maxr,
+                             row_maxn, row_maxr, color_var, shape_var, label_var,
                              color_pal, ggplot_theme)
         },
 

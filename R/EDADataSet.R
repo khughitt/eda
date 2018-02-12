@@ -98,16 +98,19 @@ EDADataSet <- R6Class("EDADataSet",
         #
         # plotting methods
         #
-        plot_heatmap = function() { 
+        plot_heatmap = function(...) { 
+            # determine subsampling indices, if requested
+            indices <- private$get_indices(...)
+
             # generate correlation matrix
-            cor_mat <- cor(self$dat[private$row_ind, private$col_ind])
+            cor_mat <- cor(self$dat[indices$row, indices$col])
 
             # for heatmaps, show binary/logical variables on one side of the heatmap and
             # other variables on the other side; first column (patient_id) is excluded.
             binary_vars <- apply(self$col_mdata, 2, function(x) { length(unique(x)) }) == 2
 
             # additional arguments to heatmaply
-            args <- list(
+            params <- list(
                 x=cor_mat,
                 showticklabels=c(FALSE, FALSE),
                 subplot_widths=c(0.65, 0.35),
@@ -116,28 +119,28 @@ EDADataSet <- R6Class("EDADataSet",
 
             # row and column annotations
             if (ncol(self$col_mdata) == 1) {
-                metadata_col <- data.frame(self$col_mdata[private$col_ind])
+                metadata_col <- data.frame(self$col_mdata[indices$col])
                 colnames(metadata_col) <- colnames(self$col_mdata)
 
-                args[['row_side_colors']] <- metadata_col
+                params[['row_side_colors']] <- metadata_col
             } else {
                 if (sum(binary_vars) > 0) {
-                    args[['col_side_colors']] <- self$col_mdata[private$col_ind, binary_vars]
+                    params[['col_side_colors']] <- self$col_mdata[indices$col, binary_vars]
                 }
 
                 if (sum(!binary_vars) > 0) {
-                    args[['row_side_colors']] <- self$col_mdata[private$col_ind,!binary_vars]
+                    params[['row_side_colors']] <- self$col_mdata[indices$col,!binary_vars]
                 }
             }
 
-            if ('row_side_colors' %in% names(args)) {
-                args[['subplot_widths']] <- c(0.55, 0.3, 0.15)
+            if ('row_side_colors' %in% names(params)) {
+                params[['subplot_widths']] <- c(0.55, 0.3, 0.15)
             }
-            if ('col_side_colors' %in% names(args)) {
-                args[['subplot_heights']] <- c(0.15, 0.3, 0.55)
+            if ('col_side_colors' %in% names(params)) {
+                params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
             }
 
-            do.call(heatmaply, args)
+            do.call(heatmaply, params)
         },
 
         #
@@ -290,6 +293,31 @@ EDADataSet <- R6Class("EDADataSet",
             } else {
                 1:n
             }
+        },
+
+        get_indices = function(...) {
+            args <- list(...)
+            result <- list(row=NULL, col=NULL)
+
+            # row indices
+            if (!is.null(args$row_maxn)) {
+                result[['row']] <- sample(nrow(self$dat), args$row_maxn) 
+            } else if (!is.null(args$row_maxr) ){
+                result[['row']] <- sample(nrow(self$dat), round(nrow(self$dat) * args$row_maxr))
+            } else {
+                result[['row']] <- private$row_ind
+            }
+
+            # col indices
+            if (!is.null(args$col_maxn)) {
+                result[['col']] <- sample(ncol(self$dat), args$col_maxn) 
+            } else if (!is.null(args$col_maxr) ){
+                result[['col']] <- sample(ncol(self$dat), round(ncol(self$dat) * args$col_maxr))
+            } else {
+                result[['col']] <- private$col_ind
+            }
+
+            result
         },
 
         get_plot_color_column = function(color_var) {
