@@ -1,22 +1,40 @@
-library('R6')
+#' An S6 class representing a generic dataset.
+#'
+#' @section Arguments:
+#' \describe{
+#'   \item{dat}{An m x n dataset.}
+#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
+#'       \code{dat}.}
+#'   \item{row_mdata}{Data frame with rows corresponding to the column names of 
+#'       \code{dat}.}
+#' }
+#'
+#' @importFrom R6 R6Class
+#' @name EDADataSet
+#' @export
+#'
+NULL
 
 EDADataSet <- R6Class("EDADataSet",
+    # ------------------------------------------------------------------------
+    # public
+    # ------------------------------------------------------------------------
     public = list(
         # params
         dat = NULL,
-        row_metadata = NULL,
-        col_metadata = NULL,
+        row_mdata = NULL,
+        col_mdata = NULL,
 
         # constructor
-        initialize = function(dat, row_metadata=NULL, col_metadata=NULL,
+        initialize = function(dat, row_mdata=NULL, col_mdata=NULL,
                               row_maxn=Inf, row_maxr=1.0,
                               col_maxn=Inf, col_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
-                              color_pal='Set1', ggplot_theme=theme_bw) { 
+                              color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
             # params
             self$dat <- dat
-            self$row_metadata <- private$normalize_metadata_order(row_metadata, rownames(dat))
-            self$col_metadata <- private$normalize_metadata_order(col_metadata, colnames(dat))
+            self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
+            self$col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
             
             # default variables to use for plot color, shape, and labels
             private$color_var <- color_var
@@ -35,22 +53,22 @@ EDADataSet <- R6Class("EDADataSet",
         },
 
 
-        #' Measure the predictive power of each feature (col_metadata column)
+        #' Measure the predictive power of each feature (col_mdata column)
         #' and the principle components of the dataset using a simple linear
         #' model.
         #'
         #' Based on code adapted from cbcbSEQ
         #' (https://github.com/kokrah/cbcbSEQ/) originally written by Kwame Okrah.
-        #'
+        #
         #' @author Kwame Okrah
         #' @author V. Keith Hughitt, \email{khughitt@umd.edu}
         #'
         ###############################################################################
         get_pca_feature_correlations = function() {
             # Drop any covariates with only a single level
-            single_level <- apply(self$col_metadata, 2, function(x) {length(table(x))}) == 1
+            single_level <- apply(self$col_mdata, 2, function(x) {length(table(x))}) == 1
 
-            features <- self$col_metadata[,!single_level]
+            features <- self$col_mdata[,!single_level]
 
             # SVD
             s <- corpcor:::fast.svd(self$dat - rowMeans(self$dat))
@@ -86,7 +104,7 @@ EDADataSet <- R6Class("EDADataSet",
 
             # for heatmaps, show binary/logical variables on one side of the heatmap and
             # other variables on the other side; first column (patient_id) is excluded.
-            binary_vars <- apply(self$col_metadata, 2, function(x) { length(unique(x)) }) == 2
+            binary_vars <- apply(self$col_mdata, 2, function(x) { length(unique(x)) }) == 2
 
             # additional arguments to heatmaply
             args <- list(
@@ -97,18 +115,18 @@ EDADataSet <- R6Class("EDADataSet",
             )
 
             # row and column annotations
-            if (ncol(self$col_metadata) == 1) {
-                metadata_col <- data.frame(self$col_metadata[private$col_ind])
-                colnames(metadata_col) <- colnames(self$col_metadata)
+            if (ncol(self$col_mdata) == 1) {
+                metadata_col <- data.frame(self$col_mdata[private$col_ind])
+                colnames(metadata_col) <- colnames(self$col_mdata)
 
                 args[['row_side_colors']] <- metadata_col
             } else {
                 if (sum(binary_vars) > 0) {
-                    args[['col_side_colors']] <- self$col_metadata[private$col_ind, binary_vars]
+                    args[['col_side_colors']] <- self$col_mdata[private$col_ind, binary_vars]
                 }
 
                 if (sum(!binary_vars) > 0) {
-                    args[['row_side_colors']] <- self$col_metadata[private$col_ind,!binary_vars]
+                    args[['row_side_colors']] <- self$col_mdata[private$col_ind,!binary_vars]
                 }
             }
 
@@ -144,11 +162,11 @@ EDADataSet <- R6Class("EDADataSet",
 
             # color (optional)
             if (!is.null(color_var)) {
-                df <- cbind(df, color_var=self$col_metadata[,color_var])
+                df <- cbind(df, color_var=self$col_mdata[,color_var])
                 plot_aes <- aes(color=color_var)
                 plot_labels <- labs(col=color_var)
             } else if (!is.null(private$color_var)) {
-                df <- cbind(df, color_var=self$col_metadata[,private$color_var])
+                df <- cbind(df, color_var=self$col_mdata[,private$color_var])
                 plot_aes <- aes(color=color_var)
                 plot_labels <- labs(col=private$color_var)
             } else {
@@ -157,7 +175,7 @@ EDADataSet <- R6Class("EDADataSet",
             }
 
             # PC1 vs PC2
-            ggplot(df, aes(pc1, pc2)) +
+            ggplot2::ggplot(df, aes(pc1, pc2)) +
                 geom_point(stat="identity", size=1, plot_aes) +
                 geom_text(aes(label=id), angle=45, size=1, vjust=2) +
                 xlab(xl) + ylab(yl) +
@@ -186,7 +204,7 @@ EDADataSet <- R6Class("EDADataSet",
             plot_labs <- private$get_plot_legend_labels(color_var, shape_var)
 
             # treatment response
-            ggplot(tsne_res, aes(x, y)) +
+            ggplot2::ggplot(tsne_res, aes(x, y)) +
                    geom_point(plot_aes, stat="identity", size=1) +
                    ggtitle(plot_title) +
                    plot_labs +
@@ -247,9 +265,9 @@ EDADataSet <- R6Class("EDADataSet",
             cat("=========================================\n")
         }
     ),
-    #
+    # ------------------------------------------------------------------------
     # private
-    #
+    # ------------------------------------------------------------------------
     private = list(
         # private params
         row_ind = NULL,
@@ -276,17 +294,17 @@ EDADataSet <- R6Class("EDADataSet",
 
         get_plot_color_column = function(color_var) {
             if (!is.null(color_var)) {
-                factor(as.character(self$col_metadata[,color_var]))
+                factor(as.character(self$col_mdata[,color_var]))
             } else if (!is.null(private$color_var)) {
-                factor(as.character(self$col_metadata[,private$color_var]))
+                factor(as.character(self$col_mdata[,private$color_var]))
             }
         },
 
         get_plot_shape_column = function(shape_var) {
             if (!is.null(shape_var)) {
-                factor(as.character(self$col_metadata[,shape_var]))
+                factor(as.character(self$col_mdata[,shape_var]))
             } else if (!is.null(private$shape_var)) {
-                factor(as.character(self$col_metadata[,private$shape_var]))
+                factor(as.character(self$col_mdata[,private$shape_var]))
             }
         },
 
@@ -355,7 +373,7 @@ EDADataSet <- R6Class("EDADataSet",
             }
 
             # get column variable to use for assigning colors
-            column_var <- as.numeric(factor(self$col_metadata[,color_var]))
+            column_var <- as.numeric(factor(self$col_mdata[,color_var]))
     
             # otherwise, assign colors based on the variable specified
             pal <- RColorBrewer::brewer.pal(9, color_pal)
@@ -369,14 +387,14 @@ EDADataSet <- R6Class("EDADataSet",
             if (is.null(shape_var)) {
                 return(NULL)
             }
-            as.numeric(factor(self$col_metadata[,shape_var]))
+            as.numeric(factor(self$col_mdata[,shape_var]))
         },
 
         get_var_labels = function(label_var) {
             if (is.null(label_var)) {
                 return(colnames(self$dat))
             }
-            self$col_metadata[,label_var]
+            self$col_mdata[,label_var]
         },
 
         # normalize dat / metadata order
@@ -405,12 +423,12 @@ EDADataSet <- R6Class("EDADataSet",
             metadata
         }
     ),
-    #
+    # ------------------------------------------------------------------------
     # active bindings
-    #
+    # ------------------------------------------------------------------------
     active = list(
         t = function() {
-            EDADataSet$new(t(self$dat), self$col_metadata, self$row_metadata)
+            EDADataSet$new(t(self$dat), self$col_mdata, self$row_mdata)
         }
     )
 )

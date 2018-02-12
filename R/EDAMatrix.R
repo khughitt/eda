@@ -1,11 +1,25 @@
+#' An S6 class representing a matrix dataset.
 #'
-#' EDAMatrix
+#' @section Arguments:
+#' \describe{
+#'   \item{dat}{An m x n dataset.}
+#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
+#'       \code{dat}.}
+#'   \item{row_mdata}{Data frame with rows corresponding to the column names of 
+#'       \code{dat}.}
+#' }
 #'
-EDAMatrix <- R6Class("EDAMatrix",
+#' @importFrom R6 R6Class
+#' @name EDAMatrix
+#' @export
+#'
+NULL
+
+EDAMatrix <- R6::R6Class("EDAMatrix",
     inherit = EDADataSet,
     public = list(
         # EDAMatrix constructor
-        initialize = function(dat, row_metadata=NULL, col_metadata=NULL,
+        initialize = function(dat, row_mdata=NULL, col_mdata=NULL,
                               row_maxn=Inf, row_maxr=1.0,
                               col_maxn=Inf, col_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
@@ -13,7 +27,7 @@ EDAMatrix <- R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            super$initialize(dat, row_metadata, col_metadata, row_maxn, row_maxr,
+            super$initialize(dat, row_mdata, col_mdata, row_maxn, row_maxr,
                              col_maxn, col_maxr, color_var, shape_var, label_var,
                              color_pal)
         },
