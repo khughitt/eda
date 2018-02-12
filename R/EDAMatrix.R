@@ -20,8 +20,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
     public = list(
         # EDAMatrix constructor
         initialize = function(dat, col_mdata=NULL, row_mdata=NULL,
-                              row_maxn=Inf, row_maxr=1.0,
                               col_maxn=Inf, col_maxr=1.0,
+                              row_maxn=Inf, row_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
                               color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
             # verify input data type and call parent constructor

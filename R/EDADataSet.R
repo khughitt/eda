@@ -62,7 +62,7 @@ EDADataSet <- R6Class("EDADataSet",
             obj <- self$clone()
             obj$dat <- log(obj$dat + 1)
             obj
-        }
+        },
 
         #' Measure the predictive power of each feature (col_mdata column)
         #' and the principle components of the dataset using a simple linear
@@ -75,11 +75,22 @@ EDADataSet <- R6Class("EDADataSet",
         #' @author V. Keith Hughitt, \email{khughitt@umd.edu}
         #'
         ###############################################################################
-        get_pca_feature_correlations = function() {
+        get_pca_feature_correlations = function(exclude=NULL) {
+            # If already computed, return cached result
+            if (!is.null(private$pca_feature_cor)) {
+                return(private$pca_feature_cor)
+            }
+
             # Drop any covariates with only a single level
             single_level <- apply(self$col_mdata, 2, function(x) {length(table(x))}) == 1
 
             features <- self$col_mdata[,!single_level]
+
+            # drop any undesired features
+            if (!is.null(exclude)) {
+                features <- features %>%
+                    select(-one_of(exclude))
+            }
 
             # SVD
             s <- corpcor:::fast.svd(self$dat - rowMeans(self$dat))
@@ -103,7 +114,10 @@ EDADataSet <- R6Class("EDADataSet",
             colnames(result) <- c('pc_var', 'pc_var_cum', colnames(features))
             rownames(result) <- paste0("PC", 1:nrow(result)) 
 
-            return(result)
+            # cache result and return
+            private$pca_feature_cor <- result
+
+            result
         },
 
         #
@@ -200,6 +214,44 @@ EDADataSet <- R6Class("EDADataSet",
                       axis.text.x=element_text(angle=-90))
         },
 
+        plot_pca_feature_correlations = function(num_pcs=6, ...) {
+            # compute pca feature correlations or retrieved cached version
+            if (!is.null(private$pca_feature_cor)) {
+                pca_cor <- private$pca_feature_cor
+            } else {
+                pca_cor <- self$get_pca_feature_correlations(...)
+            }
+
+            pca_cor <- pca_cor[1:num_pcs,]
+            pca_long <- cbind(PC=sprintf("PC%d (%0.2f%%)", 
+                                         1:nrow(pca_cor), pca_cor$pc_var), 
+                              reshape2::melt(pca_cor, id.vars=c('pc_var', 'pc_var_cum')))
+
+            ggplot(pca_long, aes(x=PC, y=variable)) + 
+                geom_tile(aes(fill=value)) + 
+                geom_text(aes(label=value), size=2, show.legend=FALSE) +
+                scale_fill_gradient(low="green", high="red") +
+                private$ggplot_theme() +
+                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
+                      axis.text.y=element_text(size=8)) + 
+                xlab("Principle Components (% var explained)") +
+                ylab("Features") +
+                guides(fill=guide_legend("R^2"))
+        },
+
+        get_tsne_clusters = function(k=10, ...) {
+            # perform t-sne and store results
+            if (is.null(private$tsne)) {
+                private$tsne <- Rtsne::Rtsne(t(self$dat), ...)
+            }
+            tsne_res <- as.data.frame(private$tsne$Y)
+            colnames(tsne_res) <- c('x', 'y')
+
+            # Cluster patients from t-sne results
+            kmeans_clusters <- kmeans(tsne_res, k)$cluster
+            factor(paste0('cluster_', kmeans_clusters))
+        },
+
         plot_tsne = function(plot_title='t-SNE', color_var=NULL, shape_var=NULL, ...) {
             # perform t-sne and store results
             if (is.null(private$tsne)) {
@@ -212,7 +264,7 @@ EDADataSet <- R6Class("EDADataSet",
             # add color and shape info
             tsne_res <- cbind(tsne_res,
                               color_var=private$get_plot_color_column(color_var),
-                              shape_var=private$get_plot_color_column(color_var))
+                              shape_var=private$get_plot_color_column(shape_var))
 
             plot_aes <- private$get_plot_aes(color_var, shape_var)
             plot_labs <- private$get_plot_legend_labels(color_var, shape_var)
@@ -284,16 +336,17 @@ EDADataSet <- R6Class("EDADataSet",
     # ------------------------------------------------------------------------
     private = list(
         # private params
-        row_ind = NULL,
-        col_ind = NULL,
+        row_ind   = NULL,
+        col_ind   = NULL,
         color_var = NULL,
         shape_var = NULL,
         label_var = NULL,
-        colors = NULL,
-        shapes = NULL,
-        labels = NULL,
-        ggplot_theme = NULL,
-        tsne   = NULL,
+        colors    = NULL,
+        shapes    = NULL,
+        labels    = NULL,
+        ggplot_theme    = NULL,
+        tsne            = NULL,
+        pca_feature_cor = NULL,
 
         # private methods
         get_subsample_indices = function(maxn, maxr, n) {
