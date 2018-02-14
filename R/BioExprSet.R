@@ -1,5 +1,11 @@
 #' An S6 class representing an Expression dataset
 #'
+#' BioExprSet is a simple class for interacting with biological expression
+#' data (e.g. from microarray or RNA-Seq experiments.) It can accept either
+#' a matrix and optional column/row metadata dataframes, or a Bioconductor
+#' ExpressionSet instance. Methods are provided for common transformations
+#' and visualizations.
+#'
 #' @section Arguments:
 #' \describe{
 #'   \item{dat}{matrix|ExpressionSet An expression dataset with rows corresponding
@@ -45,7 +51,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
                              color_pal, ggplot_theme)
         },
 
-        # class greeting
+        #' Prints an overview of the object instance
         print = function() {
             cat("=========================================\n")
             cat("=\n")
@@ -57,17 +63,27 @@ BioExprSet <- R6::R6Class("BioExprSet",
             cat("=========================================\n")
         },
 
-        # counts-per-million
+        #' Performs a counts-per-million (CPM) transformation.
+        #'
+        #' @return A CPM-transformed version of the BioExprSet instance.
         cpm = function() {
             obj <- self$clone()
             obj$dat <- sweep(obj$dat, 2, colSums(obj$dat), '/') * 1E6
             obj
         },
 
+        #' Log2 transforms data (adding 1 to ensure finite results).
+        #'
+        #' @return Log2-transformed version of the expression data.
         log2p = function() {
             self$log(2, offset=1)
         },
 
+        #' Plots a histogram of sample library sizes.
+        #'
+        #' @param bins Number of bins to use for histogram
+        #'
+        #' @return A ggplot instance.
         plot_libsizes = function(bins=50) {
             ggplot(aes(x=libsize), data=data.frame(libsize=colSums(self$dat))) +
                 geom_histogram(bins=bins, fill='#CCCCCC', color='#333333') +
@@ -75,7 +91,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
         }
     ),
     private = list(
-        # verify that input data is of type matrix
+        #' Verifies that input data is an acceptable format.
         check_input = function(dat) {
             if(!is.matrix(dat) && (class(dat) != 'ExpressionSet')) {
                 stop("Invalid input for BioExprSet: dat must be a matrix or ExpressionSet.")

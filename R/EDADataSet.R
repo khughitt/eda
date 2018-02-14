@@ -25,7 +25,7 @@ EDADataSet <- R6Class("EDADataSet",
         col_mdata = NULL,
         row_mdata = NULL,
 
-        # constructor
+        # EDADataset constructor
         initialize = function(dat, col_mdata=NULL, row_mdata=NULL, 
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
@@ -52,23 +52,40 @@ EDADataSet <- R6Class("EDADataSet",
             private$col_ind <- private$get_subsample_indices(col_maxn, col_maxr, ncol(dat))
         },
 
+        #' Clears any cached resuts and performs garbage collection to free up memory.
         clear_cache = function() {
             private$cache <- list()
             invisible(gc())
         },
 
+        #' Log-transforms data
+        #'
+        #' @param base Numeric logarithm base to use (default: e)
+        #' @param offset Numeric offset to apply to data before taking the
+        #'     logarithm (default: 0)
+        #'
+        #' @return A log-transformed version of the object.
         log = function(base=exp(1), offset=0) {
             obj <- private$clone_()
             obj$dat <- log(obj$dat + offset, base)
             obj
         },
 
+        #' Log(x + 1) transforms data
+        #'
+        #' @return A log(x + 1) transformed version of the object.
         log1p = function() {
             obj <- private$clone_()
             obj$dat <- log(obj$dat + 1)
             obj
         },
 
+        #' Applies a filter to rows of the dataset
+        #'
+        #' @param mask Logical vector of length equal to the number of rows in
+        #'      the dataset.
+        #'
+        #' @return A filtered version of the original EDADataSet object.
         filter_rows = function(mask) {
             obj <- private$clone_()
             obj$dat <- obj$dat[mask,] 
@@ -76,6 +93,12 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
+        #' Applies a filter to columns of the dataset
+        #'
+        #' @param mask Logical vector of length equal to the number of columns 
+        #'     in the dataset.
+        #'
+        #' @return A filtered version of the original EDADataSet object.
         filter_cols = function(mask) {
             obj <- private$clone_()
             obj$dat <- obj$dat[,mask] 
@@ -83,6 +106,17 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
+        #' Removes column outliers from the dataset
+        #'
+        #' Computes pairwise correlations between all columns in the dataset.
+        #' Columns whose median pairwise correlation with all other columns
+        #' is greater than \code{num_sd} standard deviations from the average
+        #' median correlation are removed.
+        #'
+        #' @param num_sd Number of standard deviations to use to determine
+        #'      outliers.
+        #'
+        #' @return A filtered version of the original EDADataSet object.
         filter_col_outliers = function(num_sd=2) {
             obj <- private$clone_()
             cor_mat <- cor(obj$dat)
@@ -91,6 +125,17 @@ EDADataSet <- R6Class("EDADataSet",
             obj$filter_cols(median_column_cors > cutoff)
         },
 
+        #' Removes row outliers from the dataset
+        #'
+        #' Computes pairwise correlations between all rows in the dataset.
+        #' rows whose median pairwise correlation with all other rows
+        #' is greater than \code{num_sd} standard deviations from the average
+        #' median correlation are removed.
+        #'
+        #' @param num_sd Number of standard deviations to use to determine
+        #'      outliers.
+        #'
+        #' @return A filtered version of the original EDADataSet object.
         filter_row_outliers = function(num_sd=2) {
             obj <- private$clone_()
             cor_mat <- cor(obj$dat)
@@ -99,17 +144,22 @@ EDADataSet <- R6Class("EDADataSet",
             obj$filter_rows(median_row_cors > cutoff)
         },
 
-        #' Measure the predictive power of each feature (col_mdata column)
-        #' and the principle components of the dataset using a simple linear
-        #' model.
+        #' Computes correlations between data principle components and column
+        #' metadata entries (features).
+        #' 
+        #' Measures the predictive power of each feature (column in 
+        #' \code{obj$col_mdata}) and the principle components (PCs) of the 
+        #' dataset using a simple linear model.
         #'
         #' Based on code adapted from cbcbSEQ
-        #' (https://github.com/kokrah/cbcbSEQ/) originally written by Kwame Okrah.
-        #
-        #' @author Kwame Okrah
-        #' @author V. Keith Hughitt, \email{khughitt@umd.edu}
+        #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
+        #' Kwame Okrah.
         #'
-        ###############################################################################
+        #' @param exclude Vector of strings indicating metadata columns which
+        #' should be excluded from the analysis.
+        #'
+        #' @return Dataframe containing feature/PC correlations, as well as
+        #'      information about the amount of variance explained by each PC.
         get_pca_feature_correlations = function(exclude=NULL) {
             # If already computed, return cached result
             if (!is.null(private$cache[['pca_feature_cor']])) {
@@ -155,15 +205,26 @@ EDADataSet <- R6Class("EDADataSet",
             result
         },
 
-        #
+        ######################################################################
         # plotting methods
-        #
-        plot_heatmap = function(...) { 
+        ######################################################################
+        
+        #' Correlation heatmap. 
+        #'
+        #' Generates a correlation heatmap depicting the pairwise column 
+        #' correlations in the data.
+        #'
+        #' @param method String name of correlation method to use.
+        #' @param ... Additional arguments
+        #'
+        #' @seealso \code{cor} for more information about supported correlation 
+        #'      methods.
+        plot_cor_heatmap = function(method='pearson', ...) { 
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
             # generate correlation matrix
-            cor_mat <- cor(self$dat[indices$row, indices$col])
+            cor_mat <- cor(self$dat[indices$row, indices$col], method=method)
 
             # for heatmaps, show binary/logical variables on one side of the heatmap and
             # other variables on the other side; first column (patient_id) is excluded.
@@ -241,18 +302,18 @@ EDADataSet <- R6Class("EDADataSet",
             # shape (optional)
             if (!is.null(shape_var)) {
                 df <- cbind(df, shape_var=self$col_mdata[,shape_var])
-                plot_aes    <- modifyList(plot_aes, aes(color=shape_var))
+                plot_aes    <- modifyList(plot_aes, aes(shape=shape_var))
                 plot_labels <- modifyList(plot_labels, labs(col=shape_var))
             } else if (!is.null(private$shape_var)) {
                 df <- cbind(df, shape_var=self$col_mdata[,private$shape_var])
-                plot_aes    <- modifyList(plot_aes, aes(color=shape_var))
+                plot_aes    <- modifyList(plot_aes, aes(shape=shape_var))
                 plot_labels <- modifyList(plot_labels, labs(col=private$shape_var))
             }
 
             # PC1 vs PC2
             ggplot2::ggplot(df, aes(pc1, pc2)) +
                 geom_point(stat="identity", size=1, plot_aes) +
-                geom_text(aes(label=id), angle=45, size=1, vjust=2) +
+                geom_text(aes(label=id), angle=45, size=0.5, vjust=2) +
                 xlab(xl) + ylab(yl) +
                 ggtitle(plot_title) +
                 private$ggplot_theme() +
@@ -310,6 +371,7 @@ EDADataSet <- R6Class("EDADataSet",
 
             # add color and shape info
             tsne_res <- cbind(tsne_res,
+                              id=colnames(self$dat),
                               color_var=private$get_plot_color_column(color_var),
                               shape_var=private$get_plot_color_column(shape_var))
 
@@ -319,6 +381,7 @@ EDADataSet <- R6Class("EDADataSet",
             # treatment response
             ggplot2::ggplot(tsne_res, aes(x, y)) +
                    geom_point(plot_aes, stat="identity", size=1) +
+                   geom_text(aes(label=id), angle=45, size=0.5, vjust=2) +
                    ggtitle(plot_title) +
                    plot_labs +
                    private$ggplot_theme() +

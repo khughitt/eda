@@ -1,5 +1,10 @@
 #' An S6 class representing a matrix dataset.
 #'
+#' EDAMatrix is a helper class for wrapping data matrices, with optional
+#' support for row and column datadata. Methods are provided for common
+#' exploratory data analysis summary statistics, transformations, and 
+#' visualizations.
+#'
 #' @section Arguments:
 #' \describe{
 #'   \item{dat}{An m x n dataset.}
@@ -18,7 +23,7 @@ NULL
 EDAMatrix <- R6::R6Class("EDAMatrix",
     inherit = EDADataSet,
     public = list(
-        # EDAMatrix constructor
+        #' EDAMatrix constructor
         initialize = function(dat, col_mdata=NULL, row_mdata=NULL,
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
@@ -32,7 +37,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                              color_pal, ggplot_theme)
         },
 
-        # class greeting
+        #' Prints an overview of the object instance
         print = function() {
             cat("=========================================\n")
             cat("=\n")
@@ -45,7 +50,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         }
     ),
     private = list(
-        # verify that input data is of type matrix
+        #' Verifies that input data is of type matrix
         check_input = function(dat) {
             if(!is.matrix(dat)) {
                 stop("Invalid input for EDAMatrix: dat must be a matrix.")
