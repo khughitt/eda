@@ -81,13 +81,43 @@ BioExprSet <- R6::R6Class("BioExprSet",
 
         #' Plots a histogram of sample library sizes.
         #'
+        #' Generates a histogram of sample library sizes (sum of expression
+        #' levels within each column/sample). 
+        #'
         #' @param bins Number of bins to use for histogram
         #'
         #' @return A ggplot instance.
-        plot_libsizes = function(bins=50) {
-            ggplot(aes(x=libsize), data=data.frame(libsize=colSums(self$dat))) +
-                geom_histogram(bins=bins, fill='#CCCCCC', color='#333333') +
+        plot_libsize_hist = function(...) {
+            libsizes <- data.frame(libsize=colSums(self$dat))
+            ggplot(aes(x=libsize), data=libsizes) +
+                geom_histogram(..., fill='#CCCCCC', color='#333333') +
                 private$ggplot_theme()
+        },
+
+        #' Plots bar graph of sample library sizes
+        #'
+        #' Generates a bargraph plot of sample library sizes (sum of expression
+        #' levels within each column/sample). Each sample is shown as a separate
+        #' bar in the plot.
+        #'
+        #' @return A ggplot instance.
+        plot_libsize_bargraph = function(color_var=NULL) {
+            # data frame with sample library sizes
+            libsizes <- data.frame(libsize=colSums(self$dat))
+
+            libsizes$color_var <- private$get_plot_color_column(color_var)
+
+            plot_aes  <- private$get_plot_aes(color_var)
+            plot_labs <- private$get_plot_legend_labels(color_var)
+
+            ggplot(aes(x=rownames(libsizes), y=libsize), data=libsizes) +
+                geom_bar(aes(fill=color_var), stat='identity') + 
+                   plot_labs +
+                   xlab("Samples") +
+                   ylab("Total expression") +
+                   private$ggplot_theme() +
+                   theme(axis.text.x=element_text(angle=90),
+                         legend.text=element_text(size=8))
         }
     ),
     private = list(
