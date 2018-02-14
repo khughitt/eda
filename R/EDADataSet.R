@@ -208,6 +208,21 @@ EDADataSet <- R6Class("EDADataSet",
         ######################################################################
         # plotting methods
         ######################################################################
+
+        #' Column kernel density plot
+        #'
+        #' Plots densities for each column in the dataset. This is most useful
+        #' when you are interested in similarties or differences in 
+        #' distributions across columns, for a relatively small number of 
+        #' columns.
+        #'
+        plot_col_densities = function() {
+            dat <- setNames(melt(self$dat), c('row', 'col', 'val'))
+
+            ggplot(dat, aes(x=val, color=col)) +
+                geom_density() +
+                private$ggplot_theme()
+        },
         
         #' Correlation heatmap. 
         #'
