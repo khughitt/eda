@@ -27,7 +27,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
     inherit = EDAMatrix,
     public = list(
         # BioExprSet constructor
-        initialize = function(dat, col_mdata=NULL, row_mdata=NULL,
+        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title='',
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
@@ -46,7 +46,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
                 dat <- exprs(dat)
             }
 
-            super$initialize(dat, col_mdata, row_mdata, col_maxn, col_maxr,
+            super$initialize(dat, col_mdata, row_mdata, title, col_maxn, col_maxr,
                              row_maxn, row_maxr, color_var, shape_var, label_var,
                              color_pal, ggplot_theme)
         },
@@ -105,13 +105,13 @@ BioExprSet <- R6::R6Class("BioExprSet",
             # data frame with sample library sizes
             libsizes <- data.frame(libsize=colSums(self$dat))
 
-            libsizes$color_var <- private$get_plot_color_column(color_var)
+            libsizes$color_var <- private$get_aes_var(color_var)
 
-            plot_aes  <- private$get_plot_aes(color_var)
+            plot_aes  <- private$get_plot_aes(color_var=color_var)
             plot_labs <- private$get_plot_legend_labels(color_var)
 
             ggplot(aes(x=rownames(libsizes), y=libsize), data=libsizes) +
-                geom_bar(aes(fill=color_var), stat='identity') + 
+                geom_bar(plot_aes, stat='identity') + 
                    plot_labs +
                    xlab("Samples") +
                    ylab("Total expression") +

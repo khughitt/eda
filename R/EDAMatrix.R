@@ -24,7 +24,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
     inherit = EDADataSet,
     public = list(
         #' EDAMatrix constructor
-        initialize = function(dat, col_mdata=NULL, row_mdata=NULL,
+        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title='',
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
@@ -32,7 +32,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            super$initialize(dat, col_mdata, row_mdata, col_maxn, col_maxr,
+            super$initialize(dat, col_mdata, row_mdata, title, col_maxn, col_maxr,
                              row_maxn, row_maxr, color_var, shape_var, label_var,
                              color_pal, ggplot_theme)
         },

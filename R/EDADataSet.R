@@ -26,7 +26,7 @@ EDADataSet <- R6Class("EDADataSet",
         row_mdata = NULL,
 
         # EDADataset constructor
-        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, 
+        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title="",
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
                               color_var=NULL, shape_var=NULL, label_var=NULL,
@@ -47,6 +47,8 @@ EDADataSet <- R6Class("EDADataSet",
 
             private$ggplot_theme <- ggplot_theme
 
+            private$title  <- title
+
             # determine subsampling indices
             private$row_ind <- private$get_subsample_indices(row_maxn, row_maxr, nrow(dat))
             private$col_ind <- private$get_subsample_indices(col_maxn, col_maxr, ncol(dat))
@@ -56,6 +58,45 @@ EDADataSet <- R6Class("EDADataSet",
         clear_cache = function() {
             private$cache <- list()
             invisible(gc())
+        },
+
+        #' Detects column outliers in the dataset
+        #'
+        #' Computes pairwise correlations between all columns in the dataset.
+        #' Columns whose median pairwise correlation with all other columns
+        #' is greater than \code{num_sd} standard deviations from the average
+        #' median correlation are considered to be outliers.
+        #'
+        #' @param num_sd Number of standard deviations to use to determine
+        #'      outliers.
+        #'
+        #' @return Character vector or column ids for columns with low
+        #'     average pairwise correlations.
+        detect_col_outliers = function(num_sd=2) {
+            # TODO: include correlation in results?
+            cor_mat <- cor(self$dat)
+            median_column_cors <- apply(cor_mat, 1, median)
+            cutoff <- mean(median_column_cors) - num_sd * sd(median_column_cors)
+            colnames(self$dat)[median_column_cors < cutoff]
+        },
+
+        #' Detects row outliers in the dataset
+        #'
+        #' Computes pairwise correlations between all rows in the dataset.
+        #' Rows whose median pairwise correlation with all other rows
+        #' is greater than \code{num_sd} standard deviations from the average
+        #' median correlation are considered to be outliers.
+        #'
+        #' @param num_sd Number of standard deviations to use to determine
+        #'      outliers.
+        #'
+        #' @return Character vector or row ids for rows with low
+        #'     average pairwise correlations.
+        detect_row_outliers = function(num_sd=2) {
+            cor_mat <- cor(t(self$dat))
+            median_row_cors <- apply(cor_mat, 1, median)
+            cutoff <- mean(median_row_cors) - num_sd * sd(median_row_cors)
+            rownames(self$dat)[median_row_cors < cutoff]
         },
 
         #' Log-transforms data
@@ -138,7 +179,7 @@ EDADataSet <- R6Class("EDADataSet",
         #' @return A filtered version of the original EDADataSet object.
         filter_row_outliers = function(num_sd=2) {
             obj <- private$clone_()
-            cor_mat <- cor(obj$dat)
+            cor_mat <- cor(t(obj$dat))
             median_row_cors <- apply(cor_mat, 1, median)
             cutoff <- mean(median_row_cors) - num_sd * sd(median_row_cors)
             obj$filter_rows(median_row_cors > cutoff)
@@ -155,26 +196,18 @@ EDADataSet <- R6Class("EDADataSet",
         #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
         #' Kwame Okrah.
         #'
+        #' @param include Vector of strings indicating metadata columns which
+        #' should be included in the analysis; takes priority over exclude
+        #' if both are set.
         #' @param exclude Vector of strings indicating metadata columns which
         #' should be excluded from the analysis.
         #'
         #' @return Dataframe containing feature/PC correlations, as well as
         #'      information about the amount of variance explained by each PC.
-        get_pca_feature_correlations = function(exclude=NULL) {
+        get_pca_feature_correlations = function(include=NULL, exclude=NULL) {
             # If already computed, return cached result
             if (!is.null(private$cache[['pca_feature_cor']])) {
                 return(private$cache[['pca_feature_cor']])
-            }
-
-            # Drop any covariates with only a single level
-            single_level <- apply(self$col_mdata, 2, function(x) {length(table(x))}) == 1
-
-            features <- self$col_mdata[,!single_level]
-
-            # drop any undesired features
-            if (!is.null(exclude)) {
-                features <- features %>%
-                    select(-one_of(exclude))
             }
 
             # SVD
@@ -189,18 +222,66 @@ EDADataSet <- R6Class("EDADataSet",
                 pc_var_cum=cumsum(pc_var) 
             )
 
-            # Measure feature correlations
-            for (i in 1:ncol(features)) {
-                feature_cor <- function(y) {
-                    round(summary(lm(y~features[,i]))$r.squared*100, 2)
-                }
-                result <- cbind(result, apply(s$v, 2, feature_cor))
+            # determine which features to include
+            if (!is.null(include)) {
+                include <- include
+            } else if (!is.null(exclude)) {
+                include <- colnames(self$col_mdata)[!colnames(self$col_mdata) %in% exclude]
+            } else {
+                include <- colnames(self$col_mdata)
             }
-            colnames(result) <- c('pc_var', 'pc_var_cum', colnames(features))
+
+            # measure feature correlations and add to result data frame
+            result <- cbind(result, private$compute_feature_correlations(s$v, include))
             rownames(result) <- paste0("PC", 1:nrow(result)) 
 
             # cache result and return
             private$cache[['pca_feature_cor']] <- result
+
+            result
+        },
+
+        #' Computes correlations between data principle components and column
+        #' metadata entries (features).
+        #' 
+        #' Measures the predictive power of each feature (column in 
+        #' \code{obj$col_mdata}) and the t-SNE projected axes of the 
+        #' dataset using a simple linear model.
+        #'
+        #' Based on code adapted from cbcbSEQ
+        #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
+        #' Kwame Okrah.
+        #'
+        #' @param include Vector of strings indicating metadata columns which
+        #' should be included in the analysis.
+        #' @param exclude Vector of strings indicating metadata columns which
+        #' should be excluded from the analysis.
+        #'
+        #' @return Dataframe containing feature/t-SNE axes correlations.
+        get_tsne_feature_correlations = function(include=NULL, exclude=NULL, ...) {
+            # If already computed, return cached result
+            if (!is.null(private$cache[['tsne_feature_cor']])) {
+                return(private$cache[['tsne_feature_cor']])
+            }
+
+            # t-SNE
+            tsne <- Rtsne::Rtsne(t(bset$dat), ...)
+
+            # determine which features to include
+            if (!is.null(include)) {
+                include <- include
+            } else if (!is.null(exclude)) {
+                include <- colnames(self$col_mdata)[!colnames(self$col_mdata) %in% exclude]
+            } else {
+                include <- colnames(self$col_mdata)
+            }
+
+            # measure feature correlations and add to result data frame
+            result <- private$compute_feature_correlations(tsne$Y, exclude)
+            rownames(result) <- paste0("Dim", 1:nrow(result)) 
+
+            # cache result and return
+            private$cache[['tsne_feature_cor']] <- result
 
             result
         },
@@ -253,22 +334,25 @@ EDADataSet <- R6Class("EDADataSet",
                 subplot_heights=c(0.35, 0.65)
             )
 
-            # row and column annotations
-            if (ncol(self$col_mdata) == 1) {
-                metadata_col <- data.frame(self$col_mdata[indices$col])
-                colnames(metadata_col) <- colnames(self$col_mdata)
-
-                params[['row_side_colors']] <- metadata_col
-            } else {
-                if (sum(binary_vars) > 0) {
-                    params[['col_side_colors']] <- self$col_mdata[indices$col, binary_vars]
-                }
-
-                if (sum(!binary_vars) > 0) {
-                    params[['row_side_colors']] <- self$col_mdata[indices$col,!binary_vars]
-                }
+            # col colors (binary variables)
+            if (sum(binary_vars) == 1) {
+                col_dat <- data.frame(self$col_mdata[binary_vars])
+                params[['col_side_colors']] <- setNames(col_dat, 
+                                                        names(self$col_mdata)[binary_vars])
+            } else if (sum(binary_vars) > 1) {
+                params[['col_side_colors']] <- self$col_mdata[indices$col, binary_vars]
             }
 
+            # row colors (everything else)
+            if (sum(!binary_vars) == 1) {
+                row_dat <- data.frame(self$col_mdata[!binary_vars])
+                params[['row_side_colors']] <- setNames(row_dat, 
+                                                        names(self$col_mdata)[!binary_vars])
+            } else if (sum(!binary_vars) > 1) {
+                params[['row_side_colors']] <- self$col_mdata[indices$col, !binary_vars]
+            }
+
+            # set color subplot width and height
             if ('row_side_colors' %in% names(params)) {
                 params[['subplot_widths']] <- c(0.55, 0.3, 0.15)
             }
@@ -276,7 +360,7 @@ EDADataSet <- R6Class("EDADataSet",
                 params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
             }
 
-            do.call(heatmaply, params)
+            do.call(heatmaply::heatmaply, params)
         },
 
         #
@@ -288,8 +372,9 @@ EDADataSet <- R6Class("EDADataSet",
         # pc_x integer PC # to plot along x-axis (default: 1)
         # pc_y integer PC # to plot along x-axis (default: 2)
         #
-        plot_pca = function(pc_x=1, pc_y=2, scale=FALSE, color_var=NULL, 
-                            shape_var=NULL, plot_title='') {
+        plot_pca = function(pc_x=1, pc_y=2, scale=FALSE, title=NULL, 
+                            color_var=NULL, shape_var=NULL, text_labels=FALSE) {
+            # perform pca
             prcomp_results <- prcomp(t(self$dat), scale=scale)
             var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
 
@@ -304,11 +389,11 @@ EDADataSet <- R6Class("EDADataSet",
             if (!is.null(color_var)) {
                 df <- cbind(df, color_var=self$col_mdata[,color_var])
                 plot_aes    <- aes(color=color_var)
-                plot_labels <- labs(col=color_var)
+                plot_labels <- labs(color=color_var)
             } else if (!is.null(private$color_var)) {
                 df <- cbind(df, color_var=self$col_mdata[,private$color_var])
                 plot_aes    <- aes(color=color_var)
-                plot_labels <- labs(col=private$color_var)
+                plot_labels <- labs(color=private$color_var)
             } else {
                 plot_aes    <- aes() 
                 plot_labels <- list()
@@ -318,23 +403,33 @@ EDADataSet <- R6Class("EDADataSet",
             if (!is.null(shape_var)) {
                 df <- cbind(df, shape_var=self$col_mdata[,shape_var])
                 plot_aes    <- modifyList(plot_aes, aes(shape=shape_var))
-                plot_labels <- modifyList(plot_labels, labs(col=shape_var))
+                plot_labels <- modifyList(plot_labels, labs(shape=shape_var))
             } else if (!is.null(private$shape_var)) {
                 df <- cbind(df, shape_var=self$col_mdata[,private$shape_var])
                 plot_aes    <- modifyList(plot_aes, aes(shape=shape_var))
-                plot_labels <- modifyList(plot_labels, labs(col=private$shape_var))
+                plot_labels <- modifyList(plot_labels, labs(shape=private$shape_var))
+            }
+
+            # plot title
+            if (is.null(title)) {
+                title <- sprintf("PCA: %s", private$title)
             }
 
             # PC1 vs PC2
-            ggplot2::ggplot(df, aes(pc1, pc2)) +
+            plt <- ggplot2::ggplot(df, aes(pc1, pc2)) +
                 geom_point(stat="identity", size=1, plot_aes) +
-                geom_text(aes(label=id), angle=45, size=0.5, vjust=2) +
                 xlab(xl) + ylab(yl) +
-                ggtitle(plot_title) +
+                ggtitle(title) +
                 private$ggplot_theme() +
                 plot_labels +
                 theme(axis.ticks=element_blank(), 
                       axis.text.x=element_text(angle=-90))
+
+            # text labels
+            if (text_labels) {
+                plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
+            }
+            plt
         },
 
         plot_pca_feature_correlations = function(num_pcs=6, ...) {
@@ -362,6 +457,29 @@ EDADataSet <- R6Class("EDADataSet",
                 guides(fill=guide_legend("R^2"))
         },
 
+        plot_tsne_feature_correlations = function(exclude=NULL, ...) {
+            # compute t-SNE feature correlations or retrieved cached version
+            if (!is.null(private$cache[['tsne_feature_cor']])) {
+                tsne_cor <- private$cache[['tsne_feature_cor']]
+            } else {
+                tsne_cor <- self$get_tsne_feature_correlations(exclude, ...)
+            }
+
+            tsne_long <- reshape2::melt(tsne_cor)
+            colnames(tsne_long) <- c('dim', 'variable', 'value')
+
+            ggplot(tsne_long, aes(x=dim, y=variable)) + 
+                geom_tile(aes(fill=value)) + 
+                geom_text(aes(label=value), size=2, show.legend=FALSE) +
+                scale_fill_gradient(low="green", high="red") +
+                private$ggplot_theme() +
+                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
+                      axis.text.y=element_text(size=8)) + 
+                xlab("t-SNE dimension") +
+                ylab("Features") +
+                guides(fill=guide_legend("R^2"))
+        },
+
         get_tsne_clusters = function(k=10, ...) {
             # perform t-sne and store results
             if (is.null(private$cache[['tsne']])) {
@@ -375,7 +493,8 @@ EDADataSet <- R6Class("EDADataSet",
             factor(paste0('cluster_', kmeans_clusters))
         },
 
-        plot_tsne = function(plot_title='t-SNE', color_var=NULL, shape_var=NULL, ...) {
+        plot_tsne = function(title=NULL, color_var=NULL, shape_var=NULL, 
+                             text_labels=FALSE, ...) {
             # perform t-sne and store results
             if (is.null(private$cache[['tsne']])) {
                 private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
@@ -387,22 +506,34 @@ EDADataSet <- R6Class("EDADataSet",
             # add color and shape info
             tsne_res <- cbind(tsne_res,
                               id=colnames(self$dat),
-                              color_var=private$get_plot_color_column(color_var),
-                              shape_var=private$get_plot_color_column(shape_var))
+                              color_var=private$get_aes_var(color_var),
+                              shape_var=private$get_aes_var(shape_var, 
+                                                            target='shape_var'))
 
-            plot_aes <- private$get_plot_aes(color_var, shape_var)
+            plot_aes <- private$get_plot_aes(color_var=color_var, shape_var=shape_var)
             plot_labs <- private$get_plot_legend_labels(color_var, shape_var)
 
+            # plot title
+            if (is.null(title)) {
+                title <- sprintf("t-SNE: %s", private$title)
+            }
+
             # treatment response
-            ggplot2::ggplot(tsne_res, aes(x, y)) +
+            plt <- ggplot2::ggplot(tsne_res, aes(x, y)) +
                    geom_point(plot_aes, stat="identity", size=1) +
-                   geom_text(aes(label=id), angle=45, size=0.5, vjust=2) +
-                   ggtitle(plot_title) +
+                   ggtitle(title) +
                    plot_labs +
                    private$ggplot_theme() +
                    theme(axis.ticks=element_blank(), 
                          axis.text.x=element_text(angle=-90),
-                         legend.text=element_text(size=8))
+                         legend.text=element_text(size=7))
+
+            # text labels
+            if (text_labels) {
+                plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
+            }
+
+            plt
         },
 
         #' Plot median pairwise variable correlations
@@ -470,6 +601,7 @@ EDADataSet <- R6Class("EDADataSet",
         shapes       = NULL,
         labels       = NULL,
         ggplot_theme = NULL,
+        title        = NULL,
         cache        = list(),
 
         # private methods
@@ -477,6 +609,39 @@ EDADataSet <- R6Class("EDADataSet",
             obj <- self$clone()
             obj$clear_cache()
             obj
+        },
+
+        #' Computes correlations between axes of a data projection (PCA or
+        #' t-SNE) and column metadata.
+        #' 
+        #' @param mat Numeric projected data matrix
+        #' @param include Vector of strings indicating metadata columns which
+        #' should be included in the analysis.
+        #'
+        #' @return Dataframe of feature x project axes dependencies
+        compute_feature_correlations = function(mat, include) {
+            # drop any covariates with only a single level
+            single_level <- apply(self$col_mdata, 2, function(x) {length(table(x))}) == 1
+            features <- self$col_mdata[,!single_level]
+
+            # drop any undesired features
+            if (!is.null(include)) {
+                features <- features %>%
+                    select(one_of(include))
+            }
+
+            # construct linear model to measure dependence of each projected
+            # axis on column metadata
+            result <- matrix(0, nrow=ncol(mat), ncol=ncol(features))
+
+            for (i in 1:ncol(features)) {
+                feature_cor <- function(y) {
+                    round(summary(lm(y~features[,i]))$r.squared*100, 2)
+                }
+                result[,i] <- apply(mat, 2, feature_cor)
+            }
+            colnames(result) <- colnames(features)
+            result
         },
 
         get_subsample_indices = function(maxn, maxr, n) {
@@ -514,26 +679,32 @@ EDADataSet <- R6Class("EDADataSet",
             result
         },
 
-        get_plot_color_column = function(color_var) {
-            if (!is.null(color_var)) {
-                factor(as.character(self$col_mdata[,color_var]))
-            } else if (!is.null(private$color_var)) {
-                factor(as.character(self$col_mdata[,private$color_var]))
+        get_aes_var = function(var_name, target='color_var') {
+            # default value
+            if (target == 'color_var') {
+                default_var <- private$color_var
+            } else if (target == 'shape_var') {
+                default_var <- private$shape_var
             }
-        },
 
-        get_plot_shape_column = function(shape_var) {
-            if (!is.null(shape_var)) {
-                factor(as.character(self$col_mdata[,shape_var]))
-            } else if (!is.null(private$shape_var)) {
-                factor(as.character(self$col_mdata[,private$shape_var]))
+            # check if user specified a new variable to use
+            if (!is.null(var_name)) {
+                vals <- self$col_mdata[,var_name]
+            } else if (!is.null(default_var)) {
+                vals <- self$col_mdata[,default_var]
+            } else {
+                return(NULL)
             }
+
+            # cast factor variables
+            if (!(is.numeric(vals) || is.logical(vals))) {
+                vals <- factor(as.character(vals)) 
+            }
+            vals
         },
 
         get_plot_color_aes = function(color_var=NULL) {
-            if (!is.null(color_var)) {
-                aes(color=color_var)
-            } else if (!is.null(private$color_var)) {
+            if (!is.null(color_var) || !is.null(private$color_var)) {
                 aes(color=color_var)
             } else {
                 aes() 
@@ -541,10 +712,8 @@ EDADataSet <- R6Class("EDADataSet",
         },
 
         get_plot_shape_aes = function(shape_var=NULL) {
-            if (!is.null(shape_var)) {
-                aes(shape=shape_var)
-            } else if (!is.null(private$shape_var)) {
-                aes(shape=shape_var)
+            if (!is.null(shape_var) || !is.null(private$shape_var)) {
+                aes(shape=factor(shape_var))
             } else {
                 aes() 
             }
@@ -552,18 +721,28 @@ EDADataSet <- R6Class("EDADataSet",
 
         # determine ggplot2 color and shape aesthetics to use
         get_plot_aes = function(color_var=NULL, shape_var=NULL) {
-            color_aes <- private$get_plot_color_aes(color_var)
-            shape_aes <- private$get_plot_shape_aes(shape_var)
+            # list of function arguments passed in
+            args <- names(as.list(match.call()))
+            include_color <- 'color_var' %in% args
+            include_shape <- 'shape_var' %in% args
 
-            # combine color and shape aesthetics and return
-            modifyList(color_aes, shape_aes)
+            plot_aes <- aes()
+
+            if (include_color) {
+                plot_aes <- modifyList(plot_aes, private$get_plot_color_aes(color_var))
+            }
+            if (include_shape) {
+                plot_aes <- modifyList(plot_aes, private$get_plot_shape_aes(shape_var))
+            }
+
+            plot_aes
         },
 
         get_plot_color_legend_label = function(color_var=NULL) {
             if (!is.null(color_var)) {
-                labs(col=color_var)
+                labs(color=color_var)
             } else if (!is.null(private$color_var)) {
-                labs(col=private$color_var)
+                labs(color=private$color_var)
             } else {
                 list()
             }

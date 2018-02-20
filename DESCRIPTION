@@ -9,6 +9,7 @@ Depends: R (>= 3.4.3)
 Imports:
     corpcor,
     ggplot2,
+    heatmaply,
     R6,
     RColorBrewer,
     Rtsne,
