@@ -286,6 +286,45 @@ EDADataSet <- R6Class("EDADataSet",
             result
         },
 
+        #' Summarizes overall characteristics of a dataset
+        #' 
+        #'
+        summary = function(markdown=FALSE, subsample=TRUE) {
+            # collection summary info
+            x <- self.dat
+
+            # list to store summary info
+            info <- list()
+
+            # overall dataset
+            info[['dat_range']] <- range(x, na.rm=TRUE)
+            info[['dat_num_nas']] <- sum(is.na(x))
+            info[['dat_num_zeros']] <- sum(x == 0)
+            info[['dat_quartiles']] <- quantile(x, na.rm=TRUE)
+
+            # rows
+            info[['row_outliers']] <- self$detect_row_outliers()
+
+            # columns
+            info[['col_types']] <- table(sapply(x, class))
+            info[['col_outliers']] <- self$detect_col_outliers()
+
+            # row & column correlations
+            if (subsample) {
+                info[['col_cor_mat']] <- cor(x[private$row_ind, private$col_ind])
+                info[['row_cor_mat']] <- cor(t(x[private$row_ind, private$col_ind]))
+            } else {
+                info[['col_cor_mat']] <- cor(x)
+                info[['row_cor_mat']] <- cor(t(x))
+            }
+            
+            # display using selected output format
+            if (markdown) {
+            } else {
+                private$print_summary(info)
+            }
+        },
+
         ######################################################################
         # plotting methods
         ######################################################################
