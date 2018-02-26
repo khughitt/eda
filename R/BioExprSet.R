@@ -27,11 +27,15 @@ BioExprSet <- R6::R6Class("BioExprSet",
     inherit = EDAMatrix,
     public = list(
         # BioExprSet constructor
-        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title='',
-                              col_maxn=Inf, col_maxr=1.0,
-                              row_maxn=Inf, row_maxr=1.0,
-                              color=NULL, shape=NULL, label=NULL,
-                              color_pal='Set1', ggplot_theme=theme_bw) { 
+        initialize = function(dat, 
+                              row_mdata=NULL, col_mdata=NULL, 
+                              row_ids='rownames', col_ids='colnames',
+                              row_mdata_ids='rownames', col_mdata_ids='rownames',
+                              row_color=NULL, row_shape=NULL, row_labels=NULL,
+                              col_color=NULL, col_shape=NULL, col_labels=NULL,
+                              row_maxn=Inf, row_max_ratio=1.0, row_ind=NULL,
+                              col_maxn=Inf, col_max_ratio=1.0, col_ind=NULL,
+                              color_pal='Set1', title="", ggplot_theme=theme_bw) { 
             # verify input data type and call parent constructor
             private$check_input(dat)
 
@@ -46,9 +50,12 @@ BioExprSet <- R6::R6Class("BioExprSet",
                 dat <- exprs(dat)
             }
 
-            super$initialize(dat, col_mdata, row_mdata, title, col_maxn, col_maxr,
-                             row_maxn, row_maxr, color, shape, label,
-                             color_pal, ggplot_theme)
+            super$initialize(dat, row_mdata, col_mdata, row_ids, col_ids,
+                             row_mdata_ids, col_mdata_ids, row_color, row_shape,
+                             row_labels, col_color, col_shape, col_labels,
+                             row_maxn, row_max_ratio, row_ind,
+                             col_maxn, col_max_ratio, col_ind,
+                             color_pal, title, ggplot_theme)
         },
 
         #' Prints an overview of the object instance

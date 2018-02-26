@@ -26,37 +26,42 @@ EDADataSet <- R6Class("EDADataSet",
         row_mdata = NULL,
 
         # EDADataset constructor
-        initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title="",
-                              col_maxn=Inf, col_maxr=1.0,
-                              row_maxn=Inf, row_maxr=1.0,
-                              color=NULL, shape=NULL, labels=NULL,
-                              color_pal='Set1', ggplot_theme=theme_bw) { 
+        initialize = function(dat, 
+                              row_mdata=NULL, col_mdata=NULL, 
+                              row_ids='rownames', col_ids='colnames',
+                              row_mdata_ids='rownames', col_mdata_ids='rownames',
+                              row_color=NULL, row_shape=NULL, row_labels=NULL,
+                              col_color=NULL, col_shape=NULL, col_labels=NULL,
+                              row_maxn=Inf, row_max_ratio=1.0, row_ind=NULL,
+                              col_maxn=Inf, col_max_ratio=1.0, col_ind=NULL,
+                              color_pal='Set1', title="", ggplot_theme=theme_bw) { 
 
-            # check for column and row id's
-            if (is.null(colnames(dat))) {
-                colnames(dat) <- 1:ncol(dat)                  
-            }
-            if (is.null(rownames(dat))) {
-                rownames(dat) <- 1:nrow(dat)                  
-            }
+            # check to make sure row and columns identifiers are stored as
+            # row and column names
+            self$dat <- private$normalize_data_ids(dat, row_ids, col_ids)
 
-            # params
-            self$dat <- dat
-            self$col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
-            self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
+            # store row and column metadata, if present
+            self$col_mdata <- private$normalize_metadata_order(col_mdata, colnames(self$dat))
+            self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(self$dat))
             
-            # default variables to use for plot color, shape, and labels
-            private$color  <- color
-            private$shape  <- shape
-            private$labels <- labels
+            # default variables to use for plot color, shape, and labels when
+            # visualizing either columns or rows in the dataset
+            private$row_color  <- row_color
+            private$row_shape  <- row_shape
+            private$row_labels <- row_labels
+
+            private$col_color  <- col_color
+            private$col_shape  <- col_shape
+            private$col_labels <- col_labels
+
+            # determine subsampling indices, if requested
+            private$row_ind <- private$get_subsample_indices(row_maxn, row_max_ratio, 
+                                                             row_ind, nrow(dat))
+            private$col_ind <- private$get_subsample_indices(col_maxn, col_max_ratio,
+                                                             col_ind, ncol(dat))
 
             private$ggplot_theme <- ggplot_theme
-
             private$title  <- title
-
-            # determine subsampling indices
-            private$row_ind <- private$get_subsample_indices(row_maxn, row_maxr, nrow(dat))
-            private$col_ind <- private$get_subsample_indices(col_maxn, col_maxr, ncol(dat))
         },
 
         #' Clears any cached resuts and performs garbage collection to free 
@@ -684,9 +689,12 @@ EDADataSet <- R6Class("EDADataSet",
         # private params
         row_ind      = NULL,
         col_ind      = NULL,
-        color        = NULL,
-        shape        = NULL,
-        labels       = NULL,
+        row_color    = NULL,
+        row_shape    = NULL,
+        row_labels   = NULL,
+        col_color    = NULL,
+        col_shape    = NULL,
+        col_labels   = NULL,
         ggplot_theme = NULL,
         title        = NULL,
         cache        = list(),
@@ -731,7 +739,14 @@ EDADataSet <- R6Class("EDADataSet",
             result
         },
 
-        get_subsample_indices = function(maxn, maxr, n) {
+        get_subsample_indices = function(maxn, maxr, ind, n) {
+            # if indices are explictly provided, use them
+            if (!is.null(ind)) {
+                return(ind)
+            }
+
+            # otherwise, if maxn or maxr, specified, use to randomly select
+            # row/column indices to use for memory-/cpu-intensive operations
             maxn <- min(maxn, round(maxr * n))
             
             if (maxn < n) {
@@ -748,8 +763,8 @@ EDADataSet <- R6Class("EDADataSet",
             # row indices
             if (!is.null(args$row_maxn)) {
                 result[['row']] <- sample(nrow(self$dat), args$row_maxn) 
-            } else if (!is.null(args$row_maxr) ){
-                result[['row']] <- sample(nrow(self$dat), round(nrow(self$dat) * args$row_maxr))
+            } else if (!is.null(args$row_max_ratio) ){
+                result[['row']] <- sample(nrow(self$dat), round(nrow(self$dat) * args$row_max_ratio))
             } else {
                 result[['row']] <- private$row_ind
             }
@@ -757,8 +772,8 @@ EDADataSet <- R6Class("EDADataSet",
             # col indices
             if (!is.null(args$col_maxn)) {
                 result[['col']] <- sample(ncol(self$dat), args$col_maxn) 
-            } else if (!is.null(args$col_maxr) ){
-                result[['col']] <- sample(ncol(self$dat), round(ncol(self$dat) * args$col_maxr))
+            } else if (!is.null(args$col_max_ratio) ){
+                result[['col']] <- sample(ncol(self$dat), round(ncol(self$dat) * args$col_max_ratio))
             } else {
                 result[['col']] <- private$col_ind
             }
@@ -854,6 +869,8 @@ EDADataSet <- R6Class("EDADataSet",
 
             # if specified as a function argument, override default color
             if (!is.null(color) && (color != FALSE)) {
+                # color variable can either correspond to a column in the
+                # dataset itself, or in the 
                 res[['color']]  <- self$col_mdata[,color]
                 res[['aes']]    <- aes(color=color)
                 res[['labels']] <- labs(color=color)
@@ -936,20 +953,72 @@ EDADataSet <- R6Class("EDADataSet",
             self$col_mdata[,label]
         },
 
+        #' Normalizes handling of data row and column identifiers
+        #'
+        #' Checks dataset row and column identifiers and converts them to row 
+        #' and column names, respectively, if they are not already stored there.
+        #'
+        #' @param dat Dataset
+        #' @param row_ids Column id or number where row identifiers are stored.
+        #' @param col_ids Row id or number where column identifiers are stored.
+        #'
+        #' @param Dataset with identifiers as rows and columns
+        normalize_data_ids = function(dat, row_ids, col_ids) {
+            # row ids
+            if (row_ids != 'rownames') {
+                # column number
+                if (is.numeric(row_ids)) {
+                    rownames(dat) <- dat[,row_ids]
+                    dat <- dat[,-row_ids]
+                } else if (row_ids %in% colnames(dat)) {
+                    # column name
+                    ind <- which(colnames(dat) == row_ids)
+                    rownames(dat) <- dat[,ind]
+                    dat <- dat[,-ind]
+                }
+            }
+
+            # column ids
+            if (col_ids != 'colnames') {
+                # row number
+                if (is.numeric(col_ids)) {
+                    colnames(dat) <- dat[col_ids,]
+                    dat <- dat[-col_ids,]
+                } else if (col_ids %in% colnames(dat)) {
+                    # column name
+                    ind <- which(rownames(dat) == col_ids)
+                    colnames(dat) <- dat[ind,]
+                    dat <- dat[-ind,]
+                }
+            }
+
+            # if either row or column id's are missing, assign arbitrary numeric
+            # identifiers; required for some plotting, etc. functionality.
+            if (is.null(colnames(dat))) {
+                colnames(dat) <- 1:ncol(dat)                  
+            }
+            if (is.null(rownames(dat))) {
+                rownames(dat) <- 1:nrow(dat)                  
+            }
+
+            # return normalized dataset
+            dat
+        },
+
         # normalize dat / metadata order
-        normalize_metadata_order = function(metadata, to_match) {
+        normalize_metadata_order = function(metadata, ids) {
             # If no metadata was provided, do nothing
             if (is.null(metadata)) {
                 return(NULL)
             }
 
             # if already in the right order, return as-is
-            if (all(rownames(metadata) == to_match)) {
+            if (all(rownames(metadata) == ids)) {
                 return(metadata)
             }
 
             # otherwise match metadata row order to row/col names specified
-            ind <- order(match(rownames(metadata), to_match))
+            ind <- order(match(rownames(metadata), ids))
 
             # multi-column metadata
             if (ncol(metadata) > 1) {
@@ -972,7 +1041,15 @@ EDADataSet <- R6Class("EDADataSet",
     # ------------------------------------------------------------------------
     active = list(
         t = function() {
-            EDADataSet$new(t(self$dat), self$col_mdata, self$row_mdata)
+            EDADataSet$new(t(self$dat), 
+                           row_mdata=self$col_mdata,
+                           col_mdata=self$row_mdata,
+                           row_color=self$col_color, row_shape=self$col_shape, 
+                           row_labels=self$col_labels, 
+                           col_color=self$row_color, col_shape=self$row_shape, 
+                           col_labels=self$row_labels, 
+                           row_ind=self$col_ind, col_ind=self$row_ind,
+                           color_pal=self$color_pal, ggplot_theme=self$ggplot_theme)
         }
     )
 )
