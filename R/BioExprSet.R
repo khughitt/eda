@@ -30,8 +30,8 @@ BioExprSet <- R6::R6Class("BioExprSet",
         initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title='',
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
-                              color_var=NULL, shape_var=NULL, label_var=NULL,
-                              color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
+                              color=NULL, shape=NULL, label=NULL,
+                              color_pal='Set1', ggplot_theme=theme_bw) { 
             # verify input data type and call parent constructor
             private$check_input(dat)
 
@@ -47,7 +47,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
             }
 
             super$initialize(dat, col_mdata, row_mdata, title, col_maxn, col_maxr,
-                             row_maxn, row_maxr, color_var, shape_var, label_var,
+                             row_maxn, row_maxr, color, shape, label,
                              color_pal, ggplot_theme)
         },
 
@@ -87,11 +87,27 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #' @param bins Number of bins to use for histogram
         #'
         #' @return A ggplot instance.
-        plot_libsize_hist = function(...) {
-            libsizes <- data.frame(libsize=colSums(self$dat))
-            ggplot(aes(x=libsize), data=libsizes) +
-                geom_histogram(..., fill='#CCCCCC', color='#333333') +
+        plot_libsize_hist = function(color=NULL, title=NULL) {
+            dat <- data.frame(libsize=colSums(self$dat))
+
+            styles <- private$get_geom_histogram_styles(color)
+
+            if (!is.null(styles$color)) {
+                dat <- cbind(dat, color=styles$color)
+            }
+            if (is.null(title)) {
+                title <- sprintf("Library sizes: %s", private$title)
+            }
+
+            plt <- ggplot(aes(x=libsize), data=dat) +
+                geom_histogram(styles$aes) +
                 private$ggplot_theme()
+
+			# legend labels
+			if (length(styles$labels) > 0) {
+				plt <- plt + styles$labels
+			}
+            plt
         },
 
         #' Plots bar graph of sample library sizes
@@ -101,23 +117,32 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #' bar in the plot.
         #'
         #' @return A ggplot instance.
-        plot_libsize_bargraph = function(color_var=NULL) {
+        plot_libsize_bargraph = function(color=NULL, title=NULL) {
             # data frame with sample library sizes
-            libsizes <- data.frame(libsize=colSums(self$dat))
+            dat <- data.frame(libsize=colSums(self$dat))
 
-            libsizes$color_var <- private$get_aes_var(color_var)
+            styles <- private$get_geom_histogram_styles(color)
 
-            plot_aes  <- private$get_plot_aes(color_var=color_var)
-            plot_labs <- private$get_plot_legend_labels(color_var)
+            if (!is.null(styles$color)) {
+                dat <- cbind(dat, color=styles$color)
+            }
+            if (is.null(title)) {
+                title <- sprintf("Library sizes: %s", private$title)
+            }
 
-            ggplot(aes(x=rownames(libsizes), y=libsize), data=libsizes) +
-                geom_bar(plot_aes, stat='identity') + 
-                   plot_labs +
+            plt <- ggplot(aes(x=rownames(libsizes), y=libsize), data=dat) +
+                geom_bar(styles$aes, stat='identity') + 
                    xlab("Samples") +
                    ylab("Total expression") +
                    private$ggplot_theme() +
                    theme(axis.text.x=element_text(angle=90),
                          legend.text=element_text(size=8))
+
+			# legend labels
+			if (length(styles$labels) > 0) {
+				plt <- plt + styles$labels
+			}
+            plt
         }
     ),
     private = list(

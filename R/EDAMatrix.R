@@ -27,13 +27,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title='',
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
-                              color_var=NULL, shape_var=NULL, label_var=NULL,
+                              color=NULL, shape=NULL, label=NULL,
                               color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
             # verify input data type and call parent constructor
             private$check_input(dat)
 
             super$initialize(dat, col_mdata, row_mdata, title, col_maxn, col_maxr,
-                             row_maxn, row_maxr, color_var, shape_var, label_var,
+                             row_maxn, row_maxr, color, shape, label,
                              color_pal, ggplot_theme)
         },
 

@@ -29,21 +29,26 @@ EDADataSet <- R6Class("EDADataSet",
         initialize = function(dat, col_mdata=NULL, row_mdata=NULL, title="",
                               col_maxn=Inf, col_maxr=1.0,
                               row_maxn=Inf, row_maxr=1.0,
-                              color_var=NULL, shape_var=NULL, label_var=NULL,
-                              color_pal='Set1', ggplot_theme=ggplot2::theme_bw) { 
+                              color=NULL, shape=NULL, labels=NULL,
+                              color_pal='Set1', ggplot_theme=theme_bw) { 
+
+            # check for column and row id's
+            if (is.null(colnames(dat))) {
+                colnames(dat) <- 1:ncol(dat)                  
+            }
+            if (is.null(rownames(dat))) {
+                rownames(dat) <- 1:nrow(dat)                  
+            }
+
             # params
             self$dat <- dat
             self$col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
             self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
             
             # default variables to use for plot color, shape, and labels
-            private$color_var <- color_var
-            private$shape_var <- shape_var
-            private$label_var <- label_var
-
-            private$colors <- private$get_var_colors(color_var, color_pal)
-            private$shapes <- private$get_var_shapes(shape_var)
-            private$labels <- private$get_var_labels(label_var)
+            private$color  <- color
+            private$shape  <- shape
+            private$labels <- labels
 
             private$ggplot_theme <- ggplot_theme
 
@@ -54,7 +59,8 @@ EDADataSet <- R6Class("EDADataSet",
             private$col_ind <- private$get_subsample_indices(col_maxn, col_maxr, ncol(dat))
         },
 
-        #' Clears any cached resuts and performs garbage collection to free up memory.
+        #' Clears any cached resuts and performs garbage collection to free 
+        #' up memory.
         clear_cache = function() {
             private$cache <- list()
             invisible(gc())
@@ -277,7 +283,7 @@ EDADataSet <- R6Class("EDADataSet",
             }
 
             # measure feature correlations and add to result data frame
-            result <- private$compute_feature_correlations(tsne$Y, exclude)
+            result <- private$compute_feature_correlations(tsne$Y, include)
             rownames(result) <- paste0("Dim", 1:nrow(result)) 
 
             # cache result and return
@@ -336,12 +342,34 @@ EDADataSet <- R6Class("EDADataSet",
         #' distributions across columns, for a relatively small number of 
         #' columns.
         #'
-        plot_col_densities = function() {
-            dat <- setNames(melt(self$dat), c('row', 'col', 'val'))
+        #' @param color Variable to color density curves by. If not is
+        #' specified, uses variable specified at object construction time,
+        #' or else, uses a separate color for each column.
+        #'
+        #' @return ggplot plot instance.
+        #'
+        plot_col_densities = function(color=NULL, title="") {
+            dat <- setNames(melt(self$dat), c('row', 'column', 'val'))
+            styles <- private$get_geom_density_styles(color)
 
-            ggplot(dat, aes(x=val, color=col)) +
-                geom_density() +
+            if (!is.null(styles$color)) {
+                dat <- cbind(dat, color=styles$color)
+            }
+            if (is.null(title)) {
+                title <- sprintf("Column densities: %s", private$title)
+            }
+
+            plt <- ggplot(dat, aes(x=val)) +
+                geom_density(styles$aes) +
+                ggtitle(title) +
                 private$ggplot_theme()
+
+			# legend labels
+			if (length(styles$labels) > 0) {
+				plt <- plt + styles$labels
+			}
+
+			plt
         },
         
         #' Correlation heatmap. 
@@ -402,51 +430,36 @@ EDADataSet <- R6Class("EDADataSet",
             do.call(heatmaply::heatmaply, params)
         },
 
-        #
-        # plot_pca
-        #
-        # Helper function for generating PCA plots
-        #
-        # dat  matrix Data matrix to generate PCA plot for
-        # pc_x integer PC # to plot along x-axis (default: 1)
-        # pc_y integer PC # to plot along x-axis (default: 2)
-        #
-        plot_pca = function(pc_x=1, pc_y=2, scale=FALSE, title=NULL, 
-                            color_var=NULL, shape_var=NULL, text_labels=FALSE) {
+        #' plot_pca
+        #'
+        #' Helper function for generating PCA plots
+        #'
+        #' @param dat Data matrix to generate PCA plot for
+        #' @param pcx integer PC number to plot along x-axis (default: 1)
+        #' @param pcy integer PC number to plot along x-axis (default: 2)
+        #'
+        #' @return ggplot plot instance
+        plot_pca = function(pcx=1, pcy=2, scale=FALSE,  color=NULL,
+                            shape=NULL, title=NULL, text_labels=FALSE) {
             # perform pca
             prcomp_results <- prcomp(t(self$dat), scale=scale)
             var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
 
-            xl <- sprintf("PC%d (%.2f%% variance)", pc_x, var_explained[pc_x])
-            yl <- sprintf("PC%d (%.2f%% variance)", pc_y, var_explained[pc_y])
+            xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
+            yl <- sprintf("PC%d (%.2f%% variance)", pcy, var_explained[pcy])
 
-            df <- data.frame(id=colnames(self$dat), 
-                             pc1=prcomp_results$x[,pc_x],
-                             pc2=prcomp_results$x[,pc_y])
+            dat <- data.frame(id=colnames(self$dat), 
+                             pc1=prcomp_results$x[,pcx],
+                             pc2=prcomp_results$x[,pcy])
 
-            # color (optional)
-            if (!is.null(color_var)) {
-                df <- cbind(df, color_var=self$col_mdata[,color_var])
-                plot_aes    <- aes(color=color_var)
-                plot_labels <- labs(color=color_var)
-            } else if (!is.null(private$color_var)) {
-                df <- cbind(df, color_var=self$col_mdata[,private$color_var])
-                plot_aes    <- aes(color=color_var)
-                plot_labels <- labs(color=private$color_var)
-            } else {
-                plot_aes    <- aes() 
-                plot_labels <- list()
+            # get color/shape styles
+            styles <- private$get_geom_point_styles(color, shape)
+
+            if (!is.null(styles$color)) {
+                dat <- cbind(dat, color=styles$color)
             }
-
-            # shape (optional)
-            if (!is.null(shape_var)) {
-                df <- cbind(df, shape_var=self$col_mdata[,shape_var])
-                plot_aes    <- modifyList(plot_aes, aes(shape=shape_var))
-                plot_labels <- modifyList(plot_labels, labs(shape=shape_var))
-            } else if (!is.null(private$shape_var)) {
-                df <- cbind(df, shape_var=self$col_mdata[,private$shape_var])
-                plot_aes    <- modifyList(plot_aes, aes(shape=shape_var))
-                plot_labels <- modifyList(plot_labels, labs(shape=private$shape_var))
+            if (!is.null(styles$shape)) {
+                dat <- cbind(dat, shape=styles$shape)
             }
 
             # plot title
@@ -455,12 +468,11 @@ EDADataSet <- R6Class("EDADataSet",
             }
 
             # PC1 vs PC2
-            plt <- ggplot2::ggplot(df, aes(pc1, pc2)) +
-                geom_point(stat="identity", size=1, plot_aes) +
+            plt <- ggplot(dat, aes(pc1, pc2)) +
+                geom_point(stat="identity", size=1, styles$aes) +
                 xlab(xl) + ylab(yl) +
                 ggtitle(title) +
                 private$ggplot_theme() +
-                plot_labels +
                 theme(axis.ticks=element_blank(), 
                       axis.text.x=element_text(angle=-90))
 
@@ -468,26 +480,44 @@ EDADataSet <- R6Class("EDADataSet",
             if (text_labels) {
                 plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
             }
+
+			# legend labels
+			if (length(styles$labels) > 0) {
+				plt <- plt + styles$labels
+			}
             plt
         },
 
-        plot_pca_feature_correlations = function(num_pcs=6, ...) {
+		#' Plots PCA / feature correlations as a colored grid.
+		#'
+		#' @param num_pcs Number of principle components to include (default: 6)
+        #' @param exclude Features (column metadata variables) to exclude from 
+        #'     the analysis.
+        #' @param low_color String indicating color to use for low correlation
+        #'     values (default: green)
+        #' @param high_color String indicating color to use for high correlation
+        #'     values (default: red)
+		#'
+		#' @return ggplot plot instance
+        plot_pca_feature_correlations = function(num_pcs=6, include=NULL, 
+                                                 exclude=NULL, low_color='green',
+											     high_color='red', ...) {
             # compute pca feature correlations or retrieved cached version
             if (!is.null(private$cache[['pca_feature_cor']])) {
                 pca_cor <- private$cache[['pca_feature_cor']]
             } else {
-                pca_cor <- self$get_pca_feature_correlations(...)
+                pca_cor <- self$get_pca_feature_correlations(include, exclude)
             }
 
             pca_cor <- pca_cor[1:num_pcs,]
             pca_long <- cbind(PC=sprintf("PC%d (%0.2f%%)", 
                                          1:nrow(pca_cor), pca_cor$pc_var), 
-                              reshape2::melt(pca_cor, id.vars=c('pc_var', 'pc_var_cum')))
+                              melt(pca_cor, id.vars=c('pc_var', 'pc_var_cum')))
 
             ggplot(pca_long, aes(x=PC, y=variable)) + 
                 geom_tile(aes(fill=value)) + 
                 geom_text(aes(label=value), size=2, show.legend=FALSE) +
-                scale_fill_gradient(low="green", high="red") +
+                scale_fill_gradient(low=low_color, high=high_color) +
                 private$ggplot_theme() +
                 theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
                       axis.text.y=element_text(size=8)) + 
@@ -496,21 +526,33 @@ EDADataSet <- R6Class("EDADataSet",
                 guides(fill=guide_legend("R^2"))
         },
 
-        plot_tsne_feature_correlations = function(exclude=NULL, ...) {
+		#' Plots t-SNE / feature correlations as a colored grid.
+		#'
+        #' @param exclude Features (column metadata variables) to exclude from 
+        #'     the analysis.
+        #' @param low_color String indicating color to use for low correlation
+        #'     values (default: green)
+        #' @param high_color String indicating color to use for high correlation
+        #'     values (default: red)
+		#'
+		#' @return ggplot plot instance
+		plot_tsne_feature_correlations = function(include=NULL, exclude=NULL,
+												  low_color='green', 
+												  high_color='red', ...) {
             # compute t-SNE feature correlations or retrieved cached version
             if (!is.null(private$cache[['tsne_feature_cor']])) {
                 tsne_cor <- private$cache[['tsne_feature_cor']]
             } else {
-                tsne_cor <- self$get_tsne_feature_correlations(exclude, ...)
+                tsne_cor <- self$get_tsne_feature_correlations(include, exclude, ...)
             }
 
-            tsne_long <- reshape2::melt(tsne_cor)
+            tsne_long <- melt(tsne_cor)
             colnames(tsne_long) <- c('dim', 'variable', 'value')
 
             ggplot(tsne_long, aes(x=dim, y=variable)) + 
                 geom_tile(aes(fill=value)) + 
                 geom_text(aes(label=value), size=2, show.legend=FALSE) +
-                scale_fill_gradient(low="green", high="red") +
+                scale_fill_gradient(low=low_color, high=high_color) +
                 private$ggplot_theme() +
                 theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
                       axis.text.y=element_text(size=8)) + 
@@ -532,25 +574,27 @@ EDADataSet <- R6Class("EDADataSet",
             factor(paste0('cluster_', kmeans_clusters))
         },
 
-        plot_tsne = function(title=NULL, color_var=NULL, shape_var=NULL, 
+        plot_tsne = function(color=NULL, shape=NULL, title=NULL, 
                              text_labels=FALSE, ...) {
             # perform t-sne and store results
             if (is.null(private$cache[['tsne']])) {
                 private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
             }
+            dat <- as.data.frame(private$cache[['tsne']]$Y)
+            colnames(dat) <- c('x', 'y')
 
-            tsne_res <- as.data.frame(private$cache[['tsne']]$Y)
-            colnames(tsne_res) <- c('x', 'y')
+            # add column ids
+            dat <- cbind(dat, id=colnames(self$dat))
 
-            # add color and shape info
-            tsne_res <- cbind(tsne_res,
-                              id=colnames(self$dat),
-                              color_var=private$get_aes_var(color_var),
-                              shape_var=private$get_aes_var(shape_var, 
-                                                            target='shape_var'))
+            # get color/shape styles
+            styles <- private$get_geom_point_styles(color, shape)
 
-            plot_aes <- private$get_plot_aes(color_var=color_var, shape_var=shape_var)
-            plot_labs <- private$get_plot_legend_labels(color_var, shape_var)
+            if (!is.null(styles$color)) {
+                dat <- cbind(dat, color=styles$color)
+            }
+            if (!is.null(styles$shape)) {
+                dat <- cbind(dat, shape=styles$shape)
+            }
 
             # plot title
             if (is.null(title)) {
@@ -558,10 +602,9 @@ EDADataSet <- R6Class("EDADataSet",
             }
 
             # treatment response
-            plt <- ggplot2::ggplot(tsne_res, aes(x, y)) +
-                   geom_point(plot_aes, stat="identity", size=1) +
+            plt <- ggplot2(dat, aes(x, y)) +
+                   geom_point(styles$aes, stat="identity", size=1) +
                    ggtitle(title) +
-                   plot_labs +
                    private$ggplot_theme() +
                    theme(axis.ticks=element_blank(), 
                          axis.text.x=element_text(angle=-90),
@@ -572,6 +615,10 @@ EDADataSet <- R6Class("EDADataSet",
                 plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
             }
 
+			# legend labels
+			if (length(styles$labels) > 0) {
+				plt <- plt + styles$labels
+			}
             plt
         },
 
@@ -582,7 +629,7 @@ EDADataSet <- R6Class("EDADataSet",
         #' @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #'
         #' @return None
-        plot_var_correlations = function (main="", method='pearson',
+        plot_var_correlations = function (color=NULL, title="", method='pearson',
                                           mar=c(12,6,4,6)) {
             # compute pairwise variable correlations
             median_pairwise_cor <- apply(cor(self$dat * 1.0, method=method), 1, median)
@@ -596,9 +643,13 @@ EDADataSet <- R6Class("EDADataSet",
             ylimit <- c(pmin(min(median_pairwise_cor), cutoff), 
                         max(median_pairwise_cor))
 
+            # get color properties
+			color_vector <- get_var_colors(color)
+			label_vector <- get_var_labels()
+
             # variable labels
-            if (!all(colnames(self$dat) == private$labels)) {
-                var_labels <- sprintf("%s (%s)", colnames(self$dat), private$labels)
+            if (!all(colnames(self$dat) == label_vector)) {
+                var_labels <- sprintf("%s (%s)", colnames(self$dat), label_vector)
             } else {
                 var_labels <- colnames(self$dat)
             }
@@ -606,8 +657,8 @@ EDADataSet <- R6Class("EDADataSet",
             # render plot
             par(mar=mar)
             plot(median_pairwise_cor, xaxt="n", ylim=ylimit,
-                 ylab="Median Pairwise Correlation", xlab="", main=main,
-                 col=private$colors, pch=16, cex=2.2)
+                 ylab="Median Pairwise Correlation", xlab="", main=title,
+                 col=color_vector, pch=16, cex=2.2)
             axis(side=1, at=seq(along=median_pairwise_cor),
                  labels=var_labels, las=2)
             abline(h=cutoff, lty=2)
@@ -633,11 +684,8 @@ EDADataSet <- R6Class("EDADataSet",
         # private params
         row_ind      = NULL,
         col_ind      = NULL,
-        color_var    = NULL,
-        shape_var    = NULL,
-        label_var    = NULL,
-        colors       = NULL,
-        shapes       = NULL,
+        color        = NULL,
+        shape        = NULL,
         labels       = NULL,
         ggplot_theme = NULL,
         title        = NULL,
@@ -718,104 +766,156 @@ EDADataSet <- R6Class("EDADataSet",
             result
         },
 
-        get_aes_var = function(var_name, target='color_var') {
-            # default value
-            if (target == 'color_var') {
-                default_var <- private$color_var
-            } else if (target == 'shape_var') {
-                default_var <- private$shape_var
-            }
-
-            # check if user specified a new variable to use
-            if (!is.null(var_name)) {
-                vals <- self$col_mdata[,var_name]
-            } else if (!is.null(default_var)) {
-                vals <- self$col_mdata[,default_var]
-            } else {
-                return(NULL)
-            }
-
-            # cast factor variables
-            if (!(is.numeric(vals) || is.logical(vals))) {
-                vals <- factor(as.character(vals)) 
-            }
-            vals
+        #' Generates ggplot aesthetics for density plots 
+        #'
+        #' @param color Color variable as passed into plot function call
+        #'
+        #' @return List of style information
+        get_geom_density_styles = function(color) {
+            # list to store style properties
+            res <- list(aes=aes(), labels=list())
+            private$add_color_styles(res, color)
         },
 
-        get_plot_color_aes = function(color_var=NULL) {
-            if (!is.null(color_var) || !is.null(private$color_var)) {
-                aes(color=color_var)
-            } else {
-                aes() 
-            }
+        #' Generates ggplot aesthetics for histogram plots
+        #'
+        #' @param color Color variable as passed into plot function call
+        #'
+        #' @return List of style information
+        get_geom_histogram_styles = function(color) {
+            # list to store style properties
+            res <- list(aes=aes(), labels=list())
+            private$add_color_styles(res, color)
         },
 
-        get_plot_shape_aes = function(shape_var=NULL) {
-            if (!is.null(shape_var) || !is.null(private$shape_var)) {
-                aes(shape=factor(shape_var))
-            } else {
-                aes() 
-            }
+        #' Generates ggplot aesthetics for a geom_point plot
+        #'
+        #' @param color Color variable as passed into plot function call
+        #' @param shape Shape variable as passed into plot function call
+        #'
+        #' @return List of geom_point style information
+        get_geom_point_styles = function(color, shape) {
+            # list to store style properties
+            res <- list(
+                aes=aes(),
+                labels=list()
+            )
+            res <- private$add_color_styles(res, color)
+            res <- private$add_shape_styles(res, shape)
+
+            res
         },
 
-        # determine ggplot2 color and shape aesthetics to use
-        get_plot_aes = function(color_var=NULL, shape_var=NULL) {
-            # list of function arguments passed in
-            args <- names(as.list(match.call()))
-            include_color <- 'color_var' %in% args
-            include_shape <- 'shape_var' %in% args
+        #' Determines color-related style information to use for a plot
+        #'
+        #' @param styles List of color-related style info
+        #' @param color Color variable passed into plot function call
+        add_color_styles = function(styles, color) {
+            color_info <- private$get_color_styles(color)
 
-            plot_aes <- aes()
+            styles[['color']] <- color_info[['color']]
 
-            if (include_color) {
-                plot_aes <- modifyList(plot_aes, private$get_plot_color_aes(color_var))
-            }
-            if (include_shape) {
-                plot_aes <- modifyList(plot_aes, private$get_plot_shape_aes(shape_var))
-            }
-
-            plot_aes
+			# update styles with color info
+			if (length(color_info[['aes']]) > 0) {
+				styles[['aes']] <- modifyList(color_info[['aes']], styles[['aes']])
+				styles[['labels']] <- modifyList(color_info[['labels']], styles[['labels']])
+			}
+            styles
         },
 
-        get_plot_color_legend_label = function(color_var=NULL) {
-            if (!is.null(color_var)) {
-                labs(color=color_var)
-            } else if (!is.null(private$color_var)) {
-                labs(color=private$color_var)
-            } else {
-                list()
+        #' Determines shape-related style information to use for a plot
+        #'
+        #' @param styles List of shape-related style info
+        #' @param shape shape variable passed into plot function call
+        add_shape_styles = function(styles, shape) {
+            shape_info <- private$get_shape_styles(shape)
+
+            styles[['shape']] <- shape_info[['shape']]
+
+			# update styles with shape info
+			if (length(shape_info[['aes']]) > 0) {
+				styles[['aes']] <- modifyList(shape_info[['aes']], styles[['aes']])
+				styles[['labels']] <- modifyList(styles[['labels']], shape_info[['labels']])
+			}
+            styles
+        },
+
+        #' Returns a list of color-related style information
+        #'
+        #' @param color Color variable as passed into plot function call
+        #' 
+        #' @return list List of color-related properties
+        get_color_styles = function(color) {
+            res <- list(
+				color  = NULL,
+				aes    = aes(),
+				labels = list()
+			)
+
+            # if specified as a function argument, override default color
+            if (!is.null(color) && (color != FALSE)) {
+                res[['color']]  <- self$col_mdata[,color]
+                res[['aes']]    <- aes(color=color)
+                res[['labels']] <- labs(color=color)
+            } else if (is.null(color) && !is.null(private$color)) {
+                # otherwise, use object-level default value
+                res[['color']] <- self$col_mdata[,private$color]
+                res[['aes']] <- aes(color=color)
+                res[['labels']] <- labs(color=private$color)
             }
+            
+            res
         },
 
-        get_plot_shape_legend_label = function(shape_var=NULL) {
-            if (!is.null(shape_var)) {
-                labs(shape=shape_var)
-            } else if (!is.null(private$shape_var)) {
-                labs(shape=private$shape_var)
-            } else {
-                list()
+        #' Returns a list of shape-related style information
+        #'
+        #' @param shape Shape variable as passed into plot function call
+        #' 
+        #' @return list List of shape-related properties
+        get_shape_styles = function(shape) {
+            res <- list(
+				shape  = NULL,
+				aes    = aes(),
+				labels = list()
+			)
+
+            # if specified as a function argument, override default shape
+            if (!is.null(shape) && (shape != FALSE)) {
+                res[['shape']]  <- self$col_mdata[,shape]
+                res[['aes']]    <- aes(shape=shape)
+                res[['labels']] <- labs(shape=shape)
+            } else if (is.null(shape) && !is.null(private$shape)) {
+                # otherwise, use object-level default value
+                res[['shape']] <- self$col_mdata[,private$shape]
+                res[['aes']] <- aes(shape=shape)
+                res[['labels']] <- labs(shape=private$shape)
             }
+            
+            res
         },
 
-        # determine ggplot2 color and shape aesthetics to use
-        get_plot_legend_labels = function(color_var=NULL, shape_var=NULL) {
-            color_label <- private$get_plot_color_legend_label(color_var)
-            shape_label <- private$get_plot_shape_legend_label(shape_var)
-
-            modifyList(color_label, shape_label)
-        },
-
-        # expects a categorical column variable
-        get_var_colors = function(color_var, color_pal) {
+		#' Returns a vector of color codes associated with the specified
+		#' variable.
+		#'
+		#' @param color Variable to use for assigning colors.
+		#' @param color_pal Color palette to use
+		#'
+		#' @return Vector of colors with length equal to the number of columns
+		#' 	       in the data.
+        get_var_colors = function(color, color_pal) {
             # if no variable is specified, use default black for plots
-            if (is.null(color_var)) {
-                return('black') 
-            }
+            if (is.null(color)) {
+				if (is.null(private$color)) {
+					return('black') 
+				}
+				color <- private$color
+            } else if (color == FALSE) {
+				return('black')
+			}
 
-            # get column variable to use for assigning colors
-            column_var <- as.numeric(factor(self$col_mdata[,color_var]))
-    
             # otherwise, assign colors based on the variable specified
+            column_var <- as.numeric(factor(self$col_mdata[,color]))
+
             pal <- RColorBrewer::brewer.pal(9, color_pal)
             colors <- colorRampPalette(pal)(min(1E4, length(unique(column_var))))
 
@@ -823,18 +923,17 @@ EDADataSet <- R6Class("EDADataSet",
             colors[as.integer(column_var)]
         },
 
-        get_var_shapes = function(shape_var) {
-            if (is.null(shape_var)) {
-                return(NULL)
-            }
-            as.numeric(factor(self$col_mdata[,shape_var]))
-        },
-
-        get_var_labels = function(label_var) {
-            if (is.null(label_var)) {
+		#' Returns a vector of text labels to use for a plot
+		#'
+		#' @param shape Variable to use for assigning shapes.
+		#'
+		#' @return Vector of labels with length equal to the number of columns
+		#'         in the data.
+        get_var_labels = function(label) {
+            if (is.null(label)) {
                 return(colnames(self$dat))
             }
-            self$col_mdata[,label_var]
+            self$col_mdata[,label]
         },
 
         # normalize dat / metadata order
@@ -863,7 +962,7 @@ EDADataSet <- R6Class("EDADataSet",
 
             metadata <- matrix(metadata[ind,])
             rownames(metadata) <- rnames[ind]
-            colnames(metadata) <- cnames
+            colnames(metadata) <- cname
 
             metadata
         }

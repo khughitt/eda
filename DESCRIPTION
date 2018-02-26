@@ -5,15 +5,16 @@ Authors@R: person("V. Keith", "Hughitt", email = "keith.hughitt@nih.gov", role =
 Description: This package provides some simple helper classes for performing
     exploratory data anlaysis (EDA) in R. Datasets and metadata (when available)
     are stored together, and helper methods are provided for common EDA operations.
-Depends: R (>= 3.4.3)
+Depends:
+    R (>= 3.4.3),
+    ggplot2,
+    reshape2
 Imports:
     corpcor,
-    ggplot2,
     heatmaply,
     R6,
     RColorBrewer,
-    Rtsne,
-    reshape2
+    Rtsne
 License: MIT License
 Encoding: UTF-8
 LazyData: true
