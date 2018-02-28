@@ -140,8 +140,17 @@ EDADataSet <- R6Class("EDADataSet",
         #' @return A filtered version of the original EDADataSet object.
         filter_rows = function(mask) {
             obj <- private$clone_()
-            obj$dat <- obj$dat[mask,] 
-            obj$row_mdata <- obj$row_mdata[mask,]
+
+            # update data and metadata matrices
+            obj$dat <- obj$dat[mask,, drop=FALSE] 
+            obj$row_mdata <- obj$row_mdata[mask,, drop=FALSE]
+
+            # update subsampling indices
+            rows_kept <- seq(nrow(self$dat))[mask]
+            new_ind <- match(obj$get_row_indices(), rows_kept)
+            new_ind <- new_ind[!is.na(new_ind)]
+            obj$set_row_indices(new_ind)
+
             obj
         },
 
@@ -153,8 +162,17 @@ EDADataSet <- R6Class("EDADataSet",
         #' @return A filtered version of the original EDADataSet object.
         filter_cols = function(mask) {
             obj <- private$clone_()
-            obj$dat <- obj$dat[,mask] 
-            obj$col_mdata <- obj$col_mdata[mask,]
+
+            # update data and metadata matrices
+            obj$dat <- obj$dat[,mask, drop=FALSE] 
+            obj$col_mdata <- obj$col_mdata[mask,, drop=FALSE]
+
+            # update subsampling indices
+            cols_kept <- seq(ncol(self$dat))[mask]
+            new_ind <- match(obj$get_col_indices(), cols_kept)
+            new_ind <- new_ind[!is.na(new_ind)]
+            obj$set_col_indices(new_ind)
+
             obj
         },
 
@@ -432,21 +450,13 @@ EDADataSet <- R6Class("EDADataSet",
                 binary_vars <- lens == 2
 
                 # col colors (binary variables)
-                if (sum(binary_vars) == 1) {
-                    col_dat <- data.frame(self$col_mdata[binary_vars])[indices$col,]
-                    params[['col_side_colors']] <- setNames(col_dat, 
-                                                            names(self$col_mdata)[binary_vars])
-                } else if (sum(binary_vars) > 1) {
-                    params[['col_side_colors']] <- self$col_mdata[indices$col, binary_vars]
+                if (sum(binary_vars) >= 1) {
+                    params[['col_side_colors']] <- self$col_mdata[indices$col, binary_vars, drop=FALSE]
                 }
 
                 # row colors (everything else)
-                if (sum(!binary_vars) == 1) {
-                    row_dat <- data.frame(self$col_mdata[!binary_vars])[indices$col]
-                    params[['row_side_colors']] <- setNames(row_dat, 
-                                                            names(self$col_mdata)[!binary_vars])
-                } else if (sum(!binary_vars) > 1) {
-                    params[['row_side_colors']] <- self$col_mdata[indices$col, !binary_vars]
+                if (sum(!binary_vars) >= 1) {
+                    params[['row_side_colors']] <- self$col_mdata[indices$col, !binary_vars, drop=FALSE]
                 }
 
                 # set color subplot width and height
@@ -746,7 +756,7 @@ EDADataSet <- R6Class("EDADataSet",
             abline(v=1:length(var_labels), lty=3, col="black")
         },
 
-        # class greeting
+        #' Prints class greeting to the screen
         print = function() {
             cat("=========================================\n")
             cat("=\n")
@@ -756,6 +766,38 @@ EDADataSet <- R6Class("EDADataSet",
             cat(sprintf("=   columns: %d\n", ncol(self$dat)))
             cat("=\n")
             cat("=========================================\n")
+        },
+
+        #' Gets the subsampling row indices for a dataset
+        #'
+        #' @return Numeric vector of row indices to use for intensive 
+        #'     operations when subsampling is enabled.
+        get_row_indices = function() {
+            private$row_ind
+        },
+
+        #' Gets the subsampling column indices for a dataset
+        #'
+        #' @return Numeric vector of column indices to use for intensive 
+        #'     operations when subsampling is enabled.
+        get_col_indices = function() {
+            private$col_ind
+        },
+
+        #' Sets the subsampling row indices for a dataset
+        #'
+        #' @param ind Numeric vector of row indices to use for intensive 
+        #'     operations when subsampling is enabled.
+        set_row_indices = function(ind) {
+            private$row_ind <- ind 
+        },
+
+        #' Sets the subsampling column indices for a dataset
+        #'
+        #' @param ind Numeric vector of column indices to use for intensive 
+        #'     operations when subsampling is enabled.
+        set_col_indices = function(ind) {
+            private$col_ind <- ind 
         }
     ),
     # ------------------------------------------------------------------------
@@ -793,7 +835,7 @@ EDADataSet <- R6Class("EDADataSet",
         compute_feature_correlations = function(mat, include) {
             # drop any covariates with only a single level
             single_level <- apply(self$col_mdata, 2, function(x) {length(table(x))}) == 1
-            features <- self$col_mdata[,!single_level]
+            features <- self$col_mdata[,!single_level, drop=FALSE]
 
             # drop any undesired features
             if (!is.null(include)) {
@@ -1056,12 +1098,12 @@ EDADataSet <- R6Class("EDADataSet",
         normalize_data_ids = function(dat, row_ids, col_ids) {
             # row ids
             if (row_ids != 'rownames') {
-                # column number
+                # column number containing row ids specified
                 if (is.numeric(row_ids)) {
                     rownames(dat) <- dat[,row_ids]
                     dat <- dat[,-row_ids]
                 } else if (row_ids %in% colnames(dat)) {
-                    # column name
+                    # column name containing row ids specified
                     ind <- which(colnames(dat) == row_ids)
                     rownames(dat) <- dat[,ind]
                     dat <- dat[,-ind]
@@ -1070,12 +1112,12 @@ EDADataSet <- R6Class("EDADataSet",
 
             # column ids
             if (col_ids != 'colnames') {
-                # row number
+                # row number containing column ids
                 if (is.numeric(col_ids)) {
                     colnames(dat) <- dat[col_ids,]
                     dat <- dat[-col_ids,]
                 } else if (col_ids %in% colnames(dat)) {
-                    # column name
+                    # row name containing columns ids
                     ind <- which(rownames(dat) == col_ids)
                     colnames(dat) <- dat[ind,]
                     dat <- dat[-ind,]
@@ -1110,20 +1152,8 @@ EDADataSet <- R6Class("EDADataSet",
             # otherwise match metadata row order to row/col names specified
             ind <- order(match(rownames(metadata), ids))
 
-            # multi-column metadata
-            if (ncol(metadata) > 1) {
-                return(metadata[ind,])
-            }
-
-            # single-column metadata (need to recreate matrix after reordering)
-            rnames <- rownames(metadata)
-            cnames <- colnames(metadata)
-
-            metadata <- matrix(metadata[ind,])
-            rownames(metadata) <- rnames[ind]
-            colnames(metadata) <- cname
-
-            metadata
+            # return result
+            metadata[ind,, drop=FALSE]
         },
 
         #' Transpose the dataset and metadata in-place
