@@ -53,6 +53,7 @@ EDADataSet <- R6Class("EDADataSet",
             private$col_color  <- col_color
             private$col_shape  <- col_shape
             private$col_labels <- col_labels
+            private$color_pal  <- color_pal
 
             # determine subsampling indices, if requested
             private$row_ind <- private$get_subsample_indices(row_maxn, row_max_ratio, 
@@ -87,7 +88,7 @@ EDADataSet <- R6Class("EDADataSet",
             # TODO: include correlation in results?
             cor_mat <- cor(self$dat)
             median_column_cors <- apply(cor_mat, 1, median)
-            cutoff <- mean(median_column_cors) - num_sd * sd(median_column_cors)
+            cutoff <- mean(median_column_cors) - (num_sd * sd(median_column_cors))
             colnames(self$dat)[median_column_cors < cutoff]
         },
 
@@ -235,13 +236,13 @@ EDADataSet <- R6Class("EDADataSet",
         #'      information about the amount of variance explained by each PC.
         get_pca_feature_correlations = function(include=NULL, exclude=NULL) {
             # If already computed, return cached result
-            if (!is.null(private$cache[['pca_feature_cor']])) {
-                return(private$cache[['pca_feature_cor']])
-            }
+            #if (!is.null(private$cache[['pca_feature_cor']])) {
+            #    return(private$cache[['pca_feature_cor']])
+            #}
 
             # SVD
-            s <- corpcor:::fast.svd(self$dat - rowMeans(self$dat))
-            rownames(s$v) <- colnames(self$dat)
+            s <- corpcor:::fast.svd(t(self$dat) - rowMeans(t(self$dat)))
+            rownames(s$v) <- rownames(self$dat)
 
             # Create output dataframe
             pc_var <- round((s$d^2) / sum(s$d^2) * 100, 2)
@@ -255,9 +256,9 @@ EDADataSet <- R6Class("EDADataSet",
             if (!is.null(include)) {
                 include <- include
             } else if (!is.null(exclude)) {
-                include <- colnames(self$col_mdata)[!colnames(self$col_mdata) %in% exclude]
+                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
             } else {
-                include <- colnames(self$col_mdata)
+                include <- colnames(self$row_mdata)
             }
 
             # measure feature correlations and add to result data frame
@@ -289,20 +290,20 @@ EDADataSet <- R6Class("EDADataSet",
         #' @return Dataframe containing feature/t-SNE axes correlations.
         get_tsne_feature_correlations = function(include=NULL, exclude=NULL, ...) {
             # If already computed, return cached result
-            if (!is.null(private$cache[['tsne_feature_cor']])) {
-                return(private$cache[['tsne_feature_cor']])
-            }
+            #if (!is.null(private$cache[['tsne_feature_cor']])) {
+            #    return(private$cache[['tsne_feature_cor']])
+            #}
 
             # t-SNE
-            tsne <- Rtsne::Rtsne(t(self$dat), ...)
+            tsne <- Rtsne::Rtsne(self$dat, ...)
 
             # determine which features to include
             if (!is.null(include)) {
                 include <- include
             } else if (!is.null(exclude)) {
-                include <- colnames(self$col_mdata)[!colnames(self$col_mdata) %in% exclude]
+                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
             } else {
-                include <- colnames(self$col_mdata)
+                include <- colnames(self$row_mdata)
             }
 
             # measure feature correlations and add to result data frame
@@ -317,7 +318,6 @@ EDADataSet <- R6Class("EDADataSet",
 
         #' Summarizes overall characteristics of a dataset
         #' 
-        #'
         summary = function(markdown=FALSE, subsample=TRUE) {
             # collection summary info
             x <- self$dat
@@ -371,10 +371,10 @@ EDADataSet <- R6Class("EDADataSet",
         #'
         #' @return ggplot plot instance.
         #'
-        plot_densities = function(target='rows', color=NULL, title="", ...) {
-            if (target == 'rows') {
-                private$transpose()
-            }
+        plot_densities = function(color=NULL, title="", ...) {
+            #if (target == 'rows') {
+            #    private$transpose()
+            #}
 
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
@@ -400,10 +400,6 @@ EDADataSet <- R6Class("EDADataSet",
 				plt <- plt + styles$labels
 			}
 
-            if (target == 'rows') {
-                private$transpose()
-            }
-
             # only show legend if there are relatively few groups
             if (length(unique(dat$column)) > 10) {
                 plt <- plt + guides(color=FALSE)
@@ -422,17 +418,12 @@ EDADataSet <- R6Class("EDADataSet",
         #'
         #' @seealso \code{cor} for more information about supported correlation 
         #'      methods.
-        plot_cor_heatmap = function(target='rows', method='pearson', ...) { 
-            # rows or columns
-            if (target == 'rows') {
-                private$transpose()
-            }
-
+        plot_cor_heatmap = function(method='pearson', ...) { 
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
             # generate correlation matrix
-            cor_mat <- cor(self$dat[indices$row, indices$col], method=method)
+            cor_mat <- cor(t(self$dat[indices$row, indices$col]), method=method)
 
             # list of parameters to pass to heatmaply
             params <- list(
@@ -445,18 +436,18 @@ EDADataSet <- R6Class("EDADataSet",
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$row_mdata)) {
                 # for heatmaps, show binary/logical variables on one side of the heatmap and
-                # other variables on the other side; first column (patient_id) is excluded.
+                # other variables on the other side
                 lens <- apply(self$row_mdata, 2, function(x) { length(unique(x)) })
                 binary_vars <- lens == 2
 
                 # col colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$col_mdata[indices$col, binary_vars, drop=FALSE]
+                    params[['col_side_colors']] <- self$row_mdata[indices$row, binary_vars, drop=FALSE]
                 }
 
                 # row colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['row_side_colors']] <- self$col_mdata[indices$col, !binary_vars, drop=FALSE]
+                    params[['row_side_colors']] <- self$row_mdata[indices$row, !binary_vars, drop=FALSE]
                 }
 
                 # set color subplot width and height
@@ -466,11 +457,6 @@ EDADataSet <- R6Class("EDADataSet",
                 if ('col_side_colors' %in% names(params)) {
                     params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
-            }
-
-            # untranspose
-            if (target == 'rows') {
-                private$transpose()
             }
 
             do.call(heatmaply::heatmaply, params)
@@ -483,25 +469,18 @@ EDADataSet <- R6Class("EDADataSet",
         #' @param pcy integer PC number to plot along x-axis (default: 2)
         #'
         #' @return ggplot plot instance
-        plot_pca = function(target='rows', pcx=1, pcy=2, scale=FALSE,
+        plot_pca = function(pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
-            # rows or columns
-            if (target == 'rows') {
-                private$transpose()
-            }
-
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
             # perform pca
-            prcomp_results <- prcomp(t(self$dat[indices$row, indices$col]), scale=scale)
+            prcomp_results <- prcomp(self$dat[indices$row, indices$col], scale=scale)
             var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
 
-            xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
-            yl <- sprintf("PC%d (%.2f%% variance)", pcy, var_explained[pcy])
-
-            dat <- data.frame(id=colnames(self$dat)[indices$col], 
+            # create data frame for plotting
+            dat <- data.frame(id=rownames(self$dat)[indices$row], 
                               pc1=prcomp_results$x[,pcx],
                               pc2=prcomp_results$x[,pcy])
 
@@ -509,11 +488,14 @@ EDADataSet <- R6Class("EDADataSet",
             styles <- private$get_geom_point_styles(color, shape)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color=styles$color[indices$col])
+                dat <- cbind(dat, color=styles$color[indices$row])
             }
             if (!is.null(styles$shape)) {
-                dat <- cbind(dat, shape=styles$shape[indices$col])
+                dat <- cbind(dat, shape=styles$shape[indices$row])
             }
+
+            xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
+            yl <- sprintf("PC%d (%.2f%% variance)", pcy, var_explained[pcy])
 
             # plot title
             if (is.null(title)) {
@@ -538,12 +520,6 @@ EDADataSet <- R6Class("EDADataSet",
 			if (length(styles$labels) > 0) {
 				plt <- plt + styles$labels
 			}
-
-            # untranspose
-            if (target == 'rows') {
-                private$transpose()
-            }
-
             plt
         },
 
@@ -595,8 +571,7 @@ EDADataSet <- R6Class("EDADataSet",
         #'     values (default: red)
 		#'
 		#' @return ggplot plot instance
-		plot_tsne_feature_correlations = function(target='rows', 
-                                                  include=NULL, exclude=NULL,
+		plot_tsne_feature_correlations = function(include=NULL, exclude=NULL,
 												  low_color='green', 
 												  high_color='red', ...) {
             # compute t-SNE feature correlations or retrieved cached version
@@ -621,16 +596,12 @@ EDADataSet <- R6Class("EDADataSet",
                 guides(fill=guide_legend("R^2"))
         },
 
-        get_tsne_clusters = function(target='rows', k=10, ...) {
+        get_tsne_clusters = function(k=10, ...) {
             # perform t-sne and store results
             #if (is.null(private$cache[['tsne']])) {
             #    private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
             #}
             #tsne_res <- as.data.frame(private$cache[['tsne']]$Y)
-            # rows or columns
-            if (target == 'columns') {
-                private$transpose()
-            }
 
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
@@ -638,17 +609,12 @@ EDADataSet <- R6Class("EDADataSet",
             tsne <- Rtsne::Rtsne(self$dat[indices$row, indices$col], ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
-            # untranspose
-            if (target == 'columns') {
-                private$transpose()
-            }
-
             # Cluster patients from t-sne results
             kmeans_clusters <- kmeans(dat, k)$cluster
             factor(paste0('cluster_', kmeans_clusters))
         },
 
-        plot_tsne = function(target='rows', color=NULL, shape=NULL, title=NULL,
+        plot_tsne = function(color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
             # 2018/02/27: Disabling cache for now until it can be improved..
             # perform t-sne and store results
@@ -656,11 +622,6 @@ EDADataSet <- R6Class("EDADataSet",
             #    private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
             #}
             #dat <- as.data.frame(private$cache[['tsne']]$Y)
-
-            # rows or columns
-            if (target == 'columns') {
-                private$transpose()
-            }
 
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
@@ -704,11 +665,6 @@ EDADataSet <- R6Class("EDADataSet",
 			if (length(styles$labels) > 0) {
 				plt <- plt + styles$labels
 			}
-
-            # untranspose
-            if (target == 'rows') {
-                private$transpose()
-            }
 
             plt
         },
@@ -813,6 +769,7 @@ EDADataSet <- R6Class("EDADataSet",
         col_color    = NULL,
         col_shape    = NULL,
         col_labels   = NULL,
+        color_pal    = NULL,
         ggplot_theme = NULL,
         title        = NULL,
         cache        = list(),
@@ -1030,12 +987,12 @@ EDADataSet <- R6Class("EDADataSet",
 
             # if specified as a function argument, override default shape
             if (!is.null(shape) && (shape != FALSE)) {
-                res[['shape']]  <- self$col_mdata[,shape]
+                res[['shape']]  <- self$row_mdata[,shape]
                 res[['aes']]    <- aes(shape=shape)
                 res[['labels']] <- labs(shape=shape)
             } else if (is.null(shape) && !is.null(private$shape)) {
                 # otherwise, use object-level default value
-                res[['shape']] <- self$col_mdata[,private$shape]
+                res[['shape']] <- self$row_mdata[,private$shape]
                 res[['aes']] <- aes(shape=shape)
                 res[['labels']] <- labs(shape=private$shape)
             }
@@ -1196,7 +1153,7 @@ EDADataSet <- R6Class("EDADataSet",
                            col_color=self$row_color, col_shape=self$row_shape, 
                            col_labels=self$row_labels, 
                            row_ind=self$col_ind, col_ind=self$row_ind,
-                           color_pal=self$color_pal, ggplot_theme=self$ggplot_theme)
+                           color_pal=self$color_pal, ggplot_theme=private$ggplot_theme)
         }
     )
 )
