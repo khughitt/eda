@@ -418,7 +418,7 @@ EDADataSet <- R6Class("EDADataSet",
         #'
         #' @seealso \code{cor} for more information about supported correlation 
         #'      methods.
-        plot_cor_heatmap = function(method='pearson', ...) { 
+        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) { 
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
@@ -442,24 +442,23 @@ EDADataSet <- R6Class("EDADataSet",
 
                 # col colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$row_mdata[indices$row, binary_vars, drop=FALSE]
+                    params[['col_side_colors']] <- self$row_mdata[indices$row, 
+                                                                  binary_vars, drop=FALSE]
+                    params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
 
                 # row colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['row_side_colors']] <- self$row_mdata[indices$row, !binary_vars, drop=FALSE]
-                }
-
-                # set color subplot width and height
-                if ('row_side_colors' %in% names(params)) {
+                    params[['row_side_colors']] <- self$row_mdata[indices$row, 
+                                                                  !binary_vars, drop=FALSE]
                     params[['subplot_widths']] <- c(0.55, 0.3, 0.15)
-                }
-                if ('col_side_colors' %in% names(params)) {
-                    params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
             }
 
-            do.call(heatmaply::heatmaply, params)
+            # add any additional function arguments
+            params <- c(params, private$get_custom_function_args(...))
+
+            private$plot_heatmap(params, interactive)
         },
 
         #' Generates a two-dimensional PCA plot from the dataset 
@@ -814,6 +813,24 @@ EDADataSet <- R6Class("EDADataSet",
             result
         },
 
+        #' Returns a list of arguments specific for a given function call.
+        #'
+        #' This function takes a list of function arguments and generates
+        #' a new list without any shared arguments (row_maxn, etc.).
+        #'
+        #' @param ... Arguments passed to a given plotting, etc. function call.
+        #'
+        #' @return A list containing only function-specific arguments 
+        get_custom_function_args = function(...) {
+            args <- list(...)
+      
+            shared_args <- c('row_ind', 'row_maxn', 'row_max_ratio',
+                             'col_ind', 'col_maxn', 'col_max_ratio')
+
+            # return list of non-shared arguments
+            args[!names(args) %in% shared_args]
+        },
+
         get_subsample_indices = function(maxn, maxr, ind, n) {
             # if indices are explictly provided, use them
             if (!is.null(ind)) {
@@ -1040,6 +1057,55 @@ EDADataSet <- R6Class("EDADataSet",
                 return(colnames(self$dat))
             }
             self$col_mdata[,label]
+        },
+
+        #' Creates a static or interactive heatmap plot
+        #'
+        #' @param params A list of plotting parameters
+        #' @param interactive Logical indicating whether an interactive heatmap
+        #'     should be generated.
+        plot_heatmap = function(params, interactive) {
+            # interactive heatmap
+            if (interactive) {
+                return(do.call(heatmaply::heatmaply, params))
+            }
+
+            # static heatmap
+
+            # convert colside and rowside colors to explicit color values,
+            # if present
+            if ('col_side_colors' %in% names(params)) {
+                params$ColSideColors <- params$col_side_colors
+
+                colors <- c('blue', 'yellow')
+
+                for (col_name in colnames(params$ColSideColors)) {
+                    col <- params$ColSideColors[,col_name]
+                    params$ColSideColors[,col_name] <- colors[as.numeric(factor(col))]
+                }
+                params$ColSideColors <- as.matrix(params$ColSideColors)
+            }
+
+            if ('row_side_colors' %in% names(params)) {
+                params$RowSideColors <- params$row_side_colors
+
+                pal <- RColorBrewer::brewer.pal(8, 'Set1')
+
+                for (col_name in colnames(params$RowSideColors)) {
+                    col <- params$RowSideColors[,col_name]
+                    colors <- colorRampPalette(pal)(min(1E4, length(unique(col))))
+                    params$RowSideColors[,col_name] <- colors[as.numeric(factor(col))]
+                }
+                params$RowSideColors <- as.matrix(params$RowSideColors)
+            }
+
+            # remove irrelevant function arguments
+            heatmaply_args <- c('showticklabels', 'subplot_widths', 'subplot_heights',
+                                'col_side_colors', 'row_side_colors')
+            params <- params[!names(params) %in% heatmaply_args]
+
+
+            do.call(heatmap.plus::heatmap.plus, params)
         },
 
         #' Normalizes handling of data row and column identifiers

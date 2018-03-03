@@ -12,6 +12,7 @@ Depends:
 Imports:
     corpcor,
     heatmaply,
+    heatmap.plus,
     R6,
     RColorBrewer,
     Rtsne
