@@ -275,7 +275,7 @@ EDADataSet <- R6Class("EDADataSet",
         #' metadata entries (features).
         #' 
         #' Measures the predictive power of each feature (column in 
-        #' \code{obj$col_mdata}) and the t-SNE projected axes of the 
+        #' \code{obj$row_mdata}) and the t-SNE projected axes of the 
         #' dataset using a simple linear model.
         #'
         #' Based on code adapted from cbcbSEQ
@@ -790,8 +790,8 @@ EDADataSet <- R6Class("EDADataSet",
         #' @return Dataframe of feature x project axes dependencies
         compute_feature_correlations = function(mat, include) {
             # drop any covariates with only a single level
-            single_level <- apply(self$col_mdata, 2, function(x) {length(table(x))}) == 1
-            features <- self$col_mdata[,!single_level, drop=FALSE]
+            single_level <- apply(self$row_mdata, 2, function(x) {length(table(x))}) == 1
+            features <- self$row_mdata[,!single_level, drop=FALSE]
 
             # drop any undesired features
             if (!is.null(include)) {
@@ -1037,7 +1037,7 @@ EDADataSet <- R6Class("EDADataSet",
 			}
 
             # otherwise, assign colors based on the variable specified
-            column_var <- as.numeric(factor(self$col_mdata[,color]))
+            column_var <- as.numeric(factor(self$row_mdata[,color]))
 
             pal <- RColorBrewer::brewer.pal(9, color_pal)
             colors <- colorRampPalette(pal)(min(1E4, length(unique(column_var))))
@@ -1056,7 +1056,7 @@ EDADataSet <- R6Class("EDADataSet",
             if (is.null(label)) {
                 return(colnames(self$dat))
             }
-            self$col_mdata[,label]
+            self$row_mdata[,label]
         },
 
         #' Creates a static or interactive heatmap plot
