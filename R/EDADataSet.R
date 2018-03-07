@@ -118,39 +118,61 @@ EDADataSet <- R6Class("EDADataSet",
 
         #' Summarizes overall characteristics of a dataset
         #' 
-        summary = function(markdown=FALSE, subsample=TRUE) {
+        summary = function(markdown=FALSE, subsample=TRUE, num_digits=2) {
             # collection summary info
             x <- self$dat
 
             # list to store summary info
             info <- list()
 
+            # include trailing zeros when rounding
+            round_ <- function(y, digits) {
+                formatC(round(y, digits), digits, format="f")
+            }
+
             # overall dataset
-            info[['dat_range']] <- range(x, na.rm=TRUE)
-            info[['dat_num_nas']] <- sum(is.na(x))
+            info[['dat_range']]     <- round_(range(x, na.rm=TRUE), num_digits)
+            info[['dat_num_nas']]   <- sum(is.na(x))
             info[['dat_num_zeros']] <- sum(x == 0)
-            info[['dat_quartiles']] <- quantile(x, na.rm=TRUE)
+            info[['dat_quartiles']] <- round_(quantile(x, na.rm=TRUE), num_digits)
+
+            # column types
+            info[['col_types']] <- table(apply(x, 2, class))
 
             # rows
+            info[['row_means']]    <- round_(range(apply(x, 1, mean, na.rm=TRUE)), num_digits)
+            info[['row_medians']]  <- round_(range(apply(x, 1, median, na.rm=TRUE)), num_digits)
+            info[['row_std_devs']] <- round_(range(apply(x, 1, sd, na.rm=TRUE)), num_digits)
             info[['row_outliers']] <- self$detect_row_outliers()
 
             # columns
-            info[['col_types']] <- table(sapply(x, class))
+            info[['col_means']]    <- round_(range(apply(x, 2, mean, na.rm=TRUE)), num_digits)
+            info[['col_medians']]  <- round_(range(apply(x, 2, median, na.rm=TRUE)), num_digits)
+            info[['col_std_devs']] <- round_(range(apply(x, 2, sd, na.rm=TRUE)), num_digits)
             info[['col_outliers']] <- self$detect_col_outliers()
+
+            # clip outlier lists if more than a few
+            if (length(info[['row_outliers']]) > 5) {
+                info[['row_outliers']] <- c(head(info[['row_outliers']], 5), '...')
+            }
+            if (length(info[['col_outliers']]) > 5) {
+                info[['col_outliers']] <- c(head(info[['col_outliers']], 5), '...')
+            }
 
             # row & column correlations
             if (subsample) {
-                info[['col_cor_mat']] <- cor(x[private$row_ind, private$col_ind])
-                info[['row_cor_mat']] <- cor(t(x[private$row_ind, private$col_ind]))
+                info[['col_cor_mat']] <- round_(cor(x[private$row_ind, private$col_ind]), num_digits)
+                info[['row_cor_mat']] <- round_(cor(t(x[private$row_ind, private$col_ind])), num_digits)
             } else {
-                info[['col_cor_mat']] <- cor(x)
-                info[['row_cor_mat']] <- cor(t(x))
+                info[['col_cor_mat']] <- round_(cor(x), num_digits)
+                info[['row_cor_mat']] <- round_(cor(t(x)), num_digits)
             }
             diag(info[['col_cor_mat']]) <- NA
             diag(info[['row_cor_mat']]) <- NA
             
             # display using selected output format
             if (markdown) {
+                # TODO
             } else {
                 private$print_summary(info)
             }
@@ -680,7 +702,7 @@ EDADataSet <- R6Class("EDADataSet",
         },
 
         #' Prints dataset summary to screen
-        print_summary = function(info) {
+        print_summary = function(x) {
             cat("=========================================\n")
             cat("\n")
             cat(sprintf(" %s\n", class(self)[1]))
@@ -691,49 +713,55 @@ EDADataSet <- R6Class("EDADataSet",
             cat("\n")
             cat(sprintf(" Rows      : %d\n", nrow(self$dat)))
             cat(sprintf(" Columns   : %d\n", ncol(self$dat)))
-            cat(sprintf(" Min value : %0.2f\n", info$dat_range[1]))
-            cat(sprintf(" Max value : %0.2f\n", info$dat_range[2]))
-            cat(sprintf(" # NA's    : %d\n", info$dat_num_nas))
-            cat(sprintf(" # 0's     : %d\n", info$dat_num_zeros))
+            cat(sprintf(" Min value : %s\n", x$dat_range[1]))
+            cat(sprintf(" Max value : %s\n", x$dat_range[2]))
+            cat(sprintf(" # NA's    : %d\n", x$dat_num_nas))
+            cat(sprintf(" # 0's     : %d\n", x$dat_num_zeros))
 
             cat("\n")
-            cat(' Quartiles:')
-            quartiles <- setNames(as.data.frame(info$dat_quartiles), '') 
-            rownames(quartiles) <- paste0(" ", rownames(quartiles))
+            cat(' Quartiles:\n')
+            quartiles <- setNames(as.data.frame(x$dat_quartiles), '') 
+            rownames(quartiles) <- paste0("  ", rownames(quartiles))
             print(quartiles)
+            cat("\n")
+
+            cat(" Column types:\n")
+            col_types <- setNames(as.data.frame(x$col_types), c('', ''))
+            col_types[,1] <- paste0(" ", col_types[,1])
+            rownames(col_types) <- ""
+            print(col_types)
             cat("\n")
 
             cat(" COLUMNS\n")
             cat(" -------\n")
             cat("\n")
 
-            cat(" Column types:\n")
-            col_types <- setNames(as.data.frame(info$col_types), c('', 'Frequency'))
-            col_types[,1] <- paste0(" ", col_types[,1])
-            rownames(col_types) <- ""
-            print(col_types)
+            cat(sprintf(" Mean range   : %s - %s\n", x$col_means[1], x$col_means[2]))
+            cat(sprintf(" Median range : %s - %s\n", x$col_medians[1], x$col_medians[2]))
+            cat(sprintf(" Stdev range  : %s - %s\n", x$col_std_devs[1], x$col_std_devs[2]))
+            cat(sprintf(" Cor range    : %s - %s\n", 
+                        min(x$col_cor_mat, na.rm=TRUE),
+                        max(x$col_cor_mat, na.rm=TRUE)))
             cat("\n")
 
-            cat(sprintf(" Correlation range: %0.2f - %0.2f\n", 
-                        min(info$col_cor_mat, na.rm=TRUE),
-                        max(info$col_cor_mat, na.rm=TRUE)))
-            cat("\n")
-
-            cat(" Outliers:\n ")
-            cat(paste0(sprintf("%2d", 1:length(info$col_outliers)), ". ", info$col_outliers, "\n"))
+            cat(" Outliers:\n\n ")
+            cat(paste0(sprintf("%2d", 1:length(x$col_outliers)), ". ", x$col_outliers, "\n"))
             cat("\n")
 
             cat(" ROWS\n")
             cat(" ----\n")
             cat("\n")
 
-            cat(sprintf(" Correlation range: %0.2f - %0.2f\n", 
-                        min(info$row_cor_mat, na.rm=TRUE),
-                        max(info$row_cor_mat, na.rm=TRUE)))
+            cat(sprintf(" Mean range   : %s - %s\n", x$row_means[1], x$row_means[2]))
+            cat(sprintf(" Median range : %s - %s\n", x$row_medians[1], x$row_medians[2]))
+            cat(sprintf(" Stdev range  : %s - %s\n", x$row_std_devs[1], x$row_std_devs[2]))
+            cat(sprintf(" Cor range    : %s - %s\n", 
+                        min(x$row_cor_mat, na.rm=TRUE),
+                        max(x$row_cor_mat, na.rm=TRUE)))
 
             cat("\n")
-            cat(" Outliers:\n ")
-            cat(paste0(sprintf("%2d", 1:length(info$row_outliers)), ". ", info$row_outliers, "\n"))
+            cat(" Outliers:\n\n ")
+            cat(paste0(sprintf("%2d", 1:length(x$row_outliers)), ". ", x$row_outliers, "\n"))
             cat("\n")
             cat("=========================================\n")
         },
