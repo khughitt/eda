@@ -58,18 +58,6 @@ BioExprSet <- R6::R6Class("BioExprSet",
                              color_pal, title, ggplot_theme)
         },
 
-        #' Prints an overview of the object instance
-        print = function() {
-            cat("=========================================\n")
-            cat("=\n")
-            cat(sprintf("= BioExprSet (%s)\n", class(self$dat[,1])))
-            cat("=\n")
-            cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
-            cat(sprintf("=   columns: %d\n", ncol(self$dat)))
-            cat("=\n")
-            cat("=========================================\n")
-        },
-
         #' Performs a counts-per-million (CPM) transformation.
         #'
         #' @return A CPM-transformed version of the BioExprSet instance.
@@ -77,6 +65,10 @@ BioExprSet <- R6::R6Class("BioExprSet",
             obj <- self$clone()
             obj$dat <- sweep(obj$dat, 2, colSums(obj$dat), '/') * 1E6
             obj
+        },
+
+        diff_expr = function() {
+        
         },
 
         #' Log2 transforms data (adding 1 to ensure finite results).
@@ -150,6 +142,18 @@ BioExprSet <- R6::R6Class("BioExprSet",
 				plt <- plt + styles$labels
 			}
             plt
+        },
+
+        #' Prints an overview of the object instance
+        print = function() {
+            cat("=========================================\n")
+            cat("=\n")
+            cat(sprintf("= BioExprSet (%s)\n", class(self$dat[,1])))
+            cat("=\n")
+            cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
+            cat(sprintf("=   columns: %d\n", ncol(self$dat)))
+            cat("=\n")
+            cat("=========================================\n")
         }
     ),
     private = list(

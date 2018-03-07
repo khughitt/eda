@@ -356,7 +356,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # PC1 vs PC2
             plt <- ggplot(dat, aes(pc1, pc2)) +
-                geom_point(stat="identity", styles$aes) +
+                geom_point(stat="identity", styles$aes, size=0.5) +
                 xlab(xl) + ylab(yl) +
                 ggtitle(title) +
                 private$ggplot_theme() +
@@ -448,7 +448,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 guides(fill=guide_legend("R^2"))
         },
 
-        get_tsne_clusters = function(k=10, ...) {
+        cluster_tsne = function(k=10, ...) {
             # perform t-sne and store results
             #if (is.null(private$cache[['tsne']])) {
             #    private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
@@ -463,6 +463,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # Cluster patients from t-sne results
             kmeans_clusters <- kmeans(dat, k)$cluster
+
             factor(paste0('cluster_', kmeans_clusters))
         },
 
@@ -501,7 +502,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # treatment response
             plt <- ggplot(dat, aes(x, y)) +
-                   geom_point(styles$aes, stat="identity") +
+                   geom_point(styles$aes, stat="identity", size=0.5) +
                    ggtitle(title) +
                    private$ggplot_theme() +
                    theme(axis.ticks=element_blank(), 

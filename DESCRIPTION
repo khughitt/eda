@@ -7,13 +7,13 @@ Description: This package provides some simple helper classes for performing
     are stored together, and helper methods are provided for common EDA operations.
 Depends:
     R (>= 3.4.3),
+    R6,
     ggplot2,
+    heatmap.plus,
     reshape2
 Imports:
     corpcor,
     heatmaply,
-    heatmap.plus,
-    R6,
     RColorBrewer,
     Rtsne
 License: MIT License

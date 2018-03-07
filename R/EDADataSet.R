@@ -146,6 +146,8 @@ EDADataSet <- R6Class("EDADataSet",
                 info[['col_cor_mat']] <- cor(x)
                 info[['row_cor_mat']] <- cor(t(x))
             }
+            diag(info[['col_cor_mat']]) <- NA
+            diag(info[['row_cor_mat']]) <- NA
             
             # display using selected output format
             if (markdown) {
@@ -677,6 +679,65 @@ EDADataSet <- R6Class("EDADataSet",
             metadata[ind,, drop=FALSE]
         },
 
+        #' Prints dataset summary to screen
+        print_summary = function(info) {
+            cat("=========================================\n")
+            cat("\n")
+            cat(sprintf(" %s\n", class(self)[1]))
+            cat("\n")
+
+            cat(" OVERVIEW\n")
+            cat(" --------\n")
+            cat("\n")
+            cat(sprintf(" Rows      : %d\n", nrow(self$dat)))
+            cat(sprintf(" Columns   : %d\n", ncol(self$dat)))
+            cat(sprintf(" Min value : %0.2f\n", info$dat_range[1]))
+            cat(sprintf(" Max value : %0.2f\n", info$dat_range[2]))
+            cat(sprintf(" # NA's    : %d\n", info$dat_num_nas))
+            cat(sprintf(" # 0's     : %d\n", info$dat_num_zeros))
+
+            cat("\n")
+            cat(' Quartiles:')
+            quartiles <- setNames(as.data.frame(info$dat_quartiles), '') 
+            rownames(quartiles) <- paste0(" ", rownames(quartiles))
+            print(quartiles)
+            cat("\n")
+
+            cat(" COLUMNS\n")
+            cat(" -------\n")
+            cat("\n")
+
+            cat(" Column types:\n")
+            col_types <- setNames(as.data.frame(info$col_types), c('', 'Frequency'))
+            col_types[,1] <- paste0(" ", col_types[,1])
+            rownames(col_types) <- ""
+            print(col_types)
+            cat("\n")
+
+            cat(sprintf(" Correlation range: %0.2f - %0.2f\n", 
+                        min(info$col_cor_mat, na.rm=TRUE),
+                        max(info$col_cor_mat, na.rm=TRUE)))
+            cat("\n")
+
+            cat(" Outliers:\n ")
+            cat(paste0(sprintf("%2d", 1:length(info$col_outliers)), ". ", info$col_outliers, "\n"))
+            cat("\n")
+
+            cat(" ROWS\n")
+            cat(" ----\n")
+            cat("\n")
+
+            cat(sprintf(" Correlation range: %0.2f - %0.2f\n", 
+                        min(info$row_cor_mat, na.rm=TRUE),
+                        max(info$row_cor_mat, na.rm=TRUE)))
+
+            cat("\n")
+            cat(" Outliers:\n ")
+            cat(paste0(sprintf("%2d", 1:length(info$row_outliers)), ". ", info$row_outliers, "\n"))
+            cat("\n")
+            cat("=========================================\n")
+        },
+
         #' Transpose the dataset and metadata in-place
         transpose = function() {
             self$dat <- t(self$dat) 
@@ -709,7 +770,8 @@ EDADataSet <- R6Class("EDADataSet",
     # ------------------------------------------------------------------------
     active = list(
         t = function() {
-            EDADataSet$new(t(self$dat), 
+            cls <- get(class(self)[1])
+            cls$new(t(self$dat), 
                            row_mdata=self$col_mdata,
                            col_mdata=self$row_mdata,
                            row_color=self$col_color, row_shape=self$col_shape, 
