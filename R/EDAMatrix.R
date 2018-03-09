@@ -455,8 +455,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             #}
             #tsne_res <- as.data.frame(private$cache[['tsne']]$Y)
 
-            # determine subsampling indices, if requested
-            indices <- private$get_indices(...)
+            # for clustering, we want to ensure that all points are assigned
+            # to a cluster, so include all indices
+            indices <- private$get_indices(row_max_ratio=1, col_max_ratio=1)
 
             tsne <- Rtsne::Rtsne(self$dat[indices$row, indices$col], ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
