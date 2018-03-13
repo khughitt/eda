@@ -116,6 +116,40 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
+        #' Imputes missing values in the dataset
+        #'
+        #' Imputes missing values in the dataset using a specified method
+        #' and stores the result in-place. Currently only support k-Nearest
+        #' Neighbors (kNN) method.
+        #'
+        #' Note: When using the `knn` method, it may be neccessary to set R 
+        #' the environmental variable `R_MAX_NUM_DLLS` to some value larger
+        #' than its default of 100 (150 should be sufficient), prior to
+        #' launching R. This can be set in the ~/.Renviron.
+        #'
+        #' @param method Character array specifying imputation method to use 
+        #'     (knn)
+        impute = function(method='knn') {
+            # Keep track of original dataset class
+            cls <- class(self$dat)
+
+            message("Imputing %d missing values...", sum(is.na(self$dat)))
+           
+            # kNN
+            if (method == 'knn') {
+                imputed <- VIM::kNN(self$dat)[,1:ncol(self$dat)]
+                rownames(imputed) <- rownames(self$dat)
+                
+                if (cls == 'matrix') {
+                    imputed <- as.matrix(imputed)
+                }
+            }
+
+            message("Done.")
+
+            self$dat <- imputed
+        },
+
         #' Summarizes overall characteristics of a dataset
         #' 
         summary = function(markdown=FALSE, subsample=TRUE, num_digits=2) {
