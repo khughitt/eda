@@ -314,6 +314,38 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$plot_heatmap(params, interactive)
         },
 
+        #' Generates a heatmap plot of the dataset
+        #'
+        #' @param ... Additional arguments
+        plot_heatmap = function(interactive=TRUE, ...) { 
+            # determine subsampling indices, if requested
+            indices <- private$get_indices(...)
+
+            # list of parameters to pass to heatmaply
+            params <- list(
+                x=self$dat[indices$row, indices$col],
+                showticklabels=c(FALSE, FALSE),
+                subplot_widths=c(0.65, 0.35),
+                subplot_heights=c(0.35, 0.65)
+            )
+
+            # if metadata is availble, display along side of heatmap
+            if (!is.null(self$row_mdata)) {
+                params[['row_side_colors']] <- self$row_mdata[indices$row,, drop=FALSE]
+                params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
+            }
+            
+            if (!is.null(self$col_mdata)) {
+                params[['col_side_colors']] <- self$col_mdata[indices$col,, drop=FALSE]
+                params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
+            }
+
+            # add any additional function arguments
+            params <- c(params, private$get_custom_function_args(...))
+
+            private$plot_heatmap(params, interactive)
+        },
+
         #' Generates a two-dimensional PCA plot from the dataset 
         #'
         #' @param dat Data matrix to generate PCA plot for
