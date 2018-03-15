@@ -836,7 +836,7 @@ EDADataSet <- R6Class("EDADataSet",
             cls <- get(class(self)[1])
             
             # Preserve underlying dataset class (dataframe or matrix)
-            dat_cls <- get(class(self$dat))
+            dat_cls <- get(sprintf("as.%s", class(self$dat)))
             tdat <- dat_cls(t(self$dat))
 
             rownames(tdat) <- colnames(self$dat)
