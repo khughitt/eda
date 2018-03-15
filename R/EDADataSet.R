@@ -133,7 +133,7 @@ EDADataSet <- R6Class("EDADataSet",
             # Keep track of original dataset class
             cls <- class(self$dat)
 
-            message("Imputing %d missing values...", sum(is.na(self$dat)))
+            message(sprintf("Imputing %d missing values...", sum(is.na(self$dat))))
            
             # kNN
             if (method == 'knn') {
@@ -832,16 +832,23 @@ EDADataSet <- R6Class("EDADataSet",
     # ------------------------------------------------------------------------
     active = list(
         t = function() {
+            # EDADataSet class
             cls <- get(class(self)[1])
-            cls$new(t(self$dat), 
-                           row_mdata=self$col_mdata,
-                           col_mdata=self$row_mdata,
-                           row_color=self$col_color, row_shape=self$col_shape, 
-                           row_labels=self$col_labels, 
-                           col_color=self$row_color, col_shape=self$row_shape, 
-                           col_labels=self$row_labels, 
-                           row_ind=self$col_ind, col_ind=self$row_ind,
-                           color_pal=self$color_pal, ggplot_theme=private$ggplot_theme)
+            
+            # Preserve underlying dataset class (dataframe or matrix)
+            dat_cls <- get(class(self$dat))
+            tdat <- dat_cls(t(self$dat))
+
+            rownames(tdat) <- colnames(self$dat)
+            colnames(tdat) <- rownames(self$dat)
+
+            cls$new(tdat, row_mdata=self$col_mdata, col_mdata=self$row_mdata,
+                    row_color=self$col_color, row_shape=self$col_shape,
+                    row_labels=self$col_labels, col_color=self$row_color,
+                    col_shape=self$row_shape, col_labels=self$row_labels,
+                    row_ind=self$col_ind, col_ind=self$row_ind,
+                    color_pal=self$color_pal,
+                    ggplot_theme=private$ggplot_theme)
         }
     )
 )
