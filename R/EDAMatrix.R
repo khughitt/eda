@@ -44,6 +44,27 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                              color_pal, title, ggplot_theme)
         },
 
+        #' Clusters dataset rows using k-means clustering in a t-SNE projected
+        #' space.
+        #'
+        #' @param k Number of clusters to detect (default: 10)
+        #'
+        #' @return Vector of cluster assignments with length equal to the
+        #'     number of rows in the dataset.
+        cluster_tsne = function(k=10, ...) {
+            # for clustering, we want to ensure that all points are assigned
+            # to a cluster, so include all indices
+            indices <- private$get_indices(row_max_ratio=1, col_max_ratio=1)
+
+            tsne <- Rtsne::Rtsne(self$dat[indices$row, indices$col], ...)
+            dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
+
+            # Cluster patients from t-sne results
+            kmeans_clusters <- kmeans(dat, k)$cluster
+
+            factor(paste0('cluster_', kmeans_clusters))
+        },
+
         #' Detects column outliers in the dataset
         #'
         #' Computes pairwise correlations between all columns in the dataset.
@@ -84,26 +105,52 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             rownames(self$dat)[median_row_cors < cutoff]
         },
 
-        #' Log-transforms data
+        #' Detects dependencies between column metadata entries (features) and
+        #' a lower-dimension projection of the dataset.
+        #' 
+        #' Measures the predictive power of each feature (column in 
+        #' \code{obj$row_mdata}) and the (PCA, t-SNE, etc.) projected data rows 
+        #' using a simple linear model.
         #'
-        #' @param base Numeric logarithm base to use (default: e)
-        #' @param offset Numeric offset to apply to data before taking the
-        #'     logarithm (default: 0)
+        #' Based on code adapted from cbcbSEQ
+        #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
+        #' Kwame Okrah.
+        #
+        #' @param method Dimension reduction method to use (options: pca,
+        #'     kpca, t-sne)
+		#' @param num_dims Number of projected dimensions (e.g. PC's) to include
+        #'     in the plot (default: 6)
+        #' @param include Vector of strings indicating metadata columns which
+        #' should be included in the analysis.
+        #' @param exclude Vector of strings indicating metadata columns which
+        #' should be excluded from the analysis.
         #'
-        #' @return A log-transformed version of the object.
-        log = function(base=exp(1), offset=0) {
-            obj <- private$clone_()
-            obj$dat <- log(obj$dat + offset, base)
-            obj
-        },
+        #' @return Dataframe containing feature/t-SNE axes correlations.
+        feature_cor = function(method='pca', num_dims=6, include=NULL, exclude=NULL, ...) {
+            # PCA
+            if (method == 'pca') {
+                s <- corpcor:::fast.svd(t(self$dat) - rowMeans(t(self$dat)))
 
-        #' Log(x + 1) transforms data
-        #'
-        #' @return A log(x + 1) transformed version of the object.
-        log1p = function() {
-            obj <- private$clone_()
-            obj$dat <- log(obj$dat + 1)
-            obj
+                result <- head(private$compute_feature_correlations(s$v, include), num_dims)
+                rownames(result) <- paste0("PC", 1:nrow(result)) 
+            } else if (method == 't-sne') {
+                # t-SNE
+                tsne <- Rtsne::Rtsne(self$dat, dims=num_dims, ...)
+
+                result <- private$compute_feature_correlations(tsne$Y, include)
+                rownames(result) <- paste0("Dim", 1:nrow(result)) 
+            }
+
+            # determine which features to include
+            if (!is.null(include)) {
+                include <- include
+            } else if (!is.null(exclude)) {
+                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
+            } else {
+                include <- colnames(self$row_mdata)
+            }
+
+            result
         },
 
         #' Removes column outliers from the dataset
@@ -144,105 +191,26 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             obj$filter_rows(median_row_cors > cutoff)
         },
 
-        #' Computes correlations between data principle components and column
-        #' metadata entries (features).
-        #' 
-        #' Measures the predictive power of each feature (column in 
-        #' \code{obj$col_mdata}) and the principle components (PCs) of the 
-        #' dataset using a simple linear model.
+        #' Log-transforms data
         #'
-        #' Based on code adapted from cbcbSEQ
-        #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
-        #' Kwame Okrah.
+        #' @param base Numeric logarithm base to use (default: e)
+        #' @param offset Numeric offset to apply to data before taking the
+        #'     logarithm (default: 0)
         #'
-        #' @param include Vector of strings indicating metadata columns which
-        #' should be included in the analysis; takes priority over exclude
-        #' if both are set.
-        #' @param exclude Vector of strings indicating metadata columns which
-        #' should be excluded from the analysis.
-        #'
-        #' @return Dataframe containing feature/PC correlations, as well as
-        #'      information about the amount of variance explained by each PC.
-        get_pca_feature_correlations = function(include=NULL, exclude=NULL) {
-            # If already computed, return cached result
-            #if (!is.null(private$cache[['pca_feature_cor']])) {
-            #    return(private$cache[['pca_feature_cor']])
-            #}
-
-            # SVD
-            s <- corpcor:::fast.svd(t(self$dat) - rowMeans(t(self$dat)))
-            rownames(s$v) <- rownames(self$dat)
-
-            # Create output dataframe
-            pc_var <- round((s$d^2) / sum(s$d^2) * 100, 2)
-
-            result <- data.frame(
-                pc_var=pc_var,
-                pc_var_cum=cumsum(pc_var) 
-            )
-
-            # determine which features to include
-            if (!is.null(include)) {
-                include <- include
-            } else if (!is.null(exclude)) {
-                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
-            } else {
-                include <- colnames(self$row_mdata)
-            }
-
-            # measure feature correlations and add to result data frame
-            result <- cbind(result, private$compute_feature_correlations(s$v, include))
-            rownames(result) <- paste0("PC", 1:nrow(result)) 
-
-            # cache result and return
-            private$cache[['pca_feature_cor']] <- result
-
-            result
+        #' @return A log-transformed version of the object.
+        log = function(base=exp(1), offset=0) {
+            obj <- private$clone_()
+            obj$dat <- log(obj$dat + offset, base)
+            obj
         },
 
-        #' Computes correlations between data principle components and column
-        #' metadata entries (features).
-        #' 
-        #' Measures the predictive power of each feature (column in 
-        #' \code{obj$row_mdata}) and the t-SNE projected axes of the 
-        #' dataset using a simple linear model.
+        #' Log(x + 1) transforms data
         #'
-        #' Based on code adapted from cbcbSEQ
-        #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
-        #' Kwame Okrah.
-        #'
-        #' @param include Vector of strings indicating metadata columns which
-        #' should be included in the analysis.
-        #' @param exclude Vector of strings indicating metadata columns which
-        #' should be excluded from the analysis.
-        #'
-        #' @return Dataframe containing feature/t-SNE axes correlations.
-        get_tsne_feature_correlations = function(include=NULL, exclude=NULL, ...) {
-            # If already computed, return cached result
-            #if (!is.null(private$cache[['tsne_feature_cor']])) {
-            #    return(private$cache[['tsne_feature_cor']])
-            #}
-
-            # t-SNE
-            tsne <- Rtsne::Rtsne(self$dat, ...)
-
-            # determine which features to include
-            if (!is.null(include)) {
-                include <- include
-            } else if (!is.null(exclude)) {
-                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
-            } else {
-                include <- colnames(self$row_mdata)
-            }
-
-            # measure feature correlations and add to result data frame
-            result <- private$compute_feature_correlations(tsne$Y, include)
-            rownames(result) <- paste0("Dim", 1:nrow(result)) 
-
-            # cache result and return
-            private$cache[['tsne_feature_cor']] <- result
-
-            result
+        #' @return A log(x + 1) transformed version of the object.
+        log1p = function() {
+            obj <- private$clone_()
+            obj$dat <- log(obj$dat + 1)
+            obj
         },
 
         #' Prints an overview of the object instance
@@ -346,11 +314,61 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$plot_heatmap(params, interactive)
         },
 
+		#' Creates a tile plot of projected data / feature correlations
+		#'
+		#' @param num_dims Number of projected dimensions (e.g. PC's) to include
+        #'     in the plot (default: 6)
+        #' @param include Vector of strings indicating metadata columns which
+        #' should be included in the analysis.
+        #' @param exclude Features (column metadata variables) to exclude from 
+        #'     the analysis.
+        #' @param low_color String indicating color to use for low correlation
+        #'     values (default: green)
+        #' @param high_color String indicating color to use for high correlation
+        #'     values (default: red)
+		#'
+		#' @return ggplot plot instance
+        plot_feature_cor = function(method='pca', num_dims=6, include=NULL,
+                                    exclude=NULL, low_color='green',
+                                    high_color='red', ...) {
+            # compute feature correlations
+            feature_cors <- self$feature_cor(method, num_dims, include, exclude, ...)
+
+            dat <- melt(feature_cors)
+            colnames(dat) <- c('dim', 'variable', 'value')
+
+            # Labels
+            if (method == 'pca') {
+                xlab_text <- 'Principle Components'
+            } else if (method == 't-sne') {
+                xlab_text <- "t-SNE dimension"
+            }
+
+            # create plot
+            ggplot(dat, aes(x=dim, y=variable)) + 
+                geom_tile(aes(fill=value)) + 
+                geom_text(aes(label=value), size=2, show.legend=FALSE) +
+                scale_fill_gradient(low=low_color, high=high_color) +
+                private$ggplot_theme() +
+                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
+                      axis.text.y=element_text(size=8)) + 
+                xlab(xlab_text) +
+                ylab("Features") +
+                guides(fill=guide_legend("R^2"))
+        },
+
         #' Generates a two-dimensional PCA plot from the dataset 
         #'
-        #' @param dat Data matrix to generate PCA plot for
         #' @param pcx integer PC number to plot along x-axis (default: 1)
         #' @param pcy integer PC number to plot along x-axis (default: 2)
+        #' @param scale Whether or not to scale variables prior to performing
+        #'     pca; passed to `prcomp` function.
+        #' @param color Column metadata field to use for coloring points.
+        #' @param shape Column metadata field to use to assign shapes to points
+        #' @param title Plot title.
+        #' @param text_labels Whether or not to include individual point labels
+        #'     plot (default: FALSE).
+        #' @param ... Addition arguments relating to data indices to use.
         #'
         #' @return ggplot plot instance
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
@@ -407,108 +425,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             plt
         },
 
-		#' Plots PCA / feature correlations as a colored grid.
-		#'
-		#' @param num_pcs Number of principle components to include (default: 6)
-        #' @param exclude Features (column metadata variables) to exclude from 
-        #'     the analysis.
-        #' @param low_color String indicating color to use for low correlation
-        #'     values (default: green)
-        #' @param high_color String indicating color to use for high correlation
-        #'     values (default: red)
-		#'
-		#' @return ggplot plot instance
-        plot_pca_feature_correlations = function(num_pcs=6, include=NULL, 
-                                                 exclude=NULL, low_color='green',
-											     high_color='red', ...) {
-            # compute pca feature correlations or retrieved cached version
-            if (!is.null(private$cache[['pca_feature_cor']])) {
-                pca_cor <- private$cache[['pca_feature_cor']]
-            } else {
-                pca_cor <- self$get_pca_feature_correlations(include, exclude)
-            }
-
-            pca_cor <- pca_cor[1:num_pcs,]
-            pca_long <- cbind(PC=sprintf("PC%d (%0.2f%%)", 
-                                         1:nrow(pca_cor), pca_cor$pc_var), 
-                              melt(pca_cor, id.vars=c('pc_var', 'pc_var_cum')))
-
-            ggplot(pca_long, aes(x=PC, y=variable)) + 
-                geom_tile(aes(fill=value)) + 
-                geom_text(aes(label=value), size=2, show.legend=FALSE) +
-                scale_fill_gradient(low=low_color, high=high_color) +
-                private$ggplot_theme() +
-                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
-                      axis.text.y=element_text(size=8)) + 
-                xlab("Principle Components (% var explained)") +
-                ylab("Features") +
-                guides(fill=guide_legend("R^2"))
-        },
-
-		#' Plots t-SNE / feature correlations as a colored grid.
-		#'
-        #' @param exclude Features (column metadata variables) to exclude from 
-        #'     the analysis.
-        #' @param low_color String indicating color to use for low correlation
-        #'     values (default: green)
-        #' @param high_color String indicating color to use for high correlation
-        #'     values (default: red)
-		#'
-		#' @return ggplot plot instance
-		plot_tsne_feature_correlations = function(include=NULL, exclude=NULL,
-												  low_color='green', 
-												  high_color='red', ...) {
-            # compute t-SNE feature correlations or retrieved cached version
-            if (!is.null(private$cache[['tsne_feature_cor']])) {
-                tsne_cor <- private$cache[['tsne_feature_cor']]
-            } else {
-                tsne_cor <- self$get_tsne_feature_correlations(include, exclude, ...)
-            }
-
-            tsne_long <- melt(tsne_cor)
-            colnames(tsne_long) <- c('dim', 'variable', 'value')
-
-            ggplot(tsne_long, aes(x=dim, y=variable)) + 
-                geom_tile(aes(fill=value)) + 
-                geom_text(aes(label=value), size=2, show.legend=FALSE) +
-                scale_fill_gradient(low=low_color, high=high_color) +
-                private$ggplot_theme() +
-                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
-                      axis.text.y=element_text(size=8)) + 
-                xlab("t-SNE dimension") +
-                ylab("Features") +
-                guides(fill=guide_legend("R^2"))
-        },
-
-        cluster_tsne = function(k=10, ...) {
-            # perform t-sne and store results
-            #if (is.null(private$cache[['tsne']])) {
-            #    private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
-            #}
-            #tsne_res <- as.data.frame(private$cache[['tsne']]$Y)
-
-            # for clustering, we want to ensure that all points are assigned
-            # to a cluster, so include all indices
-            indices <- private$get_indices(row_max_ratio=1, col_max_ratio=1)
-
-            tsne <- Rtsne::Rtsne(self$dat[indices$row, indices$col], ...)
-            dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
-
-            # Cluster patients from t-sne results
-            kmeans_clusters <- kmeans(dat, k)$cluster
-
-            factor(paste0('cluster_', kmeans_clusters))
-        },
-
+        #' Generates a two-dimensional t-SNE plot from the dataset 
+        #'
+        #' @param color Column metadata field to use for coloring points.
+        #' @param shape Column metadata field to use to assign shapes to points
+        #' @param title Plot title.
+        #' @param text_labels Whether or not to include individual point labels
+        #'     plot (default: FALSE).
+        #' @param ... Addition arguments relating to data indices to use.
+        #'
+        #' @return ggplot plot instance
         plot_tsne = function(color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
-            # 2018/02/27: Disabling cache for now until it can be improved..
-            # perform t-sne and store results
-            #if (is.null(private$cache[['tsne']])) {
-            #    private$cache[['tsne']] <- Rtsne::Rtsne(t(self$dat), ...)
-            #}
-            #dat <- as.data.frame(private$cache[['tsne']]$Y)
-
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
@@ -555,15 +483,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             plt
         },
 
-        #' Plot median pairwise variable correlations
+        #' Plot median pairwise column correlations
         #'
-        #' Plots the median correlation of each variable (column)
+        #' Plots the median correlation of each variable (column). This is 
+        #' useful for visually inspecting columns for possible outliers, when
+        #' the total number of columns is relatively small.
         #'
         #' @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #'
         #' @return None
-        plot_var_correlations = function (color=NULL, title="", method='pearson',
-                                          mar=c(12,6,4,6)) {
+        plot_pairwise_column_cors = function (color=NULL, title="",
+                                              method='pearson',
+                                              mar=c(12,6,4,6)) {
             # compute pairwise variable correlations
             median_pairwise_cor <- apply(cor(self$dat * 1.0, method=method), 1, median)
 
