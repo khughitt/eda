@@ -20,13 +20,7 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
             private$check_inputs()
         },
 
-        #' Plots multidataset correlation heatmap
-        #'
-        #' @param key1 Numeric or character index of first dataset to use
-        #' @param key2 Numeric or character index of second dataset to use
-        #' @param method Correlation method to use (passed to `cor` function)
-        #'
-        plot_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
+        cross_cor = function(key1=1, key2=2, method='pearson') {
             # make sure datasets are ordered similarly
             # TODO: include row and col indices
             col_ind <- colnames(self$datasets[[key1]]$dat)
@@ -37,6 +31,19 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
             # limit to cross-dataset correlations
             cor_mat <- cor_mat[1:nrow(self$datasets[[key1]]$dat), 
                                (nrow(self$datasets[[key1]]$dat) + 1):ncol(cor_mat)]
+
+            cor_mat
+        },
+
+        #' Plots multidataset correlation heatmap
+        #'
+        #' @param key1 Numeric or character index of first dataset to use
+        #' @param key2 Numeric or character index of second dataset to use
+        #' @param method Correlation method to use (passed to `cor` function)
+        #'
+        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
+            # compute cross correlations
+            cor_mat <- self$cross_cor(key1, key2, method)
 
             # determine subsampling indices, if requested
             #indices <- private$get_indices(...)
@@ -65,7 +72,7 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
             }
 
             # add any additional function arguments
-            #params <- c(params, private$get_custom_function_args(...))
+            #params <- c(params, private$strip_shared_function_args(...))
             private$plot_heatmap(params, interactive)
         }
     ),
