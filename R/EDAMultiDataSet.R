@@ -58,16 +58,24 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
 
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$datasets[[key1]]$row_mdata)) {
-                #params[['row_side_colors']] <- self$row_mdata[indices$row, 
+                mdata1 <- self$datasets[[key1]]$row_mdata
+                mask1  <- sapply(mdata1, function(x) { max(table(x)) > 1 })
+                mdata1 <- mdata1[,mask1, drop=FALSE]
+
+                #params[['row_side_colors']] <- mdata1[indices$row, 
                 #                                              binary_vars, drop=FALSE]
-                params[['row_side_colors']] <- self$datasets[[key1]]$row_mdata
+                params[['row_side_colors']] <- mdata1 
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
             
             if (!is.null(self$datasets[[key2]]$row_mdata)) {
-                #params[['col_side_colors']] <- self$col_mdata[indices$col, 
+                mdata2 <- self$datasets[[key2]]$row_mdata
+                mask2  <- sapply(mdata2, function(x) { max(table(x)) > 1 })
+                mdata2 <- mdata2[,mask2, drop=FALSE]
+
+                #params[['col_side_colors']] <- mdata2[indices$col, 
                 #                                                !binary_vars, drop=FALSE]
-                params[['col_side_colors']] <- self$datasets[[key2]]$row_mdata
+                params[['col_side_colors']] <- mdata2 
                 params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
             }
 

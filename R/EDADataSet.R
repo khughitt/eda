@@ -800,6 +800,29 @@ EDADataSet <- R6Class("EDADataSet",
             cat("=========================================\n")
         },
 
+        #' Determines metadata columns to include for heatmap, etc. functions
+        #'
+        #' @param include Vector of strings indicating metadata columns which
+        #' should be included in the analysis.
+        #' @param exclude Vector of strings indicating metadata columns which
+        #' should be excluded from the analysis.
+        #'
+        #' @return Character vector of fields to include in analysis.
+        select_features = function(include, exclude) {
+            # determine fields to include based on user arguments
+            if (!is.null(include)) {
+                include <- include
+            } else if (!is.null(exclude)) {
+                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
+            } else {
+                include <- colnames(self$row_mdata)
+            }
+
+            # always exclude fields with all unique values (e.g. identifiers)
+            mask <- sapply(self$row_mdata[,include], function(x) { max(table(x)) > 1 })
+            include[mask]
+        },
+
         #' Transpose the dataset and metadata in-place
         transpose = function() {
             self$dat <- t(self$dat) 

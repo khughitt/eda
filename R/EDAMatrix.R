@@ -2,15 +2,15 @@
 #'
 #' EDAMatrix is a helper class for wrapping data matrices, with optional
 #' support for row and column datadata. Methods are provided for common
-#' exploratory data analysis summary statistics, transformations, and 
+#' exploratory data analysis summary statistics, transformations, and
 #' visualizations.
 #'
 #' @section Arguments:
 #' \describe{
 #'   \item{dat}{An m x n dataset.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the column names of 
+#'   \item{row_mdata}{Data frame with rows corresponding to the column names of
 #'       \code{dat}.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
+#'   \item{row_mdata}{Data frame with rows corresponding to the row names of
 #'       \code{dat}.}
 #' }
 #'
@@ -24,15 +24,15 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
     inherit = EDADataSet,
     public = list(
         #' EDAMatrix constructor
-        initialize = function(dat, 
-                              row_mdata=NULL, col_mdata=NULL, 
+        initialize = function(dat,
+                              row_mdata=NULL, col_mdata=NULL,
                               row_ids='rownames', col_ids='colnames',
                               row_mdata_ids='rownames', col_mdata_ids='rownames',
                               row_color=NULL, row_shape=NULL, row_labels=NULL,
                               col_color=NULL, col_shape=NULL, col_labels=NULL,
                               row_maxn=Inf, row_max_ratio=1.0, row_ind=NULL,
                               col_maxn=Inf, col_max_ratio=1.0, col_ind=NULL,
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) { 
+                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
             # verify input data type and call parent constructor
             private$check_input(dat)
 
@@ -107,18 +107,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         #' Detects dependencies between column metadata entries (features) and
         #' a lower-dimension projection of the dataset.
-        #' 
-        #' Measures the predictive power of each feature (column in 
-        #' \code{obj$row_mdata}) and the (PCA, t-SNE, etc.) projected data rows 
+        #'
+        #' Measures the predictive power of each feature (column in
+        #' \code{obj$row_mdata}) and the (PCA, t-SNE, etc.) projected data rows
         #' using a simple linear model.
         #'
         #' Based on code adapted from cbcbSEQ
-        #' (https://github.com/kokrah/cbcbSEQ/) originally written by 
+        #' (https://github.com/kokrah/cbcbSEQ/) originally written by
         #' Kwame Okrah.
         #
         #' @param method Dimension reduction method to use (options: pca,
         #'     kpca, t-sne)
-		#' @param num_dims Number of projected dimensions (e.g. PC's) to include
+        #' @param num_dims Number of projected dimensions (e.g. PC's) to include
         #'     in the plot (default: 6)
         #' @param include Vector of strings indicating metadata columns which
         #' should be included in the analysis.
@@ -127,27 +127,21 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #'
         #' @return Dataframe containing feature/t-SNE axes correlations.
         feature_cor = function(method='pca', num_dims=6, include=NULL, exclude=NULL, ...) {
+            # determine which features to include
+            include <- private$select_features(include, exclude)
+
             # PCA
             if (method == 'pca') {
                 s <- corpcor:::fast.svd(t(self$dat) - rowMeans(t(self$dat)))
 
                 result <- head(private$compute_feature_correlations(s$v, include), num_dims)
-                rownames(result) <- paste0("PC", 1:nrow(result)) 
+                rownames(result) <- paste0("PC", 1:nrow(result))
             } else if (method == 't-sne') {
                 # t-SNE
                 tsne <- Rtsne::Rtsne(self$dat, dims=num_dims, ...)
 
                 result <- private$compute_feature_correlations(tsne$Y, include)
-                rownames(result) <- paste0("Dim", 1:nrow(result)) 
-            }
-
-            # determine which features to include
-            if (!is.null(include)) {
-                include <- include
-            } else if (!is.null(exclude)) {
-                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
-            } else {
-                include <- colnames(self$row_mdata)
+                rownames(result) <- paste0("Dim", 1:nrow(result))
             }
 
             result
@@ -229,17 +223,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # plotting methods
         ######################################################################
 
-        #' Correlation heatmap. 
+        #' Correlation heatmap.
         #'
-        #' Generates a correlation heatmap depicting the pairwise column 
+        #' Generates a correlation heatmap depicting the pairwise column
         #' correlations in the data.
         #'
         #' @param method String name of correlation method to use.
         #' @param ... Additional arguments
         #'
-        #' @seealso \code{cor} for more information about supported correlation 
+        #' @seealso \code{cor} for more information about supported correlation
         #'      methods.
-        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) { 
+        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
@@ -263,14 +257,14 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
                 # col colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$row_mdata[indices$row, 
+                    params[['col_side_colors']] <- self$row_mdata[indices$row,
                                                                   binary_vars, drop=FALSE]
                     params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
 
                 # row colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['row_side_colors']] <- self$row_mdata[indices$row, 
+                    params[['row_side_colors']] <- self$row_mdata[indices$row,
                                                                   !binary_vars, drop=FALSE]
                     params[['subplot_widths']] <- c(0.55, 0.3, 0.15)
                 }
@@ -285,7 +279,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' Generates a heatmap plot of the dataset
         #'
         #' @param ... Additional arguments
-        plot_heatmap = function(interactive=TRUE, ...) { 
+        plot_heatmap = function(interactive=TRUE, ...) {
             # determine subsampling indices, if requested
             indices <- private$get_indices(...)
 
@@ -302,7 +296,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 params[['row_side_colors']] <- self$row_mdata[indices$row,, drop=FALSE]
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
-            
+
             if (!is.null(self$col_mdata)) {
                 params[['col_side_colors']] <- self$col_mdata[indices$col,, drop=FALSE]
                 params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
@@ -314,20 +308,20 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$plot_heatmap(params, interactive)
         },
 
-		#' Creates a tile plot of projected data / feature correlations
-		#'
-		#' @param num_dims Number of projected dimensions (e.g. PC's) to include
+        #' Creates a tile plot of projected data / feature correlations
+        #'
+        #' @param num_dims Number of projected dimensions (e.g. PC's) to include
         #'     in the plot (default: 6)
         #' @param include Vector of strings indicating metadata columns which
         #' should be included in the analysis.
-        #' @param exclude Features (column metadata variables) to exclude from 
+        #' @param exclude Features (column metadata variables) to exclude from
         #'     the analysis.
         #' @param low_color String indicating color to use for low correlation
         #'     values (default: green)
         #' @param high_color String indicating color to use for high correlation
         #'     values (default: red)
-		#'
-		#' @return ggplot plot instance
+        #'
+        #' @return ggplot plot instance
         plot_feature_cor = function(method='pca', num_dims=6, include=NULL,
                                     exclude=NULL, low_color='green',
                                     high_color='red', ...) {
@@ -345,19 +339,19 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # create plot
-            ggplot(dat, aes(x=dim, y=variable)) + 
-                geom_tile(aes(fill=value)) + 
+            ggplot(dat, aes(x=dim, y=variable)) +
+                geom_tile(aes(fill=value)) +
                 geom_text(aes(label=value), size=2, show.legend=FALSE) +
                 scale_fill_gradient(low=low_color, high=high_color) +
                 private$ggplot_theme() +
-                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1), 
-                      axis.text.y=element_text(size=8)) + 
+                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1),
+                      axis.text.y=element_text(size=8)) +
                 xlab(xlab_text) +
                 ylab("Features") +
                 guides(fill=guide_legend("R^2"))
         },
 
-        #' Generates a two-dimensional PCA plot from the dataset 
+        #' Generates a two-dimensional PCA plot from the dataset
         #'
         #' @param pcx integer PC number to plot along x-axis (default: 1)
         #' @param pcy integer PC number to plot along x-axis (default: 2)
@@ -382,7 +376,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
 
             # create data frame for plotting
-            dat <- data.frame(id=rownames(self$dat)[indices$row], 
+            dat <- data.frame(id=rownames(self$dat)[indices$row],
                               pc1=prcomp_results$x[,pcx],
                               pc2=prcomp_results$x[,pcy])
 
@@ -410,7 +404,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 xlab(xl) + ylab(yl) +
                 ggtitle(title) +
                 private$ggplot_theme() +
-                theme(axis.ticks=element_blank(), 
+                theme(axis.ticks=element_blank(),
                       axis.text.x=element_text(angle=-90))
 
             # text labels
@@ -418,14 +412,14 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
             }
 
-			# legend labels
-			if (length(styles$labels) > 0) {
-				plt <- plt + styles$labels
-			}
+            # legend labels
+            if (length(styles$labels) > 0) {
+                plt <- plt + styles$labels
+            }
             plt
         },
 
-        #' Generates a two-dimensional t-SNE plot from the dataset 
+        #' Generates a two-dimensional t-SNE plot from the dataset
         #'
         #' @param color Column metadata field to use for coloring points.
         #' @param shape Column metadata field to use to assign shapes to points
@@ -466,7 +460,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                    geom_point(styles$aes, stat="identity", size=0.5) +
                    ggtitle(title) +
                    private$ggplot_theme() +
-                   theme(axis.ticks=element_blank(), 
+                   theme(axis.ticks=element_blank(),
                          axis.text.x=element_text(angle=-90),
                          legend.text=element_text(size=7))
 
@@ -475,17 +469,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
             }
 
-			# legend labels
-			if (length(styles$labels) > 0) {
-				plt <- plt + styles$labels
-			}
+            # legend labels
+            if (length(styles$labels) > 0) {
+                plt <- plt + styles$labels
+            }
 
             plt
         },
 
         #' Plot median pairwise column correlations
         #'
-        #' Plots the median correlation of each variable (column). This is 
+        #' Plots the median correlation of each variable (column). This is
         #' useful for visually inspecting columns for possible outliers, when
         #' the total number of columns is relatively small.
         #'
@@ -504,12 +498,12 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             #outlimit
             cutoff <- quantiles[1] - 1.5 * iqr
 
-            ylimit <- c(pmin(min(median_pairwise_cor), cutoff), 
+            ylimit <- c(pmin(min(median_pairwise_cor), cutoff),
                         max(median_pairwise_cor))
 
             # get color properties
-			color_vector <- get_var_colors(color)
-			label_vector <- get_var_labels()
+            color_vector <- get_var_colors(color)
+            label_vector <- get_var_labels()
 
             # variable labels
             if (!all(colnames(self$dat) == label_vector)) {
