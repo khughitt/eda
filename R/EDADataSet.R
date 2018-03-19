@@ -336,8 +336,8 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
-        #' Computes correlations between axes of a data projection (PCA or
-        #' t-SNE) and column metadata.
+        #' Computes correlations between axes of a data projection (PCA, t-SNE,
+        #' etc.) and column metadata.
         #' 
         #' @param mat Numeric projected data matrix
         #' @param include Vector of strings indicating metadata columns which
@@ -377,7 +377,7 @@ EDADataSet <- R6Class("EDADataSet",
         #' @param ... Arguments passed to a given plotting, etc. function call.
         #'
         #' @return A list containing only function-specific arguments 
-        get_custom_function_args = function(...) {
+        strip_shared_function_args = function(...) {
             args <- list(...)
       
             shared_args <- c('row_ind', 'row_maxn', 'row_max_ratio',

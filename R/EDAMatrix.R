@@ -309,7 +309,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, private$get_custom_function_args(...))
+            params <- c(params, private$strip_shared_function_args(...))
 
             private$plot_heatmap(params, interactive)
         },
@@ -341,7 +341,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, private$get_custom_function_args(...))
+            params <- c(params, private$strip_shared_function_args(...))
 
             private$plot_heatmap(params, interactive)
         },
