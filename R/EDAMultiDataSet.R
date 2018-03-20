@@ -20,6 +20,13 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
             private$check_inputs()
         },
 
+        #' Computes cross-dataset correlation matrix
+        #'
+        #' @param key1 Numeric or character index of first dataset to use
+        #' @param key2 Numeric or character index of second dataset to use
+        #' @param method Correlation method to use (passed to `cor` function)
+        #'
+        #' @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1=1, key2=2, method='pearson') {
             # make sure datasets are ordered similarly
             # TODO: include row and col indices

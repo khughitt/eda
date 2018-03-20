@@ -83,7 +83,8 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #' Generates a histogram of sample library sizes (sum of expression
         #' levels within each column/sample). 
         #'
-        #' @param bins Number of bins to use for histogram
+        #' @param color Column metadata field to use for coloring points.
+        #' @param title Title to use for plot.
         #'
         #' @return A ggplot instance.
         plot_libsize_hist = function(color=NULL, title=NULL) {
@@ -114,6 +115,9 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #' Generates a bargraph plot of sample library sizes (sum of expression
         #' levels within each column/sample). Each sample is shown as a separate
         #' bar in the plot.
+        #'
+        #' @param color Column metadata field to use for coloring points.
+        #' @param title Title to use for plot.
         #'
         #' @return A ggplot instance.
         plot_libsize_bargraph = function(color=NULL, title=NULL) {
