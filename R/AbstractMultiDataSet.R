@@ -14,7 +14,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # AbstractMultiDataSet constructor
         initialize = function(...) {
             private$datasets <- list(...)
-            private$check_inputs()
         }
     ),
     private = list(

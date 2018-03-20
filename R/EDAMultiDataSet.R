@@ -16,6 +16,7 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
         # EDADataSet constructor
         initialize = function(...) {
             super$initialize(...)
+            private$check_inputs()
         },
 
         #' Computes cross-dataset correlation matrix

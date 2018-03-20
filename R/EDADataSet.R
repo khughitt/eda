@@ -17,15 +17,12 @@
 NULL
 
 EDADataSet <- R6Class("EDADataSet",
+    inherit = AbstractMultiDataSet,
+
     # ------------------------------------------------------------------------
     # public
     # ------------------------------------------------------------------------
     public = list(
-        # params
-        dat = NULL,
-        col_mdata = NULL,
-        row_mdata = NULL,
-
         # EDADataset constructor
         initialize = function(dat, 
                               row_mdata=NULL, col_mdata=NULL, 
@@ -38,12 +35,13 @@ EDADataSet <- R6Class("EDADataSet",
                               color_pal='Set1', title="", ggplot_theme=theme_bw) { 
 
             # check to make sure row and columns identifiers are stored as
-            # row and column names
-            self$dat <- private$normalize_data_ids(dat, row_ids, col_ids)
+            # row and column names and normalize order of metadata entries,
+            # if specified.
+            dat       <- private$normalize_data_ids(dat, row_ids, col_ids)
+            row_mdata <- private$normalize_metadata_order(col_mdata, colnames(self$dat))
+            col_mdata <- private$normalize_metadata_order(row_mdata, rownames(self$dat))
 
-            # store row and column metadata, if present
-            self$col_mdata <- private$normalize_metadata_order(col_mdata, colnames(self$dat))
-            self$row_mdata <- private$normalize_metadata_order(row_mdata, rownames(self$dat))
+            super$initialize(dat=dat, row_mdata=row_mdata, col_mdata=col_mdata)
             
             # default variables to use for plot color, shape, and labels when
             # visualizing either columns or rows in the dataset
@@ -616,55 +614,6 @@ EDADataSet <- R6Class("EDADataSet",
             self$row_mdata[,label]
         },
 
-        #' Creates a static or interactive heatmap plot
-        #'
-        #' @param params A list of plotting parameters
-        #' @param interactive Logical indicating whether an interactive heatmap
-        #'     should be generated.
-        plot_heatmap = function(params, interactive) {
-            # interactive heatmap
-            if (interactive) {
-                return(do.call(heatmaply::heatmaply, params))
-            }
-
-            # static heatmap
-
-            # convert colside and rowside colors to explicit color values,
-            # if present
-            if ('col_side_colors' %in% names(params)) {
-                params$ColSideColors <- params$col_side_colors
-
-                colors <- c('blue', 'yellow')
-
-                for (col_name in colnames(params$ColSideColors)) {
-                    col <- params$ColSideColors[,col_name]
-                    params$ColSideColors[,col_name] <- colors[as.numeric(factor(col))]
-                }
-                params$ColSideColors <- as.matrix(params$ColSideColors)
-            }
-
-            if ('row_side_colors' %in% names(params)) {
-                params$RowSideColors <- params$row_side_colors
-
-                pal <- RColorBrewer::brewer.pal(8, 'Set1')
-
-                for (col_name in colnames(params$RowSideColors)) {
-                    col <- params$RowSideColors[,col_name]
-                    colors <- colorRampPalette(pal)(min(1E4, length(unique(col))))
-                    params$RowSideColors[,col_name] <- colors[as.numeric(factor(col))]
-                }
-                params$RowSideColors <- as.matrix(params$RowSideColors)
-            }
-
-            # remove irrelevant function arguments
-            heatmaply_args <- c('showticklabels', 'subplot_widths', 'subplot_heights',
-                                'col_side_colors', 'row_side_colors')
-            params <- params[!names(params) %in% heatmaply_args]
-
-
-            do.call(heatmap.plus::heatmap.plus, params)
-        },
-
         #' Normalizes handling of data row and column identifiers
         #'
         #' Checks dataset row and column identifiers and converts them to row 
@@ -855,6 +804,31 @@ EDADataSet <- R6Class("EDADataSet",
     # active bindings
     # ------------------------------------------------------------------------
     active = list(
+        # params
+        dat = function(value) {
+            if (missing(value)) {
+                private$datasets[['dat']]
+            } else { 
+                private$datasets[['dat']] <- value
+            }
+        },
+
+        col_mdata = function(value) {
+            if (missing(value)) {
+                private$datasets[['col_mdata']]
+            } else { 
+                private$datasets[['col_mdata']] <- value
+            }
+        },
+
+        row_mdata = function(value) {
+            if (missing(value)) {
+                private$datasets[['row_mdata']]
+            } else { 
+                private$datasets[['row_mdata']] <- value
+            }
+        },
+
         t = function() {
             # EDADataSet class
             cls <- get(class(self)[1])
