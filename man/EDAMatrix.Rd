@@ -5,96 +5,13 @@
 \alias{EDAMatrix}
 \alias{EDAMatrix}
 \title{An S6 class representing a matrix dataset.}
-\format{An object of class \code{R6ClassGenerator} of length 24.}
+\format{\code{\link{R6Class}} object.}
 \usage{
 EDAMatrix
 }
-\arguments{
-\item{k}{Number of clusters to detect (default: 10)}
-
-\item{num_sd}{Number of standard deviations to use to determine
-outliers.}
-
-\item{num_sd}{Number of standard deviations to use to determine
-outliers.}
-
-\item{method}{Dimension reduction method to use (options: pca,
-kpca, t-sne)}
-
-\item{num_dims}{Number of projected dimensions (e.g. PC's) to include
-in the plot (default: 6)}
-
-\item{include}{Vector of strings indicating metadata columns which
-should be included in the analysis.}
-
-\item{exclude}{Vector of strings indicating metadata columns which
-should be excluded from the analysis.}
-
-\item{num_sd}{Number of standard deviations to use to determine
-outliers.}
-
-\item{num_sd}{Number of standard deviations to use to determine
-outliers.}
-
-\item{base}{Numeric logarithm base to use (default: e)}
-
-\item{offset}{Numeric offset to apply to data before taking the
-logarithm (default: 0)}
-
-\item{method}{String name of correlation method to use.}
-
-\item{...}{Additional arguments}
-
-\item{...}{Additional arguments
-Creates a tile plot of projected data / feature correlations}
-
-\item{num_dims}{Number of projected dimensions (e.g. PC's) to include
-in the plot (default: 6)}
-
-\item{include}{Vector of strings indicating metadata columns which
-should be included in the analysis.}
-
-\item{exclude}{Features (column metadata variables) to exclude from
-the analysis.}
-
-\item{low_color}{String indicating color to use for low correlation
-values (default: green)}
-
-\item{high_color}{String indicating color to use for high correlation
-values (default: red)}
-
-\item{pcx}{integer PC number to plot along x-axis (default: 1)}
-
-\item{pcy}{integer PC number to plot along x-axis (default: 2)}
-
-\item{scale}{Whether or not to scale variables prior to performing
-pca; passed to `prcomp` function.}
-
-\item{color}{Column metadata field to use for coloring points.}
-
-\item{shape}{Column metadata field to use to assign shapes to points}
-
-\item{title}{Plot title.}
-
-\item{text_labels}{Whether or not to include individual point labels
-plot (default: FALSE).}
-
-\item{...}{Addition arguments relating to data indices to use.}
-
-\item{color}{Column metadata field to use for coloring points.}
-
-\item{shape}{Column metadata field to use to assign shapes to points}
-
-\item{title}{Plot title.}
-
-\item{text_labels}{Whether or not to include individual point labels
-plot (default: FALSE).}
-
-\item{...}{Addition arguments relating to data indices to use.}
-}
 \value{
 Vector of cluster assignments with length equal to the
-    number of rows in the dataset.
+number of rows in the dataset.
 Detects column outliers in the dataset
 
 Computes pairwise correlations between all columns in the dataset.
@@ -102,8 +19,11 @@ Columns whose median pairwise correlation with all other columns
 is greater than \code{num_sd} standard deviations from the average
 median correlation are considered to be outliers.
 
+num_sd Number of standard deviations to use to determine
+outliers.
+
 Character vector or column ids for columns with low
-    average pairwise correlations.
+average pairwise correlations.
 Detects row outliers in the dataset
 
 Computes pairwise correlations between all rows in the dataset.
@@ -111,26 +31,22 @@ Rows whose median pairwise correlation with all other rows
 is greater than \code{num_sd} standard deviations from the average
 median correlation are considered to be outliers.
 
+num_sd Number of standard deviations to use to determine
+outliers.
+
 Character vector or row ids for rows with low
-    average pairwise correlations.
+average pairwise correlations.
 Detects dependencies between column metadata entries (features) and
-a lower-dimension projection of the dataset.
-
-Measures the predictive power of each feature (column in
-\code{obj$row_mdata}) and the (PCA, t-SNE, etc.) projected data rows
-using a simple linear model.
-
-Based on code adapted from cbcbSEQ
-(https://github.com/kokrah/cbcbSEQ/) originally written by
-Kwame Okrah.
-
-Dataframe containing feature/t-SNE axes correlations.
+dataset rows.
 Removes column outliers from the dataset
 
 Computes pairwise correlations between all columns in the dataset.
 Columns whose median pairwise correlation with all other columns
 is greater than \code{num_sd} standard deviations from the average
 median correlation are removed.
+
+num_sd Number of standard deviations to use to determine
+outliers.
 
 A filtered version of the original EDADataSet object.
 Removes row outliers from the dataset
@@ -140,24 +56,56 @@ rows whose median pairwise correlation with all other rows
 is greater than \code{num_sd} standard deviations from the average
 median correlation are removed.
 
+num_sd Number of standard deviations to use to determine
+outliers.
+
 A filtered version of the original EDADataSet object.
 Log-transforms data
+
+base Numeric logarithm base to use (default: e)
+offset Numeric offset to apply to data before taking the
+logarithm (default: 0)
 
 A log-transformed version of the object.
 Log(x + 1) transforms data
 
 A log(x + 1) transformed version of the object.
+PCA
+
+t-SNE
+
 Prints an overview of the object instance
 Correlation heatmap.
 
 Generates a correlation heatmap depicting the pairwise column
 correlations in the data.
 
+method String name of correlation method to use.
+... Additional arguments
+
 ggplot plot instance
 Generates a two-dimensional PCA plot from the dataset
 
+pcx integer PC number to plot along x-axis (default: 1)
+pcy integer PC number to plot along x-axis (default: 2)
+scale Whether or not to scale variables prior to performing
+pca; passed to \code{prcomp} function.
+color Column metadata field to use for coloring points.
+shape Column metadata field to use to assign shapes to points
+title Plot title.
+text_labels Whether or not to include individual point labels
+plot (default: FALSE).
+...
+
 ggplot plot instance
 Generates a two-dimensional t-SNE plot from the dataset
+
+color Column metadata field to use for coloring points.
+shape Column metadata field to use to assign shapes to points
+title Plot title.
+text_labels Whether or not to include individual point labels
+plot (default: FALSE).
+...
 
 ggplot plot instance
 Plot median pairwise column correlations
@@ -175,25 +123,23 @@ support for row and column datadata. Methods are provided for common
 exploratory data analysis summary statistics, transformations, and
 visualizations.
 
-EDAMatrix constructor
-Clusters dataset rows using k-means clustering in a t-SNE projected
-space.
+k Number of clusters to detect (default: 10)
 }
-\section{Arguments}{
-
-\describe{
-  \item{dat}{An m x n dataset.}
-  \item{row_mdata}{Data frame with rows corresponding to the column names of
-      \code{dat}.}
-  \item{row_mdata}{Data frame with rows corresponding to the row names of
-      \code{dat}.}
-}
-}
-
 \seealso{
 \code{cor} for more information about supported correlation
-     methods.
+methods.
 Generates a heatmap plot of the dataset
+
+... Additional arguments
+Creates a tile plot of projected data / feature correlations
+
+include Vector of strings indicating metadata columns which
+should be included in the analysis.
+exclude Features (column metadata variables) to exclude from
+the analysis.
+color_scale Character vector containing colors to sue for
+low-correlation and high-correlation values
+(default: c('green', 'red')).
 }
 \author{
 V. Keith Hughitt, \email{keith.hughitt@nih.gov}

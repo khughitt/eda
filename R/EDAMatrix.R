@@ -5,16 +5,64 @@
 #' exploratory data analysis summary statistics, transformations, and
 #' visualizations.
 #'
-#' @section Arguments:
-#' \describe{
-#'   \item{dat}{An m x n dataset.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the column names of
-#'       \code{dat}.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the row names of
-#'       \code{dat}.}
+#' @section Usage:
+#' \preformatted{
+#' dat <- as.matrix(iris[,1:4])
+#' row_mdata <- iris[,5,drop=FALSE]
+#'
+#' edm <- EDAMatrix$new(dat, row_mdata=row_mdata, row_color='Species')
+#'
+#' edm
+#' edm$summary()
+#'
+#' edm$plot_pca()
+#' edm$log1p()$plot_cor_heatmap()
+#' edm$subsample(100)$plot_tsne()
 #' }
 #'
+#' @section Arguments:
+#'  - **dat** An m x n dataset.
+#'  - **row_mdata** A matrix or data frame with rows corresponding to the row 
+#'      names of `dat`
+#'  - **col_mdata** A matrix or data frame with rows corresponding to the 
+#'      column names of `dat`
+#'  - **row_ids** Column name or number containing row identifiers. If set to
+#'      `rownames` (default), row names will be used as identifiers.
+#'  - **col_ids** Column name or number containing column identifiers. If set to
+#'      `colnames` (default), column names will be used as identifiers.
+#'  - **row_mdata_ids** Column name or number containing row metadata row 
+#'      identifiers. If set to `rownames` (default), row names will be used 
+#'      as identifiers.
+#'  - **col_mdata_ids** Column name or number containing col metadata row 
+#'      identifiers. If set to `rownames` (default), row names will be used 
+#'      as identifiers.
+#'  - **row_color** Row metadata field to use for coloring rowwise plot elements.
+#'  - **row_shape** Row metadata field to use for determine rowwise plot 
+#'      element shape.
+#'  - **row_labels** Row metadata field to use when labeling plot points or
+#'      other elements.
+#'  - **col_color** Column metadata field to use for coloring columnwise plot elements.
+#'  - **col_shape** Column metadata field to use for determine columnwise plot 
+#'      element shape.
+#'  - **col_labels** Column metadata field to use when labeling plot points or
+#'      other elements.
+#'  - **color_pal** Color palette to use for relevant plotting methods 
+#'      (default: `Set1`).
+#'  - **title** Text to use as a title or subtitle for plots.
+#'  - **ggplot_theme** Default theme to use for ggplot2 plots 
+#'      (default: `theme_bw`).
+#'
+#' @section Fields:
+#'  - **dat** Underlying data matrix
+#'  - **row_mdata** Dataframe containing row metadata
+#'  - **col_mdata** Dataframe containing column metadata
+#'
+#' @section Methods:
+#'  - **clear_cache()** Clears EDAMatrix cache.
+#'  - **clone()** Creates a copy of the EDAMatrix instance.
+#'
 #' @importFrom R6 R6Class
+#' @format \code{\link{R6Class}} object.
 #' @name EDAMatrix
 #' @export
 #'
@@ -43,7 +91,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' Clusters dataset rows using k-means clustering in a t-SNE projected
         #' space.
         #'
-        #' @param k Number of clusters to detect (default: 10)
+        #' k Number of clusters to detect (default: 10)
         #'
         #' @return Vector of cluster assignments with length equal to the
         #'     number of rows in the dataset.
@@ -64,7 +112,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' is greater than \code{num_sd} standard deviations from the average
         #' median correlation are considered to be outliers.
         #'
-        #' @param num_sd Number of standard deviations to use to determine
+        #' num_sd Number of standard deviations to use to determine
         #'      outliers.
         #'
         #' @return Character vector or column ids for columns with low
@@ -85,7 +133,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' is greater than \code{num_sd} standard deviations from the average
         #' median correlation are considered to be outliers.
         #'
-        #' @param num_sd Number of standard deviations to use to determine
+        #' num_sd Number of standard deviations to use to determine
         #'      outliers.
         #'
         #' @return Character vector or row ids for rows with low
@@ -113,7 +161,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' is greater than \code{num_sd} standard deviations from the average
         #' median correlation are removed.
         #'
-        #' @param num_sd Number of standard deviations to use to determine
+        #' num_sd Number of standard deviations to use to determine
         #'      outliers.
         #'
         #' @return A filtered version of the original EDADataSet object.
@@ -132,7 +180,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' is greater than \code{num_sd} standard deviations from the average
         #' median correlation are removed.
         #'
-        #' @param num_sd Number of standard deviations to use to determine
+        #' num_sd Number of standard deviations to use to determine
         #'      outliers.
         #'
         #' @return A filtered version of the original EDADataSet object.
@@ -146,8 +194,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         #' Log-transforms data
         #'
-        #' @param base Numeric logarithm base to use (default: e)
-        #' @param offset Numeric offset to apply to data before taking the
+        #' base Numeric logarithm base to use (default: e)
+        #' offset Numeric offset to apply to data before taking the
         #'     logarithm (default: 0)
         #'
         #' @return A log-transformed version of the object.
@@ -214,8 +262,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' Generates a correlation heatmap depicting the pairwise column
         #' correlations in the data.
         #'
-        #' @param method String name of correlation method to use.
-        #' @param ... Additional arguments
+        #' method String name of correlation method to use.
+        #' ... Additional arguments
         #'
         #' @seealso \code{cor} for more information about supported correlation
         #'      methods.
@@ -252,14 +300,14 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, private$strip_shared_function_args(...))
+            params <- c(params, ...)
 
             private$plot_heatmap(params, interactive)
         },
 
         #' Generates a heatmap plot of the dataset
         #'
-        #' @param ... Additional arguments
+        #' ... Additional arguments
         plot_heatmap = function(interactive=TRUE, ...) {
             # list of parameters to pass to heatmaply
             params <- list(
@@ -281,18 +329,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, private$strip_shared_function_args(...))
+            params <- c(params, ...)
 
             private$plot_heatmap(params, interactive)
         },
 
         #' Creates a tile plot of projected data / feature correlations
         #'
-        #' @param include Vector of strings indicating metadata columns which
+        #' include Vector of strings indicating metadata columns which
         #' should be included in the analysis.
-        #' @param exclude Features (column metadata variables) to exclude from
+        #' exclude Features (column metadata variables) to exclude from
         #'     the analysis.
-        #' @param color_scale Character vector containing colors to sue for
+        #' color_scale Character vector containing colors to sue for
         #'     low-correlation and high-correlation values
         #'     (default: c('green', 'red')).
         #'
@@ -325,16 +373,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         #' Generates a two-dimensional PCA plot from the dataset
         #'
-        #' @param pcx integer PC number to plot along x-axis (default: 1)
-        #' @param pcy integer PC number to plot along x-axis (default: 2)
-        #' @param scale Whether or not to scale variables prior to performing
+        #' pcx integer PC number to plot along x-axis (default: 1)
+        #' pcy integer PC number to plot along x-axis (default: 2)
+        #' scale Whether or not to scale variables prior to performing
         #'     pca; passed to `prcomp` function.
-        #' @param color Column metadata field to use for coloring points.
-        #' @param shape Column metadata field to use to assign shapes to points
-        #' @param title Plot title.
-        #' @param text_labels Whether or not to include individual point labels
+        #' color Column metadata field to use for coloring points.
+        #' shape Column metadata field to use to assign shapes to points
+        #' title Plot title.
+        #' text_labels Whether or not to include individual point labels
         #'     plot (default: FALSE).
-        #' @param ...
+        #' ...
         #'
         #' @return ggplot plot instance
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
@@ -390,12 +438,12 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         #' Generates a two-dimensional t-SNE plot from the dataset
         #'
-        #' @param color Column metadata field to use for coloring points.
-        #' @param shape Column metadata field to use to assign shapes to points
-        #' @param title Plot title.
-        #' @param text_labels Whether or not to include individual point labels
+        #' color Column metadata field to use for coloring points.
+        #' shape Column metadata field to use to assign shapes to points
+        #' title Plot title.
+        #' text_labels Whether or not to include individual point labels
         #'     plot (default: FALSE).
-        #' @param ...
+        #' ...
         #'
         #' @return ggplot plot instance
         plot_tsne = function(color=NULL, shape=NULL, title=NULL,

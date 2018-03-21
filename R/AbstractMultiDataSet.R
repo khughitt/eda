@@ -139,7 +139,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             # add any additional function arguments
-            #params <- c(params, private$strip_shared_function_args(...))
             private$plot_heatmap(params, interactive)
         },
 
