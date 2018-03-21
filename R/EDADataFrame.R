@@ -21,7 +21,7 @@
 NULL
 
 EDADataFrame <- R6::R6Class("EDADataFrame",
-    inherit = EDADataSet,
+    inherit = eda:::EDADataSet,
     public = list(
         #' EDADataFrame constructor
         initialize = function(dat, 

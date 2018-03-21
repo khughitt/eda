@@ -132,7 +132,10 @@ Character vector of fields to include in analysis.
 Transpose the dataset and metadata in-place
 }
 \description{
-An S6 class representing a generic dataset.
+EDADataSet is a helper class for wrapping data matrices and data frames,
+with optional support for row and column datadata. Methods are provided for
+common exploratory data analysis summary statistics, transformations, and
+visualizations.
 
 Clears any cached resuts and performs garbage collection to free
 up memory.

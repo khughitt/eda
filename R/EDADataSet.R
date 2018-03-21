@@ -1,5 +1,10 @@
 #' An S6 class representing a generic dataset.
 #'
+#' EDADataSet is a helper class for wrapping data matrices and data frames,
+#' with optional support for row and column datadata. Methods are provided for
+#' common exploratory data analysis summary statistics, transformations, and
+#' visualizations.
+#'
 #' @section Arguments:
 #' \describe{
 #'   \item{dat}{An m x n dataset.}
@@ -12,12 +17,11 @@
 #' @importFrom R6 R6Class
 #' @import ggplot2 heatmap.plus reshape2
 #' @name EDADataSet
-#' @export
 #'
 NULL
 
 EDADataSet <- R6Class("EDADataSet",
-    inherit = AbstractMultiDataSet,
+    inherit = eda:::AbstractMultiDataSet,
 
     # ------------------------------------------------------------------------
     # public

@@ -2,7 +2,6 @@
 #'
 #' @importFrom R6 R6Class
 #' @name AbstractMultiDataSet
-#' @export
 #'
 NULL
 

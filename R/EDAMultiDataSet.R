@@ -7,7 +7,7 @@
 NULL
 
 EDAMultiDataSet <- R6Class("EDAMultiDataSet",
-    inherit = AbstractMultiDataSet,
+    inherit = eda:::AbstractMultiDataSet,
 
     # ------------------------------------------------------------------------
     # public

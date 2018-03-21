@@ -3,7 +3,6 @@
 \name{EDAMatrix}
 \alias{EDAMatrix}
 \title{An S6 class representing a matrix dataset.}
-\format{\code{\link{R6Class}} object.}
 \description{
 EDAMatrix is a helper class for wrapping data matrices, with optional
 support for row and column datadata. Methods are provided for common
@@ -11,9 +10,7 @@ exploratory data analysis summary statistics, transformations, and
 visualizations.
 }
 \section{Usage}{
-
-\preformatted{
-dat <- as.matrix(iris[,1:4])
+\preformatted{dat <- as.matrix(iris[,1:4])
 row_mdata <- iris[,5,drop=FALSE]
 
 edm <- EDAMatrix$new(dat, row_mdata=row_mdata, row_color='Species')
@@ -30,35 +27,35 @@ edm$subsample(100)$plot_tsne()
 \section{Arguments}{
 
 \itemize{
-\item \strong{dat} An m x n dataset.
-\item \strong{row_mdata} A matrix or data frame with rows corresponding to the row
+\item \code{dat}: An m x n dataset.
+\item \code{row_mdata}: A matrix or data frame with rows corresponding to the row
 names of \code{dat}
-\item \strong{col_mdata} A matrix or data frame with rows corresponding to the
+\item \code{col_mdata}: A matrix or data frame with rows corresponding to the
 column names of \code{dat}
-\item \strong{row_ids} Column name or number containing row identifiers. If set to
+\item \code{row_ids}: Column name or number containing row identifiers. If set to
 \code{rownames} (default), row names will be used as identifiers.
-\item \strong{col_ids} Column name or number containing column identifiers. If set to
+\item \code{col_ids}: Column name or number containing column identifiers. If set to
 \code{colnames} (default), column names will be used as identifiers.
-\item \strong{row_mdata_ids} Column name or number containing row metadata row
+\item \code{row_mdata_ids}: Column name or number containing row metadata row
 identifiers. If set to \code{rownames} (default), row names will be used
 as identifiers.
-\item \strong{col_mdata_ids} Column name or number containing col metadata row
+\item \code{col_mdata_ids}: Column name or number containing col metadata row
 identifiers. If set to \code{rownames} (default), row names will be used
 as identifiers.
-\item \strong{row_color} Row metadata field to use for coloring rowwise plot elements.
-\item \strong{row_shape} Row metadata field to use for determine rowwise plot
+\item \code{row_color}: Row metadata field to use for coloring rowwise plot elements.
+\item \code{row_shape}: Row metadata field to use for determine rowwise plot
 element shape.
-\item \strong{row_labels} Row metadata field to use when labeling plot points or
+\item \code{row_labels}: Row metadata field to use when labeling plot points or
 other elements.
-\item \strong{col_color} Column metadata field to use for coloring columnwise plot elements.
-\item \strong{col_shape} Column metadata field to use for determine columnwise plot
+\item \code{col_color}: Column metadata field to use for coloring columnwise plot elements.
+\item \code{col_shape}: Column metadata field to use for determine columnwise plot
 element shape.
-\item \strong{col_labels} Column metadata field to use when labeling plot points or
+\item \code{col_labels}: Column metadata field to use when labeling plot points or
 other elements.
-\item \strong{color_pal} Color palette to use for relevant plotting methods
+\item \code{color_pal}: Color palette to use for relevant plotting methods
 (default: \code{Set1}).
-\item \strong{title} Text to use as a title or subtitle for plots.
-\item \strong{ggplot_theme} Default theme to use for ggplot2 plots
+\item \code{title}: Text to use as a title or subtitle for plots.
+\item \code{ggplot_theme}: Default theme to use for ggplot2 plots
 (default: \code{theme_bw}).
 }
 }
@@ -66,82 +63,81 @@ other elements.
 \section{Fields}{
 
 \itemize{
-\item \strong{dat} Underlying data matrix
-\item \strong{row_mdata} Dataframe containing row metadata
-\item \strong{col_mdata} Dataframe containing column metadata
+\item \code{dat}: Underlying data matrix
+\item \code{row_mdata}: Dataframe containing row metadata
+\item \code{col_mdata}: Dataframe containing column metadata
 }
 }
 
 \section{Methods}{
 
 \itemize{
-\item \strong{clear_cache()} Clears EDAMatrix cache.
-\item \strong{clone()} Creates a copy of the EDAMatrix instance.
-\item \strong{cluster_tsne(k=10, ...)} Clusters rows in dataset using a combination
+\item \code{clear_cache()}: Clears EDAMatrix cache.
+\item \code{clone()}: Creates a copy of the EDAMatrix instance.
+\item \code{cluster_tsne(k=10, ...)}: Clusters rows in dataset using a combination
 of t-SNE and k-means clustering.
-\item \strong{detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')}
+\item \code{detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
 Measures average pairwise similarities between all columns in the dataset.
 Outliers are considered to be those columns who mean similarity to
 all other columns is greater than \code{num_sd} standard deviations from the
 average of averages.
-\item \strong{detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')}
+\item \code{detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
 Measures average pairwise similarities between all rows in the dataset.
 Outliers are considered to be those rows who mean similarity to
 all other rows is greater than \code{num_sd} standard deviations from the
 average of averages.
-\item \strong{feature_cor()} Detects dependencies between column metadata entries
+\item \code{feature_cor()}: Detects dependencies between column metadata entries
 (features) and dataset rows.
-\item \strong{filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')}
+\item \code{filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
 Removes column outliers from the dataset. See \code{detect_col_outliers()}
 for details of outlier detection approach.
-\item \strong{filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')}
+\item \code{filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
 Removes row outliers from the dataset. See \code{detect_row_outliers()}
 for details of outlier detection approach.
-\item \strong{filter_cols(mask)} Accepts a logical vector of length \code{ncol(obj$dat)}
+\item \code{filter_cols(mask)}: Accepts a logical vector of length \code{ncol(obj$dat)}
 and returns a new EDAMatrix instance with only the columns associated
 with \code{TRUE} values in the mask.
-\item \strong{filter_rows(mask)} Accepts a logical vector of length \code{nrow(obj$dat)}
+\item \code{filter_rows(mask)}: Accepts a logical vector of length \code{nrow(obj$dat)}
 and returns a new EDAMatrix instance with only the rowsumns associated
 with \code{TRUE} values in the mask.
-\item \strong{impute(method='knn')} Imputes missing values in the dataset and stores
+\item \code{impute(method='knn')}: Imputes missing values in the dataset and stores
 the result \emph{in-place}. Currently only k-Nearest Neighbors (kNN)
 imputation is supported.
-\item \strong{log(base=exp(1), offset=0)} Log-transforms data.
-\item \strong{log1p()} Log(x + 1)-transforms data.
-\item \strong{pca(...)} Performs principle component analysis (PCA) on the dataset
+\item \code{log(base=exp(1), offset=0)}: Log-transforms data.
+\item \code{log1p()}: Log(x + 1)-transforms data.
+\item \code{pca(...)}: Performs principle component analysis (PCA) on the dataset
 and returns a new EDAMatrix instance of the projected data points.
 Any additional arguements specified are passed to the \code{prcomp()} function.
-\item \strong{pca_feature_cor(method='pearson', ...)} Measures correlation between
+\item \code{pca_feature_cor(method='pearson', ...)}: Measures correlation between
 dataset features (column metadata fields) and dataset principle
 components.
-\item \strong{plot_cor_heatmap(method='pearson', interactive=TRUE, ...)} Plots a
+\item \code{plot_cor_heatmap(method='pearson', interactive=TRUE, ...)}: Plots a
 correlation heatmap of the dataset.
-\item \strong{plot_densities(color=NULL, title="", ...)} Plots densities for each
+\item \code{plot_densities(color=NULL, title="", ...)}: Plots densities for each
 column in the dataset.
-\item \strong{plot_feature_cor(method='pearson', color_scale=c('green', 'red'))}
+\item \code{plot_feature_cor(method='pearson', color_scale=c('green', 'red')}:
 Creates a tile plot of projected data / feature correlations. See
 \code{feature_cor()} function.
-\item \strong{plot_heatmap(interactive=TRUE, ...)} Generates a heatmap plot of the
+\item \code{plot_heatmap(interactive=TRUE, ...)}: Generates a heatmap plot of the
 dataset
-\item \strong{plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))}
+\item \code{plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))}:
 Plot median pairwise column correlations for each variable (column)
 in the dataset.
-\item \strong{plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL,
-text_labels=FALSE, ...)}
+\item \code{plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)}:
 Generates a two-dimensional PCA plot from the dataset.
-\item \strong{plot_tsne(color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)}
+\item \code{plot_tsne(color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)}:
 Generates a two-dimensional t-SNE plot from the dataset.
-\item \strong{print()} Prints an overview of the object instance.
-\item \strong{subsample(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL)}
+\item \code{print()}: Prints an overview of the object instance.
+\item \code{subsample(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL)}:
 Subsamples dataset rows and/or columns.
-\item \strong{summary(markdown=FALSE, num_digits=2)} Summarizes overall
+\item \code{summary(markdown=FALSE, num_digits=2)}: Summarizes overall
 characteristics of a dataset.
-\item \strong{t()} Transposes dataset rows and columns.
-\item \strong{tsne(...)} Performs T-distributed stochastic neighbor embedding (t-SNE)
+\item \code{t()}: Transposes dataset rows and columns.
+\item \code{tsne(...)}: Performs T-distributed stochastic neighbor embedding (t-SNE)
 on the dataset and returns a new EDAMatrix instance of the projected
 data points. Any additional arguements specified are passed to the
 \code{Rtsne()} function.
-\item \strong{tsne_feature_cor(method='pearson', ...)} Measures correlation between
+\item \code{tsne_feature_cor(method='pearson', ...)}: Measures correlation between
 dataset features (column metadata fields) and dataset t-SNE projected
 axes.
 }
