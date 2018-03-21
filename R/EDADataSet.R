@@ -39,8 +39,8 @@ EDADataSet <- R6Class("EDADataSet",
             # if specified.
             # TODO: Check dimensions of row/col metadata
             dat       <- private$normalize_data_ids(dat, row_ids, col_ids)
-            row_mdata <- private$normalize_metadata_order(col_mdata, colnames(self$dat))
-            col_mdata <- private$normalize_metadata_order(row_mdata, rownames(self$dat))
+            row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
+            col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
 
             super$initialize(dat=dat, row_mdata=row_mdata, col_mdata=col_mdata)
             
@@ -268,12 +268,15 @@ EDADataSet <- R6Class("EDADataSet",
         
         #' Prints class greeting to the screen
         print = function() {
+            rm <- ifelse(!is.null(self$row_mdata), '(m)', '')
+            cm <- ifelse(!is.null(self$col_mdata), '(m)', '')
+
             cat("=========================================\n")
             cat("=\n")
             cat("= EDADataSet\n")
             cat("=\n")
-            cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
-            cat(sprintf("=   columns: %d\n", ncol(self$dat)))
+            cat(sprintf("=   rows   : %d %s\n", nrow(self$dat), rm))
+            cat(sprintf("=   columns: %d %s\n", ncol(self$dat), cm))
             cat("=\n")
             cat("=========================================\n")
         },
@@ -334,38 +337,6 @@ EDADataSet <- R6Class("EDADataSet",
             obj <- self$clone()
             obj$clear_cache()
             obj
-        },
-
-        #' Computes correlations between data rows and features (column metadata)
-        #' 
-        #' @param mat Numeric projected data matrix
-        #' @param include Vector of strings indicating metadata columns which
-        #' should be included in the analysis.
-        #'
-        #' @return Dataframe of feature x project axes dependencies
-        compute_feature_correlations = function(mat, include) {
-            # drop any covariates with only a single level
-            single_level <- apply(self$row_mdata, 2, function(x) {length(table(x))}) == 1
-            features <- self$row_mdata[,!single_level, drop=FALSE]
-
-            # drop any undesired features
-            if (!is.null(include)) {
-                features <- features %>%
-                    select(one_of(include))
-            }
-
-            # construct linear model to measure dependence of each projected
-            # axis on column metadata
-            result <- matrix(0, nrow=ncol(mat), ncol=ncol(features))
-
-            for (i in 1:ncol(features)) {
-                feature_cor <- function(y) {
-                    round(summary(lm(y~features[,i]))$r.squared*100, 2)
-                }
-                result[,i] <- apply(mat, 2, feature_cor)
-            }
-            colnames(result) <- colnames(features)
-            result
         },
 
         #' Returns a list of arguments specific for a given function call.
@@ -811,6 +782,11 @@ EDADataSet <- R6Class("EDADataSet",
             } else { 
                 private$datasets[['dat']] <- value
             }
+        },
+
+        #' Returns "small" or "subsampled" version of dat
+        sdat = function(value) {
+            private$datasets[['dat']][private$row_ind, private$col_ind]
         },
 
         col_mdata = function(value) {

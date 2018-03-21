@@ -38,6 +38,20 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
         #'
         plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
             super$plot_cross_cor_heatmap(key1, key2, method, interactive)
+        },
+
+        #' Prints an overview of the object instance
+        print = function() {
+            cat("=========================================\n")
+            cat("=\n")
+            cat(sprintf("= EDAMultiDataSet (n=%d)\n", length(private$datasets)))
+            cat("=\n")
+            for (i in 1:length(private$datasets)) {
+                ds <- private$datasets[[i]]
+                cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
+            }
+            cat("=\n")
+            cat("=========================================\n")
         }
     ),
 

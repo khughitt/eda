@@ -106,36 +106,11 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         },
 
         #' Detects dependencies between column metadata entries (features) and
-        #' a lower-dimension projection of the dataset.
-        #'
-        #' Measures the predictive power of each feature (column in
-        #' \code{obj$row_mdata}) and the (PCA, t-SNE, etc.) projected data rows
-        #' using a simple linear model.
-        #'
-        #' Based on code adapted from cbcbSEQ
-        #' (https://github.com/kokrah/cbcbSEQ/) originally written by
-        #' Kwame Okrah.
-        #
-        #' @param method Dimension reduction method to use (options: pca,
-        #'     kpca, t-sne)
-        #' @param num_dims Number of projected dimensions (e.g. PC's) to include
-        #'     in the plot (default: 6)
-        #' @param include Vector of strings indicating metadata columns which
-        #' should be included in the analysis.
-        #' @param exclude Vector of strings indicating metadata columns which
-        #' should be excluded from the analysis.
-        #'
-        #' @return Dataframe containing feature/t-SNE axes correlations.
-        #feature_cor = function() {
-        #    # determine which features to include
-        #    include <- private$select_features(include, exclude)
-
-
-        #    result
-        #},
-
-        #'
+        #' dataset rows.
         feature_cor = function(method='pearson') {
+            if (is.null(self$col_mdata)) {
+                stop("Error: missing column metadata.")
+            }
             private$cross_cor('dat', 'col_mdata', method)
         },
 
@@ -209,8 +184,21 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         },
 
         #' 
-        pca_feature_cor = function(...) { 
-            self$t$pca$t$feature_cor(...) 
+        pca_feature_cor = function(method='pearson', ...) { 
+            self$t$pca(...)$t$feature_cor(method) 
+        },
+
+        #' t-SNE
+        #'
+        tsne = function (...) {
+            obj <- private$clone_()
+            obj$dat <- Rtsne::Rtsne(obj$dat, ...)
+            obj$col_mdata <- NULL
+            obj
+        },
+
+        tsne_feature_cor = function(method='pearson', ...) { 
+            self$t$tsne(...)$t$feature_cor(...) 
         },
 
         #' Prints an overview of the object instance
@@ -316,27 +304,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         #' Creates a tile plot of projected data / feature correlations
         #'
-        #' @param num_dims Number of projected dimensions (e.g. PC's) to include
-        #'     in the plot (default: 6)
         #' @param include Vector of strings indicating metadata columns which
         #' should be included in the analysis.
         #' @param exclude Features (column metadata variables) to exclude from
         #'     the analysis.
-        #' @param low_color String indicating color to use for low correlation
-        #'     values (default: green)
-        #' @param high_color String indicating color to use for high correlation
-        #'     values (default: red)
+        #' @param color_scale Character vector containing colors to sue for
+        #'     low-correlation and high-correlation values 
+        #'     (default: c('green', 'red')).
         #'
         #' @return ggplot plot instance
-        #plot_feature_cor = function(method='pca', num_dims=6, include=NULL,
-        #                            exclude=NULL, low_color='green',
-        #                            high_color='red', ...) {
-        plot_feature_cor = function(method='pearson') {
+        plot_feature_cor = function(method='pearson', color_scale=c('green', 'red')) {
             # compute feature correlations
-            #feature_cors <- self$feature_cor(method, num_dims, include, exclude, ...)
-            feature_cors <- private$feature_cor(method=method)
-
-            dat <- melt(feature_cors)
+            dat <- melt(private$feature_cor(method=method))
             colnames(dat) <- c('dim', 'variable', 'value')
 
             # Labels
@@ -351,7 +330,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             ggplot(dat, aes(x=dim, y=variable)) +
                 geom_tile(aes(fill=value)) +
                 geom_text(aes(label=value), size=2, show.legend=FALSE) +
-                scale_fill_gradient(low=low_color, high=high_color) +
+                scale_fill_gradient(low=color_scale[1], high=color_scale[2]) +
                 private$ggplot_theme() +
                 theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1),
                       axis.text.y=element_text(size=8)) +

@@ -41,7 +41,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # for single dataset metadata (feature) correlations, column 
             # metadata need to be transposed to be in the proper order
             if (key2 == 'col_mdata') {
+                # transpose metadata
                 dat2 <- t(dat2)
+
+                # for metadata, we can also exclude factor fields with all
+                # unique values (e.g. alternate identifiers)
+                exclude <- apply(drug_mdata, 1, function(x) { is.factor(x) && length(unique(x)) == length(x) })
+
+                if (sum(exclude) > 0) {
+                    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
+                    dat2 <- dat2[!exclude,]
+                }
             }
 
             # only compare matching columns
@@ -50,21 +60,26 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat1 <- dat1[,col_ind, drop=FALSE]
             dat2 <- dat2[,col_ind, drop=FALSE]
 
-            # drop any covariates with only a single level
-            mask <- apply(dat1, 2, function(x) { length(table(x))} ) > 1
-            dat1 <- dat1[, mask, drop=FALSE]
+            # drop any rows with zero variance
+            mask <- apply(dat1, 1, function(x) { length(table(x))} ) > 1
+            if (sum(!mask) > 0) {
+                message(sprintf("Excluding %d zero-variance rows from first dataset.", sum(!mask)))
+                dat1 <- dat1[mask,, drop=FALSE]
+            }
 
-            mask <- apply(dat2, 2, function(x) { length(table(x))} ) > 1
-            dat2 <- dat2[, mask, drop=FALSE]
+            mask <- apply(dat2, 1, function(x) { length(table(x))} ) > 1
+            if (sum(!mask) > 0) {
+                message(sprintf("Excluding %d zero-variance rows from second dataset.", sum(!mask)))
+                dat2 <- dat2[mask,, drop=FALSE]
+            }
 
+
+            # linear model
+            #
+            # Based on code adapted from cbcbSEQ
+            # (https://github.com/kokrah/cbcbSEQ/) originally written by
+            # Kwame Okrah.
             if (method == 'lm') {
-                # drop any undesired features
-                # TODO (update)
-                #if (!is.null(include)) {
-                #    dat2 <- dat2 %>%
-                #        select(one_of(include))
-                #}
-
                 # construct linear model to measure dependence of each projected
                 # axis on column metadata
                 cor_mat <- matrix(0, nrow=nrow(dat1), ncol=nrow(dat2))
