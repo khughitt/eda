@@ -60,18 +60,85 @@
 #' @section Methods:
 #'  - **clear_cache()** Clears EDAMatrix cache.
 #'  - **clone()** Creates a copy of the EDAMatrix instance.
+#'  - **cluster_tsne(k=10, ...)** Clusters rows in dataset using a combination
+#'      of t-SNE and k-means clustering.
+#' - **detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')**
+#'      Measures average pairwise similarities between all columns in the dataset.
+#'      Outliers are considered to be those columns who mean similarity to
+#'      all other columns is greater than `num_sd` standard deviations from the
+#'      average of averages.
+#' - **detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')**
+#'      Measures average pairwise similarities between all rows in the dataset.
+#'      Outliers are considered to be those rows who mean similarity to
+#'      all other rows is greater than `num_sd` standard deviations from the
+#'      average of averages.
+#'  - **feature_cor()** Detects dependencies between column metadata entries 
+#'		(features) and dataset rows. 
+#'  - **filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')** 
+#'		Removes column outliers from the dataset. See `detect_col_outliers()` 
+#'		for details of outlier detection approach.
+#'  - **filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')** 
+#'		Removes row outliers from the dataset. See `detect_row_outliers()` 
+#'		for details of outlier detection approach.
+#'  - **filter_cols(mask)** Accepts a logical vector of length `ncol(obj$dat)`
+#'		and returns a new EDAMatrix instance with only the columns associated
+#'      with `TRUE` values in the mask.
+#'  - **filter_rows(mask)** Accepts a logical vector of length `nrow(obj$dat)`
+#'		and returns a new EDAMatrix instance with only the rowsumns associated
+#'      with `TRUE` values in the mask.
+#'  - **impute(method='knn')** Imputes missing values in the dataset and stores
+#'		the result _in-place_. Currently only k-Nearest Neighbors (kNN) 
+#'		imputation is supported.
+#'  - **log(base=exp(1), offset=0)** Log-transforms data.
+#'  - **log1p()** Log(x + 1)-transforms data.
+#'  - **pca(...)** Performs principle component analysis (PCA) on the dataset
+#'		and returns a new EDAMatrix instance of the projected data points.
+#'      Any additional arguements specified are passed to the `prcomp()` function.
+#'  - **pca_feature_cor(method='pearson', ...)** Measures correlation between
+#'		dataset features (column metadata fields) and dataset principle
+#'      components.
+#'  - **plot_cor_heatmap(method='pearson', interactive=TRUE, ...)** Plots a 
+#'		correlation heatmap of the dataset.
+#'  - **plot_densities(color=NULL, title="", ...)** Plots densities for each 
+#'		column in the dataset.
+#'  - **plot_feature_cor(method='pearson', color_scale=c('green', 'red'))**
+#'		Creates a tile plot of projected data / feature correlations. See
+#'		`feature_cor()` function.
+#'  - **plot_heatmap(interactive=TRUE, ...)** Generates a heatmap plot of the 
+#'		dataset
+#'  - **plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))**
+#'		Plot median pairwise column correlations for each variable (column)
+#'		in the dataset.
+#'  - **plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL,
+#'               text_labels=FALSE, ...)**
+#'		Generates a two-dimensional PCA plot from the dataset.
+#'  - **plot_tsne(color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)**
+#'		Generates a two-dimensional t-SNE plot from the dataset.
+#'  - **print()** Prints an overview of the object instance.
+#'  - **subsample(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL)**
+#'		Subsamples dataset rows and/or columns.
+#'  - **summary(markdown=FALSE, num_digits=2)** Summarizes overall 
+#'		characteristics of a dataset.
+#'  - **t()** Transposes dataset rows and columns.
+#'  - **tsne(...)** Performs T-distributed stochastic neighbor embedding (t-SNE) 
+#'		on the dataset and returns a new EDAMatrix instance of the projected 
+#' 		data points. Any additional arguements specified are passed to the 
+#'		`Rtsne()` function.
+#'  - **tsne_feature_cor(method='pearson', ...)** Measures correlation between
+#'		dataset features (column metadata fields) and dataset t-SNE projected
+#'      axes.
 #'
 #' @importFrom R6 R6Class
 #' @format \code{\link{R6Class}} object.
-#' @name EDAMatrix
 #' @export
+#' @name EDAMatrix
 #'
 NULL
 
 EDAMatrix <- R6::R6Class("EDAMatrix",
     inherit = EDADataSet,
     public = list(
-        #' EDAMatrix constructor
+        # EDAMatrix constructor
         initialize = function(dat,
                               row_mdata=NULL, col_mdata=NULL,
                               row_ids='rownames', col_ids='colnames',
@@ -88,13 +155,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                              color_pal, title, ggplot_theme)
         },
 
-        #' Clusters dataset rows using k-means clustering in a t-SNE projected
-        #' space.
-        #'
-        #' k Number of clusters to detect (default: 10)
-        #'
-        #' @return Vector of cluster assignments with length equal to the
-        #'     number of rows in the dataset.
+        # Clusters dataset rows using k-means clustering in a t-SNE projected
+        # space.
+        #
+        # k Number of clusters to detect (default: 10)
+        #
+        # return Vector of cluster assignments with length equal to the
+        #     number of rows in the dataset.
         cluster_tsne = function(k=10, ...) {
             tsne <- Rtsne::Rtsne(self$dat, ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
@@ -105,48 +172,48 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             factor(paste0('cluster_', kmeans_clusters))
         },
 
-        #' Detects column outliers in the dataset
-        #'
-        #' Computes pairwise correlations between all columns in the dataset.
-        #' Columns whose median pairwise correlation with all other columns
-        #' is greater than \code{num_sd} standard deviations from the average
-        #' median correlation are considered to be outliers.
-        #'
-        #' num_sd Number of standard deviations to use to determine
-        #'      outliers.
-        #'
-        #' @return Character vector or column ids for columns with low
-        #'     average pairwise correlations.
-        detect_col_outliers = function(num_sd=2) {
+        # Detects column outliers in the dataset
+        #
+        # Computes pairwise correlations between all columns in the dataset.
+        # Columns whose average pairwise correlation with all other columns
+        # is greater than `num_sd` standard deviations from the average
+        # average correlation are considered to be outliers.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return Character vector or column ids for columns with low
+        #     average pairwise correlations.
+        detect_col_outliers = function(num_sd=2, avg=median, method='pearson') {
             # TODO: include correlation in results?
             # TODO: Write alternative version for data frame datasets?
-            cor_mat <- cor(self$dat)
-            median_column_cors <- apply(cor_mat, 1, median)
-            cutoff <- mean(median_column_cors) - (num_sd * sd(median_column_cors))
-            colnames(self$dat)[median_column_cors < cutoff]
+            cor_mat <- cor(self$dat, method=method)
+            avg_column_cors <- apply(cor_mat, 1, avg)
+            cutoff <- mean(avg_column_cors) - (num_sd * sd(avg_column_cors))
+            colnames(self$dat)[avg_column_cors < cutoff]
         },
 
-        #' Detects row outliers in the dataset
-        #'
-        #' Computes pairwise correlations between all rows in the dataset.
-        #' Rows whose median pairwise correlation with all other rows
-        #' is greater than \code{num_sd} standard deviations from the average
-        #' median correlation are considered to be outliers.
-        #'
-        #' num_sd Number of standard deviations to use to determine
-        #'      outliers.
-        #'
-        #' @return Character vector or row ids for rows with low
-        #'     average pairwise correlations.
-        detect_row_outliers = function(num_sd=2) {
-            cor_mat <- cor(t(self$dat))
-            median_row_cors <- apply(cor_mat, 1, median)
-            cutoff <- mean(median_row_cors) - num_sd * sd(median_row_cors)
-            rownames(self$dat)[median_row_cors < cutoff]
+        # Detects row outliers in the dataset
+        #
+        # Computes pairwise correlations between all rows in the dataset.
+        # Rows whose median pairwise correlation with all other rows
+        # is greater than `num_sd` standard deviations from the average
+        # median correlation are considered to be outliers.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return Character vector or row ids for rows with low
+        #     average pairwise correlations.
+        detect_row_outliers = function(num_sd=2, avg=median, method='pearson') {
+            cor_mat <- cor(t(self$dat), method=method)
+            avg_row_cors <- apply(cor_mat, 1, avg)
+            cutoff <- mean(avg_row_cors) - num_sd * sd(avg_row_cors)
+            rownames(self$dat)[avg_row_cors < cutoff]
         },
 
-        #' Detects dependencies between column metadata entries (features) and
-        #' dataset rows.
+        # Detects dependencies between column metadata entries (features) and
+        # dataset rows.
         feature_cor = function(method='pearson') {
             if (is.null(self$col_mdata)) {
                 stop("Error: missing column metadata.")
@@ -154,68 +221,64 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$cross_cor('dat', 'col_mdata', method)
         },
 
-        #' Removes column outliers from the dataset
-        #'
-        #' Computes pairwise correlations between all columns in the dataset.
-        #' Columns whose median pairwise correlation with all other columns
-        #' is greater than \code{num_sd} standard deviations from the average
-        #' median correlation are removed.
-        #'
-        #' num_sd Number of standard deviations to use to determine
-        #'      outliers.
-        #'
-        #' @return A filtered version of the original EDADataSet object.
-        filter_col_outliers = function(num_sd=2) {
+        # Removes column outliers from the dataset
+        #
+        # Computes pairwise correlations between all columns in the dataset.
+        # Columns whose median pairwise correlation with all other columns
+        # is greater than `num_sd` standard deviations from the average
+        # median correlation are removed.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return A filtered version of the original EDADataSet object.
+        filter_col_outliers = function(num_sd=2, avg=median, method='pearson') {
             obj <- private$clone_()
-            cor_mat <- cor(obj$dat)
-            median_column_cors <- apply(cor_mat, 1, median)
-            cutoff <- mean(median_column_cors) - num_sd * sd(median_column_cors)
-            obj$filter_cols(median_column_cors > cutoff)
+			outliers <- obj$detect_col_outliers(num_sd, avg, method)
+            obj$filter_cols(!colnames(obj$dat) %in% outliers)
         },
 
-        #' Removes row outliers from the dataset
-        #'
-        #' Computes pairwise correlations between all rows in the dataset.
-        #' rows whose median pairwise correlation with all other rows
-        #' is greater than \code{num_sd} standard deviations from the average
-        #' median correlation are removed.
-        #'
-        #' num_sd Number of standard deviations to use to determine
-        #'      outliers.
-        #'
-        #' @return A filtered version of the original EDADataSet object.
+        # Removes row outliers from the dataset
+        #
+        # Computes pairwise correlations between all rows in the dataset.
+        # rows whose median pairwise correlation with all other rows
+        # is greater than `num_sd` standard deviations from the average
+        # median correlation are removed.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return A filtered version of the original EDADataSet object.
         filter_row_outliers = function(num_sd=2) {
             obj <- private$clone_()
-            cor_mat <- cor(t(obj$dat))
-            median_row_cors <- apply(cor_mat, 1, median)
-            cutoff <- mean(median_row_cors) - num_sd * sd(median_row_cors)
-            obj$filter_rows(median_row_cors > cutoff)
+			outliers <- obj$detect_row_outliers(num_sd, avg, method)
+            obj$filter_rows(!rownames(obj$dat) %in% outliers)
         },
 
-        #' Log-transforms data
-        #'
-        #' base Numeric logarithm base to use (default: e)
-        #' offset Numeric offset to apply to data before taking the
-        #'     logarithm (default: 0)
-        #'
-        #' @return A log-transformed version of the object.
+        # Log-transforms data
+        #
+        # base Numeric logarithm base to use (default: e)
+        # offset Numeric offset to apply to data before taking the
+        #     logarithm (default: 0)
+        #
+        # return A log-transformed version of the object.
         log = function(base=exp(1), offset=0) {
             obj <- private$clone_()
             obj$dat <- log(obj$dat + offset, base)
             obj
         },
 
-        #' Log(x + 1) transforms data
-        #'
-        #' @return A log(x + 1) transformed version of the object.
+        # Log(x + 1) transforms data
+        #
+        # return A log(x + 1) transformed version of the object.
         log1p = function() {
             obj <- private$clone_()
             obj$dat <- log(obj$dat + 1)
             obj
         },
 
-        #' PCA
-        #'
+        # PCA
+        #
         pca = function (...) {
             obj <- private$clone_()
             obj$dat <- prcomp(self$dat, ...)$x
@@ -223,13 +286,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             obj
         },
 
-        #'
+        #
         pca_feature_cor = function(method='pearson', ...) {
             self$t$pca(...)$t$feature_cor(method)
         },
 
-        #' t-SNE
-        #'
+        # t-SNE
+        #
         tsne = function (...) {
             obj <- private$clone_()
             obj$dat <- Rtsne::Rtsne(obj$dat, ...)
@@ -241,7 +304,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             self$t$tsne(...)$t$feature_cor(...)
         },
 
-        #' Prints an overview of the object instance
+        # Prints an overview of the object instance
         print = function() {
             cat("=========================================\n")
             cat("=\n")
@@ -257,16 +320,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # plotting methods
         ######################################################################
 
-        #' Correlation heatmap.
-        #'
-        #' Generates a correlation heatmap depicting the pairwise column
-        #' correlations in the data.
-        #'
-        #' method String name of correlation method to use.
-        #' ... Additional arguments
-        #'
-        #' @seealso \code{cor} for more information about supported correlation
-        #'      methods.
+        # Correlation heatmap.
+        #
+        # Generates a correlation heatmap depicting the pairwise column
+        # correlations in the data.
+        #
+        # method String name of correlation method to use.
+        # ... Additional arguments
+        #
+        # @seealso \code{cor} for more information about supported correlation
+        #      methods.
         plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
             # generate correlation matrix
             cor_mat <- cor(t(self$dat), method=method)
@@ -305,9 +368,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$plot_heatmap(params, interactive)
         },
 
-        #' Generates a heatmap plot of the dataset
-        #'
-        #' ... Additional arguments
+        # Generates a heatmap plot of the dataset
+        #
+        # ... Additional arguments
         plot_heatmap = function(interactive=TRUE, ...) {
             # list of parameters to pass to heatmaply
             params <- list(
@@ -334,17 +397,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$plot_heatmap(params, interactive)
         },
 
-        #' Creates a tile plot of projected data / feature correlations
-        #'
-        #' include Vector of strings indicating metadata columns which
-        #' should be included in the analysis.
-        #' exclude Features (column metadata variables) to exclude from
-        #'     the analysis.
-        #' color_scale Character vector containing colors to sue for
-        #'     low-correlation and high-correlation values
-        #'     (default: c('green', 'red')).
-        #'
-        #' @return ggplot plot instance
+        # Creates a tile plot of projected data / feature correlations
+        #
+        # include Vector of strings indicating metadata columns which
+        # should be included in the analysis.
+        # exclude Features (column metadata variables) to exclude from
+        #     the analysis.
+        # color_scale Character vector containing colors to sue for
+        #     low-correlation and high-correlation values
+        #     (default: c('green', 'red')).
+        #
+        # return ggplot plot instance
         plot_feature_cor = function(method='pearson', color_scale=c('green', 'red')) {
             # compute feature correlations
             dat <- melt(private$feature_cor(method=method))
@@ -371,20 +434,20 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 guides(fill=guide_legend("R^2"))
         },
 
-        #' Generates a two-dimensional PCA plot from the dataset
-        #'
-        #' pcx integer PC number to plot along x-axis (default: 1)
-        #' pcy integer PC number to plot along x-axis (default: 2)
-        #' scale Whether or not to scale variables prior to performing
-        #'     pca; passed to `prcomp` function.
-        #' color Column metadata field to use for coloring points.
-        #' shape Column metadata field to use to assign shapes to points
-        #' title Plot title.
-        #' text_labels Whether or not to include individual point labels
-        #'     plot (default: FALSE).
-        #' ...
-        #'
-        #' @return ggplot plot instance
+        # Generates a two-dimensional PCA plot from the dataset
+        #
+        # pcx integer PC number to plot along x-axis (default: 1)
+        # pcy integer PC number to plot along x-axis (default: 2)
+        # scale Whether or not to scale variables prior to performing
+        #     pca; passed to `prcomp` function.
+        # color Column metadata field to use for coloring points.
+        # shape Column metadata field to use to assign shapes to points
+        # title Plot title.
+        # text_labels Whether or not to include individual point labels
+        #     plot (default: FALSE).
+        # ...
+        #
+        # return ggplot plot instance
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
@@ -436,16 +499,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             plt
         },
 
-        #' Generates a two-dimensional t-SNE plot from the dataset
-        #'
-        #' color Column metadata field to use for coloring points.
-        #' shape Column metadata field to use to assign shapes to points
-        #' title Plot title.
-        #' text_labels Whether or not to include individual point labels
-        #'     plot (default: FALSE).
-        #' ...
-        #'
-        #' @return ggplot plot instance
+        # Generates a two-dimensional t-SNE plot from the dataset
+        #
+        # color Column metadata field to use for coloring points.
+        # shape Column metadata field to use to assign shapes to points
+        # title Plot title.
+        # text_labels Whether or not to include individual point labels
+        #     plot (default: FALSE).
+        # ...
+        #
+        # return ggplot plot instance
         plot_tsne = function(color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
             # compute t-SNE projection
@@ -492,15 +555,15 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             plt
         },
 
-        #' Plot median pairwise column correlations
-        #'
-        #' Plots the median correlation of each variable (column). This is
-        #' useful for visually inspecting columns for possible outliers, when
-        #' the total number of columns is relatively small.
-        #'
-        #' @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
-        #'
-        #' @return None
+        # Plot median pairwise column correlations
+        #
+        # Plots the median correlation of each variable (column). This is
+        # useful for visually inspecting columns for possible outliers, when
+        # the total number of columns is relatively small.
+        #
+        # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
+        #
+        # return None
         plot_pairwise_column_cors = function (color=NULL, title="",
                                               method='pearson',
                                               mar=c(12,6,4,6)) {
@@ -539,7 +602,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         }
     ),
     private = list(
-        #' Verifies that input data is of type matrix
+        # Verifies that input data is of type matrix
         check_input = function(dat) {
             if(!is.matrix(dat)) {
                 stop("Invalid input for EDAMatrix: dat must be a matrix.")
