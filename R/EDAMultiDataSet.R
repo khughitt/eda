@@ -56,6 +56,7 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
                     stop("Invalid input: each input dataset much be an EDADataSet instance.")
                 }
 
+                # TODO: Allow datasets with partially overlapping columns..
                 if (!all(sort(colnames(ds$dat)) == ids)) {
                     stop("Input datasets must all include the same columns identifiers.")
                 }

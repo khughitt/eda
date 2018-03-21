@@ -37,6 +37,7 @@ EDADataSet <- R6Class("EDADataSet",
             # check to make sure row and columns identifiers are stored as
             # row and column names and normalize order of metadata entries,
             # if specified.
+            # TODO: Check dimensions of row/col metadata
             dat       <- private$normalize_data_ids(dat, row_ids, col_ids)
             row_mdata <- private$normalize_metadata_order(col_mdata, colnames(self$dat))
             col_mdata <- private$normalize_metadata_order(row_mdata, rownames(self$dat))
@@ -335,8 +336,7 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
-        #' Computes correlations between axes of a data projection (PCA, t-SNE,
-        #' etc.) and column metadata.
+        #' Computes correlations between data rows and features (column metadata)
         #' 
         #' @param mat Numeric projected data matrix
         #' @param include Vector of strings indicating metadata columns which

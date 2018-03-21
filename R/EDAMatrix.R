@@ -126,25 +126,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' should be excluded from the analysis.
         #'
         #' @return Dataframe containing feature/t-SNE axes correlations.
-        feature_cor = function(method='pca', num_dims=6, include=NULL, exclude=NULL, ...) {
-            # determine which features to include
-            include <- private$select_features(include, exclude)
+        #feature_cor = function() {
+        #    # determine which features to include
+        #    include <- private$select_features(include, exclude)
 
-            # PCA
-            if (method == 'pca') {
-                s <- corpcor:::fast.svd(t(self$dat) - rowMeans(t(self$dat)))
 
-                result <- head(private$compute_feature_correlations(s$v, include), num_dims)
-                rownames(result) <- paste0("PC", 1:nrow(result))
-            } else if (method == 't-sne') {
-                # t-SNE
-                tsne <- Rtsne::Rtsne(self$dat, dims=num_dims, ...)
+        #    result
+        #},
 
-                result <- private$compute_feature_correlations(tsne$Y, include)
-                rownames(result) <- paste0("Dim", 1:nrow(result))
-            }
-
-            result
+        #'
+        feature_cor = function(method='pearson') {
+            private$cross_cor('dat', 'col_mdata', method)
         },
 
         #' Removes column outliers from the dataset
@@ -205,6 +197,20 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             obj <- private$clone_()
             obj$dat <- log(obj$dat + 1)
             obj
+        },
+
+        #' PCA
+        #'
+        pca = function (...) {
+            obj <- private$clone_()
+            obj$dat <- prcomp(self$dat, ...)$x
+            obj$col_mdata <- NULL
+            obj
+        },
+
+        #' 
+        pca_feature_cor = function(...) { 
+            self$t$pca$t$feature_cor(...) 
         },
 
         #' Prints an overview of the object instance
@@ -322,21 +328,24 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #'     values (default: red)
         #'
         #' @return ggplot plot instance
-        plot_feature_cor = function(method='pca', num_dims=6, include=NULL,
-                                    exclude=NULL, low_color='green',
-                                    high_color='red', ...) {
+        #plot_feature_cor = function(method='pca', num_dims=6, include=NULL,
+        #                            exclude=NULL, low_color='green',
+        #                            high_color='red', ...) {
+        plot_feature_cor = function(method='pearson') {
             # compute feature correlations
-            feature_cors <- self$feature_cor(method, num_dims, include, exclude, ...)
+            #feature_cors <- self$feature_cor(method, num_dims, include, exclude, ...)
+            feature_cors <- private$feature_cor(method=method)
 
             dat <- melt(feature_cors)
             colnames(dat) <- c('dim', 'variable', 'value')
 
             # Labels
-            if (method == 'pca') {
-                xlab_text <- 'Principle Components'
-            } else if (method == 't-sne') {
-                xlab_text <- "t-SNE dimension"
-            }
+            #if (method == 'pca') {
+            #    xlab_text <- 'Principle Components'
+            #} else if (method == 't-sne') {
+            #    xlab_text <- "t-SNE dimension"
+            #}
+            xlab_text <- 'TODO...'
 
             # create plot
             ggplot(dat, aes(x=dim, y=variable)) +

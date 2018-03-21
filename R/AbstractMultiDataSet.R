@@ -29,16 +29,60 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #' @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1=1, key2=2, method='pearson') {
             # make sure datasets are ordered similarly
-            # TODO: include row and col indices
-            col_ind <- colnames(self$datasets[[key1]]$dat)
-            cor_mat <- cor(t(rbind(self$datasets[[key1]]$dat, 
-                                   self$datasets[[key2]]$dat[,col_ind])), 
-                           method=method)
+            dat1 <- private$datasets[[key1]]
+            dat2 <- private$datasets[[key2]]
 
-            # limit to cross-dataset correlations
-            cor_mat <- cor_mat[1:nrow(self$datasets[[key1]]$dat), 
-                               (nrow(self$datasets[[key1]]$dat) + 1):ncol(cor_mat)]
+            # for multidatasets, get underlying data
+            if ('EDADataSet' %in% class(dat1)) {
+                dat1 <- dat1$dat
+                dat2 <- dat2$dat
+            }
 
+            # for single dataset metadata (feature) correlations, column 
+            # metadata need to be transposed to be in the proper order
+            if (key2 == 'col_mdata') {
+                dat2 <- t(dat2)
+            }
+
+            # only compare matching columns
+            col_ind <- intersect(colnames(dat1), colnames(dat2))
+
+            dat1 <- dat1[,col_ind, drop=FALSE]
+            dat2 <- dat2[,col_ind, drop=FALSE]
+
+            # drop any covariates with only a single level
+            mask <- apply(dat1, 2, function(x) { length(table(x))} ) > 1
+            dat1 <- dat1[, mask, drop=FALSE]
+
+            mask <- apply(dat2, 2, function(x) { length(table(x))} ) > 1
+            dat2 <- dat2[, mask, drop=FALSE]
+
+            if (method == 'lm') {
+                # drop any undesired features
+                # TODO (update)
+                #if (!is.null(include)) {
+                #    dat2 <- dat2 %>%
+                #        select(one_of(include))
+                #}
+
+                # construct linear model to measure dependence of each projected
+                # axis on column metadata
+                cor_mat <- matrix(0, nrow=nrow(dat1), ncol=nrow(dat2))
+
+                for (i in 1:nrow(dat2)) {
+                    feature_cor <- function(y) {
+                        round(summary(lm(y~dat2[i,]))$r.squared*100, 2)
+                    }
+                    cor_mat[,i] <- apply(dat1, 1, feature_cor)
+                }
+                colnames(cor_mat) <- rownames(dat2)
+            } else {
+                # Pearson correlation, etc.
+                cor_mat <- cor(t(rbind(dat1, dat2)), method=method)
+
+                # limit to cross-dataset correlations
+                cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
+            }
             cor_mat
         },
 
