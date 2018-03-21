@@ -111,9 +111,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # compute cross correlations
             cor_mat <- self$cross_cor(key1, key2, method)
 
-            # determine subsampling indices, if requested
-            #indices <- private$get_indices(...)
-
             # list of parameters to pass to heatmaply
             params <- list(
                 x=cor_mat,
@@ -128,8 +125,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 mask1  <- sapply(mdata1, function(x) { max(table(x)) > 1 })
                 mdata1 <- mdata1[,mask1, drop=FALSE]
 
-                #params[['row_side_colors']] <- mdata1[indices$row, 
-                #                                              binary_vars, drop=FALSE]
                 params[['row_side_colors']] <- mdata1 
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
@@ -139,8 +134,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 mask2  <- sapply(mdata2, function(x) { max(table(x)) > 1 })
                 mdata2 <- mdata2[,mask2, drop=FALSE]
 
-                #params[['col_side_colors']] <- mdata2[indices$col, 
-                #                                                !binary_vars, drop=FALSE]
                 params[['col_side_colors']] <- mdata2 
                 params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
             }

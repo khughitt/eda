@@ -30,8 +30,6 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                               row_mdata_ids='rownames', col_mdata_ids='rownames',
                               row_color=NULL, row_shape=NULL, row_labels=NULL,
                               col_color=NULL, col_shape=NULL, col_labels=NULL,
-                              row_maxn=Inf, row_max_ratio=1.0, row_ind=NULL,
-                              col_maxn=Inf, col_max_ratio=1.0, col_ind=NULL,
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
             # verify input data type and call parent constructor
             private$check_input(dat)
@@ -39,8 +37,6 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             super$initialize(dat, row_mdata, col_mdata, row_ids, col_ids,
                              row_mdata_ids, col_mdata_ids, row_color, row_shape,
                              row_labels, col_color, col_shape, col_labels,
-                             row_maxn, row_max_ratio, row_ind,
-                             col_maxn, col_max_ratio, col_ind,
                              color_pal, title, ggplot_theme)
         },
 
@@ -52,11 +48,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' @return Vector of cluster assignments with length equal to the
         #'     number of rows in the dataset.
         cluster_tsne = function(k=10, ...) {
-            # for clustering, we want to ensure that all points are assigned
-            # to a cluster, so include all indices
-            indices <- private$get_indices(row_max_ratio=1, col_max_ratio=1)
-
-            tsne <- Rtsne::Rtsne(self$dat[indices$row, indices$col], ...)
+            tsne <- Rtsne::Rtsne(self$dat, ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
             # Cluster patients from t-sne results
@@ -183,9 +175,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             obj
         },
 
-        #' 
-        pca_feature_cor = function(method='pearson', ...) { 
-            self$t$pca(...)$t$feature_cor(method) 
+        #'
+        pca_feature_cor = function(method='pearson', ...) {
+            self$t$pca(...)$t$feature_cor(method)
         },
 
         #' t-SNE
@@ -197,8 +189,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             obj
         },
 
-        tsne_feature_cor = function(method='pearson', ...) { 
-            self$t$tsne(...)$t$feature_cor(...) 
+        tsne_feature_cor = function(method='pearson', ...) {
+            self$t$tsne(...)$t$feature_cor(...)
         },
 
         #' Prints an overview of the object instance
@@ -228,11 +220,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' @seealso \code{cor} for more information about supported correlation
         #'      methods.
         plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
-            # determine subsampling indices, if requested
-            indices <- private$get_indices(...)
-
             # generate correlation matrix
-            cor_mat <- cor(t(self$dat[indices$row, indices$col]), method=method)
+            cor_mat <- cor(t(self$dat), method=method)
 
             # list of parameters to pass to heatmaply
             params <- list(
@@ -251,15 +240,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
                 # col colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$row_mdata[indices$row,
-                                                                  binary_vars, drop=FALSE]
+                    params[['col_side_colors']] <- self$row_mdata[,binary_vars, drop=FALSE]
                     params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
 
                 # row colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['row_side_colors']] <- self$row_mdata[indices$row,
-                                                                  !binary_vars, drop=FALSE]
+                    params[['row_side_colors']] <- self$row_mdata[,!binary_vars, drop=FALSE]
                     params[['subplot_widths']] <- c(0.55, 0.3, 0.15)
                 }
             }
@@ -274,12 +261,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #'
         #' @param ... Additional arguments
         plot_heatmap = function(interactive=TRUE, ...) {
-            # determine subsampling indices, if requested
-            indices <- private$get_indices(...)
-
             # list of parameters to pass to heatmaply
             params <- list(
-                x=self$dat[indices$row, indices$col],
+                x=self$dat,
                 showticklabels=c(FALSE, FALSE),
                 subplot_widths=c(0.65, 0.35),
                 subplot_heights=c(0.35, 0.65)
@@ -287,12 +271,12 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$row_mdata)) {
-                params[['row_side_colors']] <- self$row_mdata[indices$row,, drop=FALSE]
+                params[['row_side_colors']] <- self$row_mdata
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
 
             if (!is.null(self$col_mdata)) {
-                params[['col_side_colors']] <- self$col_mdata[indices$col,, drop=FALSE]
+                params[['col_side_colors']] <- self$col_mdata
                 params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
             }
 
@@ -309,7 +293,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' @param exclude Features (column metadata variables) to exclude from
         #'     the analysis.
         #' @param color_scale Character vector containing colors to sue for
-        #'     low-correlation and high-correlation values 
+        #'     low-correlation and high-correlation values
         #'     (default: c('green', 'red')).
         #'
         #' @return ggplot plot instance
@@ -350,21 +334,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' @param title Plot title.
         #' @param text_labels Whether or not to include individual point labels
         #'     plot (default: FALSE).
-        #' @param ... Addition arguments relating to data indices to use.
+        #' @param ...
         #'
         #' @return ggplot plot instance
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
-            # determine subsampling indices, if requested
-            indices <- private$get_indices(...)
-
             # perform pca
-            prcomp_results <- prcomp(self$dat[indices$row, indices$col], scale=scale)
+            prcomp_results <- prcomp(self$dat, scale=scale)
             var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
 
             # create data frame for plotting
-            dat <- data.frame(id=rownames(self$dat)[indices$row],
+            dat <- data.frame(id=rownames(self$dat),
                               pc1=prcomp_results$x[,pcx],
                               pc2=prcomp_results$x[,pcy])
 
@@ -372,10 +353,10 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             styles <- private$get_geom_point_styles(color, shape)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color=styles$color[indices$row])
+                dat <- cbind(dat, color=styles$color)
             }
             if (!is.null(styles$shape)) {
-                dat <- cbind(dat, shape=styles$shape[indices$row])
+                dat <- cbind(dat, shape=styles$shape)
             }
 
             xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
@@ -414,15 +395,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #' @param title Plot title.
         #' @param text_labels Whether or not to include individual point labels
         #'     plot (default: FALSE).
-        #' @param ... Addition arguments relating to data indices to use.
+        #' @param ...
         #'
         #' @return ggplot plot instance
         plot_tsne = function(color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
-            # determine subsampling indices, if requested
-            indices <- private$get_indices(...)
-
-            tsne <- Rtsne::Rtsne(self$dat[indices$row, indices$col], ...)
+            # compute t-SNE projection
+            tsne <- Rtsne::Rtsne(self$dat, ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
             # add column ids

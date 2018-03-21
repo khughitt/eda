@@ -30,8 +30,6 @@ EDADataSet <- R6Class("EDADataSet",
                               row_mdata_ids='rownames', col_mdata_ids='rownames',
                               row_color=NULL, row_shape=NULL, row_labels=NULL,
                               col_color=NULL, col_shape=NULL, col_labels=NULL,
-                              row_maxn=Inf, row_max_ratio=1.0, row_ind=NULL,
-                              col_maxn=Inf, col_max_ratio=1.0, col_ind=NULL,
                               color_pal='Set1', title="", ggplot_theme=theme_bw) { 
 
             # check to make sure row and columns identifiers are stored as
@@ -55,12 +53,6 @@ EDADataSet <- R6Class("EDADataSet",
             private$col_labels <- col_labels
             private$color_pal  <- color_pal
 
-            # determine subsampling indices, if requested
-            private$row_ind <- private$get_subsample_indices(row_maxn, row_max_ratio, 
-                                                             row_ind, nrow(dat))
-            private$col_ind <- private$get_subsample_indices(col_maxn, col_max_ratio,
-                                                             col_ind, ncol(dat))
-
             private$ggplot_theme <- ggplot_theme
             private$title  <- title
         },
@@ -83,13 +75,10 @@ EDADataSet <- R6Class("EDADataSet",
 
             # update data and metadata matrices
             obj$dat <- obj$dat[mask,, drop=FALSE] 
-            obj$row_mdata <- obj$row_mdata[mask,, drop=FALSE]
 
-            # update subsampling indices
-            rows_kept <- seq(nrow(self$dat))[mask]
-            new_ind <- match(obj$get_row_indices(), rows_kept)
-            new_ind <- new_ind[!is.na(new_ind)]
-            obj$set_row_indices(new_ind)
+            if (!is.null(obj$row_mdata)) {
+                obj$row_mdata <- obj$row_mdata[mask,, drop=FALSE]
+            }
 
             obj
         },
@@ -105,13 +94,10 @@ EDADataSet <- R6Class("EDADataSet",
 
             # update data and metadata matrices
             obj$dat <- obj$dat[,mask, drop=FALSE] 
-            obj$col_mdata <- obj$col_mdata[mask,, drop=FALSE]
 
-            # update subsampling indices
-            cols_kept <- seq(ncol(self$dat))[mask]
-            new_ind <- match(obj$get_col_indices(), cols_kept)
-            new_ind <- new_ind[!is.na(new_ind)]
-            obj$set_col_indices(new_ind)
+            if (!is.null(obj$col_mdata)) {
+                obj$col_mdata <- obj$col_mdata[mask,, drop=FALSE]
+            }
 
             obj
         },
@@ -150,9 +136,50 @@ EDADataSet <- R6Class("EDADataSet",
             self$dat <- imputed
         },
 
+        #' Subsample dataset
+        #'
+        #' Randomly subsamples dataset and returns a new EDADataSet instance.
+        #' For removing specific rows and columns, see the `filter_rows` and
+        #' `filter_cols` functions.
+        subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
+            row_ind <- 1:nrow(self$dat)
+            col_ind <- 1:ncol(self$dat)
+
+            # subsample rows
+            if (!is.null(row_n)) {
+                row_ind <- sample(row_ind, row_n)
+            } else if (!is.null(row_ratio)) {
+                row_ind <- sample(row_ind, round(row_ratio * nrow(self$dat)))
+            }
+
+            # subsample columns
+            if (!is.null(col_n)) {
+                col_ind <- sample(col_ind, col_n)
+            } else if (!is.null(col_ratio)) {
+                col_ind <- sample(col_ind, round(col_ratio * ncol(self$dat)))
+            }
+
+            # clone and subsample dataset
+            obj <- private$clone_()
+
+            # update data and metadata matrices
+            obj$dat <- obj$dat[row_ind, col_ind, drop=FALSE] 
+
+            if (!is.null(obj$row_mdata)) {
+                obj$row_mdata <- obj$row_mdata[row_ind,, drop=FALSE]
+            }
+
+            if (!is.null(obj$col_mdata)) {
+                obj$col_mdata <- obj$col_mdata[col_ind,, drop=FALSE]
+            }
+
+            obj
+        },
+
         #' Summarizes overall characteristics of a dataset
         #' 
-        summary = function(markdown=FALSE, subsample=TRUE, num_digits=2) {
+        #' 
+        summary = function(markdown=FALSE, num_digits=2) {
             # collection summary info
             x <- self$dat
 
@@ -194,13 +221,9 @@ EDADataSet <- R6Class("EDADataSet",
             }
 
             # row & column correlations
-            if (subsample) {
-                info[['col_cor_mat']] <- round_(cor(x[private$row_ind, private$col_ind]), num_digits)
-                info[['row_cor_mat']] <- round_(cor(t(x[private$row_ind, private$col_ind])), num_digits)
-            } else {
-                info[['col_cor_mat']] <- round_(cor(x), num_digits)
-                info[['row_cor_mat']] <- round_(cor(t(x)), num_digits)
-            }
+            info[['col_cor_mat']] <- round_(cor(x), num_digits)
+            info[['row_cor_mat']] <- round_(cor(t(x)), num_digits)
+
             diag(info[['col_cor_mat']]) <- NA
             diag(info[['row_cor_mat']]) <- NA
             
@@ -233,9 +256,6 @@ EDADataSet <- R6Class("EDADataSet",
             #if (target == 'rows') {
             #    private$transpose()
             #}
-
-            # determine subsampling indices, if requested
-            indices <- private$get_indices(...)
 
             dat <- setNames(melt(self$dat), c('row', 'column', 'val'))
             styles <- private$get_geom_density_styles(color)
@@ -279,38 +299,6 @@ EDADataSet <- R6Class("EDADataSet",
             cat(sprintf("=   columns: %d %s\n", ncol(self$dat), cm))
             cat("=\n")
             cat("=========================================\n")
-        },
-
-        #' Gets the subsampling row indices for a dataset
-        #'
-        #' @return Numeric vector of row indices to use for intensive 
-        #'     operations when subsampling is enabled.
-        get_row_indices = function() {
-            private$row_ind
-        },
-
-        #' Gets the subsampling column indices for a dataset
-        #'
-        #' @return Numeric vector of column indices to use for intensive 
-        #'     operations when subsampling is enabled.
-        get_col_indices = function() {
-            private$col_ind
-        },
-
-        #' Sets the subsampling row indices for a dataset
-        #'
-        #' @param ind Numeric vector of row indices to use for intensive 
-        #'     operations when subsampling is enabled.
-        set_row_indices = function(ind) {
-            private$row_ind <- ind 
-        },
-
-        #' Sets the subsampling column indices for a dataset
-        #'
-        #' @param ind Numeric vector of column indices to use for intensive 
-        #'     operations when subsampling is enabled.
-        set_col_indices = function(ind) {
-            private$col_ind <- ind 
         }
     ),
 
@@ -319,8 +307,6 @@ EDADataSet <- R6Class("EDADataSet",
     # ------------------------------------------------------------------------
     private = list(
         # private params
-        row_ind      = NULL,
-        col_ind      = NULL,
         row_color    = NULL,
         row_shape    = NULL,
         row_labels   = NULL,
@@ -337,81 +323,6 @@ EDADataSet <- R6Class("EDADataSet",
             obj <- self$clone()
             obj$clear_cache()
             obj
-        },
-
-        #' Returns a list of arguments specific for a given function call.
-        #'
-        #' This function takes a list of function arguments and generates
-        #' a new list without any shared arguments (row_maxn, etc.).
-        #'
-        #' @param ... Arguments passed to a given plotting, etc. function call.
-        #'
-        #' @return A list containing only function-specific arguments 
-        strip_shared_function_args = function(...) {
-            args <- list(...)
-      
-            shared_args <- c('row_ind', 'row_maxn', 'row_max_ratio',
-                             'col_ind', 'col_maxn', 'col_max_ratio')
-
-            # return list of non-shared arguments
-            args[!names(args) %in% shared_args]
-        },
-
-        get_subsample_indices = function(maxn, maxr, ind, n) {
-            # if indices are explictly provided, use them
-            if (!is.null(ind)) {
-                return(ind)
-            }
-
-            # otherwise, if maxn or maxr, specified, use to randomly select
-            # row/column indices to use for memory-/cpu-intensive operations
-            maxn <- min(maxn, round(maxr * n))
-            
-            if (maxn < n) {
-                sort(sample(n, maxn))
-            } else {
-                1:n
-            }
-        },
-
-        #' Determines row and column indices to use for a function call
-        #'
-        #' Parses a list of function arguments and check whether user has
-        #' specified any subsampling-related arguments (row_maxn, row_max_ratio,
-        #' etc.) and, if so, select indices to use. Otherwise object-level
-        #' indices are returned.
-        #'
-        #' @param ... Arguments passed to a given plotting, etc. function call.
-        #'
-        #' @return A list with 'row' and 'column' entries corresponding to the
-        #'     specific numeric row and column indices to be used.
-        get_indices = function(...) {
-            args <- list(...)
-            result <- list(row=NULL, col=NULL)
-
-            # row indices
-            if (!is.null(args$row_ind)) {
-                result[['row']] <- args$row_ind
-            } else if (!is.null(args$row_maxn)) {
-                result[['row']] <- sample(nrow(self$dat), args$row_maxn) 
-            } else if (!is.null(args$row_max_ratio) ){
-                result[['row']] <- sample(nrow(self$dat), round(nrow(self$dat) * args$row_max_ratio))
-            } else {
-                result[['row']] <- private$row_ind
-            }
-
-            # col indices
-            if (!is.null(args$col_ind)) {
-                result[['col']] <- args$col_ind
-            } else if (!is.null(args$col_maxn)) {
-                result[['col']] <- sample(ncol(self$dat), args$col_maxn) 
-            } else if (!is.null(args$col_max_ratio) ){
-                result[['col']] <- sample(ncol(self$dat), round(ncol(self$dat) * args$col_max_ratio))
-            } else {
-                result[['col']] <- private$col_ind
-            }
-
-            result
         },
 
         #' Generates ggplot aesthetics for density plots 
@@ -756,8 +667,6 @@ EDADataSet <- R6Class("EDADataSet",
             col_color  <- private$col_color 
             col_shape  <- private$col_shape 
             col_labels <- private$col_labels 
-            row_ind    <- private$row_ind 
-            col_ind    <- private$col_ind
 
             self$row_mdata     <- col_mdata
             self$col_mdata     <- row_mdata
@@ -767,8 +676,6 @@ EDADataSet <- R6Class("EDADataSet",
             private$col_color  <- row_color 
             private$col_shape  <- row_shape 
             private$col_labels <- row_labels 
-            private$row_ind    <- col_ind 
-            private$col_ind    <- row_ind
         }
     ),
     # ------------------------------------------------------------------------
@@ -782,11 +689,6 @@ EDADataSet <- R6Class("EDADataSet",
             } else { 
                 private$datasets[['dat']] <- value
             }
-        },
-
-        #' Returns "small" or "subsampled" version of dat
-        sdat = function(value) {
-            private$datasets[['dat']][private$row_ind, private$col_ind]
         },
 
         col_mdata = function(value) {
@@ -820,7 +722,6 @@ EDADataSet <- R6Class("EDADataSet",
                     row_color=self$col_color, row_shape=self$col_shape,
                     row_labels=self$col_labels, col_color=self$row_color,
                     col_shape=self$row_shape, col_labels=self$row_labels,
-                    row_ind=self$col_ind, col_ind=self$row_ind,
                     color_pal=self$color_pal,
                     ggplot_theme=private$ggplot_theme)
         }
