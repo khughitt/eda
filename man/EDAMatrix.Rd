@@ -143,3 +143,20 @@ axes.
 }
 }
 
+\section{Examples}{
+\preformatted{library('eda')
+
+dat <- as.matrix(iris[,1:4])
+row_mdata <- iris[,5,drop=FALSE]
+
+edm <- EDAMatrix$new(dat, row_mdata=row_mdata, row_color='Species')
+
+edm
+edm$summary()
+
+edm$plot_pca()
+edm$log1p()$plot_cor_heatmap()
+edm$subsample(100)$plot_tsne()
+}
+}
+

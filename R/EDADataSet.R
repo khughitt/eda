@@ -5,14 +5,16 @@
 #' common exploratory data analysis summary statistics, transformations, and
 #' visualizations.
 #'
-#' @section Arguments:
-#' \describe{
-#'   \item{dat}{An m x n dataset.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the column names of 
-#'       \code{dat}.}
-#'   \item{row_mdata}{Data frame with rows corresponding to the row names of 
-#'       \code{dat}.}
-#' }
+#' Rather than using EDADataSet directly, it is instead recommended that you
+#' use one of the more specific child classes:
+#'
+#' - `EDADataFrame`
+#' - `EDAMatrix`
+#' - etc.
+#'
+#' The child classes inherit from `EDADataSet`, and as such, will include all
+#' of the same functionality, but with some additional support for the specific
+#' data type they are designed for.
 #'
 #' @importFrom R6 R6Class
 #' @import ggplot2 heatmap.plus reshape2
@@ -61,19 +63,19 @@ EDADataSet <- R6Class("EDADataSet",
             private$title  <- title
         },
 
-        #' Clears any cached resuts and performs garbage collection to free 
-        #' up memory.
+        # Clears any cached resuts and performs garbage collection to free 
+        # up memory.
         clear_cache = function() {
             private$cache <- list()
             invisible(gc())
         },
 
-        #' Applies a filter to rows of the dataset
-        #'
-        #' @param mask Logical vector of length equal to the number of rows in
-        #'      the dataset.
-        #'
-        #' @return A filtered version of the original EDADataSet object.
+        # Applies a filter to rows of the dataset
+        #
+        # @param mask Logical vector of length equal to the number of rows in
+        #      the dataset.
+        #
+        # @return A filtered version of the original EDADataSet object.
         filter_rows = function(mask) {
             obj <- private$clone_()
 
@@ -87,12 +89,12 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
-        #' Applies a filter to columns of the dataset
-        #'
-        #' @param mask Logical vector of length equal to the number of columns 
-        #'     in the dataset.
-        #'
-        #' @return A filtered version of the original EDADataSet object.
+        # Applies a filter to columns of the dataset
+        #
+        # @param mask Logical vector of length equal to the number of columns 
+        #     in the dataset.
+        #
+        # @return A filtered version of the original EDADataSet object.
         filter_cols = function(mask) {
             obj <- private$clone_()
 
@@ -106,19 +108,19 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
-        #' Imputes missing values in the dataset
-        #'
-        #' Imputes missing values in the dataset using a specified method
-        #' and stores the result in-place. Currently only support k-Nearest
-        #' Neighbors (kNN) method.
-        #'
-        #' Note: When using the `knn` method, it may be neccessary to set R 
-        #' the environmental variable `R_MAX_NUM_DLLS` to some value larger
-        #' than its default of 100 (150 should be sufficient), prior to
-        #' launching R. This can be set in the ~/.Renviron.
-        #'
-        #' @param method Character array specifying imputation method to use 
-        #'     (knn)
+        # Imputes missing values in the dataset
+        #
+        # Imputes missing values in the dataset using a specified method
+        # and stores the result in-place. Currently only support k-Nearest
+        # Neighbors (kNN) method.
+        #
+        # Note: When using the `knn` method, it may be neccessary to set R 
+        # the environmental variable `R_MAX_NUM_DLLS` to some value larger
+        # than its default of 100 (150 should be sufficient), prior to
+        # launching R. This can be set in the ~/.Renviron.
+        #
+        # @param method Character array specifying imputation method to use 
+        #     (options: knn)
         impute = function(method='knn') {
             # Keep track of original dataset class
             cls <- class(self$dat)
@@ -140,11 +142,20 @@ EDADataSet <- R6Class("EDADataSet",
             self$dat <- imputed
         },
 
-        #' Subsample dataset
-        #'
-        #' Randomly subsamples dataset and returns a new EDADataSet instance.
-        #' For removing specific rows and columns, see the `filter_rows` and
-        #' `filter_cols` functions.
+        # Subsample dataset
+        #
+        # Randomly subsamples dataset and returns a new EDADataSet instance.
+        # If both `xx_n` and `xx_ratio` arguments are specified, the `xx_n`
+        # setting will be used.
+        # For removing specific rows and columns, see the `filter_rows` and
+        # `filter_cols` functions.
+        #
+        # @param row_n  Number of rows to randomly select
+        # @param col_n  Number of columns to randomly select
+        # @param row_ratio Ratio of rows to randomly select
+        # @param col_ratio Ratio of columns to randomly select
+        #
+        # @return An EDADataSet instance 
         subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
             row_ind <- 1:nrow(self$dat)
             col_ind <- 1:ncol(self$dat)
@@ -180,9 +191,12 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
-        #' Summarizes overall characteristics of a dataset
-        #' 
-        #' 
+        # Summarizes overall characteristics of a dataset
+        # 
+        # @param markdown Logical indicating whether summary output should be
+        #   formatted using markdown. (NOTE: Not yet implemented...)
+        # @param num_digits Number of digits to display when printing summary
+        #   output (default: 2).
         summary = function(markdown=FALSE, num_digits=2) {
             # collection summary info
             x <- self$dat
@@ -243,24 +257,19 @@ EDADataSet <- R6Class("EDADataSet",
         # plotting methods
         ######################################################################
 
-        #' Kernel density plot
-        #'
-        #' Plots densities for each row or column in the dataset. This is most
-        #' useful when you are interested in similarties or differences in
-        #' distributions across columns, for a relatively small number of
-        #' columns.
-        #'
-        #' @param color Variable to color density curves by. If not is
-        #' specified, uses variable specified at object construction time,
-        #' or else, uses a separate color for each column.
-        #'
-        #' @return ggplot plot instance.
-        #'
+        # Kernel density plot
+        #
+        # Plots densities for each row or column in the dataset. This is most
+        # useful when you are interested in similarties or differences in
+        # distributions across columns, for a relatively small number of
+        # columns.
+        #
+        # @param color Variable to color density curves by. If not is
+        # specified, uses variable specified at object construction time,
+        # or else, uses a separate color for each column.
+        #
+        # @return ggplot plot instance.
         plot_densities = function(color=NULL, title="", ...) {
-            #if (target == 'rows') {
-            #    private$transpose()
-            #}
-
             dat <- setNames(melt(self$dat), c('row', 'column', 'val'))
             styles <- private$get_geom_density_styles(color)
 
@@ -290,7 +299,7 @@ EDADataSet <- R6Class("EDADataSet",
 			plt
         },
         
-        #' Prints class greeting to the screen
+        # Prints class greeting to the screen
         print = function() {
             rm <- ifelse(!is.null(self$row_mdata), '(m)', '')
             cm <- ifelse(!is.null(self$col_mdata), '(m)', '')
@@ -329,34 +338,34 @@ EDADataSet <- R6Class("EDADataSet",
             obj
         },
 
-        #' Generates ggplot aesthetics for density plots 
-        #'
-        #' @param color Color variable as passed into plot function call
-        #'
-        #' @return List of style information
+        # Generates ggplot aesthetics for density plots 
+        #
+        # @param color Color variable as passed into plot function call
+        #
+        # @return List of style information
         get_geom_density_styles = function(color) {
             # list to store style properties
             res <- list(aes=aes(), labels=list())
             private$add_color_styles(res, color)
         },
 
-        #' Generates ggplot aesthetics for histogram plots
-        #'
-        #' @param color Color variable as passed into plot function call
-        #'
-        #' @return List of style information
+        # Generates ggplot aesthetics for histogram plots
+        #
+        # @param color Color variable as passed into plot function call
+        #
+        # @return List of style information
         get_geom_histogram_styles = function(color) {
             # list to store style properties
             res <- list(aes=aes(), labels=list())
             private$add_color_styles(res, color)
         },
 
-        #' Generates ggplot aesthetics for a geom_point plot
-        #'
-        #' @param color Color variable as passed into plot function call
-        #' @param shape Shape variable as passed into plot function call
-        #'
-        #' @return List of geom_point style information
+        # Generates ggplot aesthetics for a geom_point plot
+        #
+        # @param color Color variable as passed into plot function call
+        # @param shape Shape variable as passed into plot function call
+        #
+        # @return List of geom_point style information
         get_geom_point_styles = function(color, shape) {
             # list to store style properties
             res <- list(
@@ -369,10 +378,10 @@ EDADataSet <- R6Class("EDADataSet",
             res
         },
 
-        #' Determines color-related style information to use for a plot
-        #'
-        #' @param styles List of color-related style info
-        #' @param color Color variable passed into plot function call
+        # Determines color-related style information to use for a plot
+        #
+        # @param styles List of color-related style info
+        # @param color Color variable passed into plot function call
         add_color_styles = function(styles, color) {
             color_info <- private$get_color_styles(color)
 
@@ -386,10 +395,10 @@ EDADataSet <- R6Class("EDADataSet",
             styles
         },
 
-        #' Determines shape-related style information to use for a plot
-        #'
-        #' @param styles List of shape-related style info
-        #' @param shape shape variable passed into plot function call
+        # Determines shape-related style information to use for a plot
+        #
+        # @param styles List of shape-related style info
+        # @param shape shape variable passed into plot function call
         add_shape_styles = function(styles, shape) {
             shape_info <- private$get_shape_styles(shape)
 
@@ -403,11 +412,11 @@ EDADataSet <- R6Class("EDADataSet",
             styles
         },
 
-        #' Returns a list of color-related style information
-        #'
-        #' @param color Color variable as passed into plot function call
-        #' 
-        #' @return list List of color-related properties
+        # Returns a list of color-related style information
+        #
+        # @param color Color variable as passed into plot function call
+        # 
+        # @return list List of color-related properties
         get_color_styles = function(color) {
             res <- list(
 				color  = NULL,
@@ -431,11 +440,11 @@ EDADataSet <- R6Class("EDADataSet",
             res
         },
 
-        #' Returns a list of shape-related style information
-        #'
-        #' @param shape Shape variable as passed into plot function call
-        #' 
-        #' @return list List of shape-related properties
+        # Returns a list of shape-related style information
+        #
+        # @param shape Shape variable as passed into plot function call
+        # 
+        # @return list List of shape-related properties
         get_shape_styles = function(shape) {
             res <- list(
 				shape  = NULL,
@@ -458,14 +467,14 @@ EDADataSet <- R6Class("EDADataSet",
             res
         },
 
-		#' Returns a vector of color codes associated with the specified
-		#' variable.
-		#'
-		#' @param color Variable to use for assigning colors.
-		#' @param color_pal Color palette to use
-		#'
-		#' @return Vector of colors with length equal to the number of columns
-		#' 	       in the data.
+		# Returns a vector of color codes associated with the specified
+		# variable.
+		#
+		# @param color Variable to use for assigning colors.
+		# @param color_pal Color palette to use
+		#
+		# @return Vector of colors with length equal to the number of columns
+		# 	       in the data.
         get_var_colors = function(color, color_pal) {
             # if no variable is specified, use default black for plots
             if (is.null(color)) {
@@ -487,12 +496,12 @@ EDADataSet <- R6Class("EDADataSet",
             colors[as.integer(column_var)]
         },
 
-		#' Returns a vector of text labels to use for a plot
-		#'
-		#' @param shape Variable to use for assigning shapes.
-		#'
-		#' @return Vector of labels with length equal to the number of columns
-		#'         in the data.
+		# Returns a vector of text labels to use for a plot
+		#
+		# @param shape Variable to use for assigning shapes.
+		#
+		# @return Vector of labels with length equal to the number of columns
+		#         in the data.
         get_var_labels = function(label) {
             if (is.null(label)) {
                 return(colnames(self$dat))
@@ -500,16 +509,16 @@ EDADataSet <- R6Class("EDADataSet",
             self$row_mdata[,label]
         },
 
-        #' Normalizes handling of data row and column identifiers
-        #'
-        #' Checks dataset row and column identifiers and converts them to row 
-        #' and column names, respectively, if they are not already stored there.
-        #'
-        #' @param dat Dataset
-        #' @param row_ids Column id or number where row identifiers are stored.
-        #' @param col_ids Row id or number where column identifiers are stored.
-        #'
-        #' @param Dataset with identifiers as rows and columns
+        # Normalizes handling of data row and column identifiers
+        #
+        # Checks dataset row and column identifiers and converts them to row 
+        # and column names, respectively, if they are not already stored there.
+        #
+        # @param dat Dataset
+        # @param row_ids Column id or number where row identifiers are stored.
+        # @param col_ids Row id or number where column identifiers are stored.
+        #
+        # @param Dataset with identifiers as rows and columns
         normalize_data_ids = function(dat, row_ids, col_ids) {
             # row ids
             if (row_ids != 'rownames') {
@@ -571,7 +580,7 @@ EDADataSet <- R6Class("EDADataSet",
             metadata[ind,, drop=FALSE]
         },
 
-        #' Prints dataset summary to screen
+        # Prints dataset summary to screen
         print_summary = function(x) {
             cat("=========================================\n")
             cat("\n")
@@ -636,14 +645,14 @@ EDADataSet <- R6Class("EDADataSet",
             cat("=========================================\n")
         },
 
-        #' Determines metadata columns to include for heatmap, etc. functions
-        #'
-        #' @param include Vector of strings indicating metadata columns which
-        #' should be included in the analysis.
-        #' @param exclude Vector of strings indicating metadata columns which
-        #' should be excluded from the analysis.
-        #'
-        #' @return Character vector of fields to include in analysis.
+        # Determines metadata columns to include for heatmap, etc. functions
+        #
+        # @param include Vector of strings indicating metadata columns which
+        # should be included in the analysis.
+        # @param exclude Vector of strings indicating metadata columns which
+        # should be excluded from the analysis.
+        #
+        # @return Character vector of fields to include in analysis.
         select_features = function(include, exclude) {
             # determine fields to include based on user arguments
             if (!is.null(include)) {
@@ -659,7 +668,7 @@ EDADataSet <- R6Class("EDADataSet",
             include[mask]
         },
 
-        #' Transpose the dataset and metadata in-place
+        # Transpose the dataset and metadata in-place
         transpose = function() {
             self$dat <- t(self$dat) 
 
