@@ -10,7 +10,7 @@
 EDADataFrame
 }
 \description{
-EDADataFrame is a helper class for wrapping dataframes, with optional
+EDADataFrame is a helper class for wrapping data frames, with optional
 support for row and column datadata. Methods are provided for common
 exploratory data analysis summary statistics, transformations, and
 visualizations.
@@ -19,14 +19,110 @@ EDADataFrame constructor
 Prints an overview of the object instance
 Verifies that input data is of type dataframe
 }
+\section{Usage}{
+\preformatted{edf <- EDADataFrame$new(df, row_mdata=row_mdata_df, row_color='some_var')
+edf$summary()
+}
+}
+
 \section{Arguments}{
 
-\describe{
-\item{dat}{An m x n dataset.}
-\item{row_mdata}{Data frame with rows corresponding to the column names of
-\code{dat}.}
-\item{row_mdata}{Data frame with rows corresponding to the row names of
-\code{dat}.}
+\itemize{
+\item \code{dat}: An m x n dataset.
+\item \code{row_mdata}: A matrix or data frame with rows corresponding to the row
+names of \code{dat}
+\item \code{col_mdata}: A matrix or data frame with rows corresponding to the
+column names of \code{dat}
+\item \code{row_ids}: Column name or number containing row identifiers. If set to
+\code{rownames} (default), row names will be used as identifiers.
+\item \code{col_ids}: Column name or number containing column identifiers. If set to
+\code{colnames} (default), column names will be used as identifiers.
+\item \code{row_mdata_ids}: Column name or number containing row metadata row
+identifiers. If set to \code{rownames} (default), row names will be used
+as identifiers.
+\item \code{col_mdata_ids}: Column name or number containing col metadata row
+identifiers. If set to \code{rownames} (default), row names will be used
+as identifiers.
+\item \code{row_color}: Row metadata field to use for coloring rowwise plot elements.
+\item \code{row_shape}: Row metadata field to use for determine rowwise plot
+element shape.
+\item \code{row_labels}: Row metadata field to use when labeling plot points or
+other elements.
+\item \code{col_color}: Column metadata field to use for coloring columnwise plot elements.
+\item \code{col_shape}: Column metadata field to use for determine columnwise plot
+element shape.
+\item \code{col_labels}: Column metadata field to use when labeling plot points or
+other elements.
+\item \code{color_pal}: Color palette to use for relevant plotting methods
+(default: \code{Set1}).
+\item \code{title}: Text to use as a title or subtitle for plots.
+\item \code{ggplot_theme}: Default theme to use for ggplot2 plots
+(default: \code{theme_bw}).
+}
+}
+
+\section{Fields}{
+
+\itemize{
+\item \code{dat}: Underlying data frame
+\item \code{row_mdata}: Dataframe containing row metadata
+\item \code{col_mdata}: Dataframe containing column metadata
+}
+}
+
+\section{Methods}{
+
+\itemize{
+\item \code{clear_cache()}: Clears EDADataFrame cache.
+\item \code{clone()}: Creates a copy of the EDADataFrame instance.
+\item \code{detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+Measures average pairwise similarities between all columns in the dataset.
+Outliers are considered to be those columns who mean similarity to
+all other columns is greater than \code{num_sd} standard deviations from the
+average of averages.
+\item \code{detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+Measures average pairwise similarities between all rows in the dataset.
+Outliers are considered to be those rows who mean similarity to
+all other rows is greater than \code{num_sd} standard deviations from the
+average of averages.
+\item \code{filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+Removes column outliers from the dataset. See \code{detect_col_outliers()}
+for details of outlier detection approach.
+\item \code{filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+Removes row outliers from the dataset. See \code{detect_row_outliers()}
+for details of outlier detection approach.
+\item \code{filter_cols(mask)}: Accepts a logical vector of length \code{ncol(obj$dat)}
+and returns a new EDADataFrame instance with only the columns associated
+with \code{TRUE} values in the mask.
+\item \code{filter_rows(mask)}: Accepts a logical vector of length \code{nrow(obj$dat)}
+and returns a new EDADataFrame instance with only the rowsumns associated
+with \code{TRUE} values in the mask.
+\item \code{impute(method='knn')}: Imputes missing values in the dataset and stores
+the result \emph{in-place}. Currently only k-Nearest Neighbors (kNN)
+imputation is supported.
+\item \code{log(base=exp(1), offset=0)}: Log-transforms data.
+\item \code{log1p()}: Log(x + 1)-transforms data.
+\item \code{plot_densities(color=NULL, title="", ...)}: Plots densities for each
+column in the dataset.
+\item \code{print()}: Prints an overview of the object instance.
+\item \code{subsample(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL)}:
+Subsamples dataset rows and/or columns.
+\item \code{summary(markdown=FALSE, num_digits=2)}: Summarizes overall
+characteristics of a dataset.
+\item \code{t()}: Transposes dataset rows and columns.
+}
+}
+
+\section{Examples}{
+\preformatted{library('eda')
+
+dat <- iris[,1:4]
+row_mdata <- iris[,5,drop=FALSE]
+
+edf <- EDADataFrame$new(dat, row_mdata=row_mdata, row_color='Species')
+
+edf
+edf$summary()
 }
 }
 

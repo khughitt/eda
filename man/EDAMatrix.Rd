@@ -10,17 +10,12 @@ exploratory data analysis summary statistics, transformations, and
 visualizations.
 }
 \section{Usage}{
-\preformatted{dat <- as.matrix(iris[,1:4])
-row_mdata <- iris[,5,drop=FALSE]
-
-edm <- EDAMatrix$new(dat, row_mdata=row_mdata, row_color='Species')
-
-edm
+\preformatted{edm <- EDAMatrix$new(mat, row_mdata=row_mdata_df, row_color='some_var')
 edm$summary()
 
 edm$plot_pca()
-edm$log1p()$plot_cor_heatmap()
-edm$subsample(100)$plot_tsne()
+
+edm$t$subsample(100)$plot_heatmap()
 }
 }
 

@@ -1,4 +1,28 @@
 #' An S6 class representing collection of related datasets
+#' 
+#' @section Usage:
+#' ```
+#' # TODO
+#' ``` 
+#'
+#' @section Arguments:
+#' - `...`: Two or more EDADataSet instances, indexed by the same column 
+#'      identifiers.
+#'
+#' @section Fields:
+#'  - `datasets`: List of datasets
+#'
+#' @section Methods:
+#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset 
+#'     correlation matrix between rows in two specified datasets.
+#'  - `plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)`:
+#'      Plots multidataset correlation heatmap.
+#'  - `print()`: Prints an overview of the object instance.
+#'
+#' @section Examples:
+#' ```
+#' TODO
+#' ``` 
 #'
 #' @importFrom R6 R6Class
 #' @name EDAMultiDataSet
@@ -19,28 +43,28 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
             private$check_inputs()
         },
 
-        #' Computes cross-dataset correlation matrix
-        #'
-        #' @param key1 Numeric or character index of first dataset to use
-        #' @param key2 Numeric or character index of second dataset to use
-        #' @param method Correlation method to use (passed to `cor` function)
-        #'
-        #' @return Matrix of pairwise dataset1 - dataset2 correlations
+        # Computes cross-dataset correlation matrix
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param method Correlation method to use (passed to `cor` function)
+        #
+        # @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1=1, key2=2, method='pearson') {
             super$cross_cor(key1, key2, method)
         },
 
-        #' Plots multidataset correlation heatmap
-        #'
-        #' @param key1 Numeric or character index of first dataset to use
-        #' @param key2 Numeric or character index of second dataset to use
-        #' @param method Correlation method to use (passed to `cor` function)
-        #'
+        # Plots multidataset correlation heatmap
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param method Correlation method to use (passed to `cor` function)
+        #
         plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
             super$plot_cross_cor_heatmap(key1, key2, method, interactive)
         },
 
-        #' Prints an overview of the object instance
+        # Prints an overview of the object instance
         print = function() {
             cat("=========================================\n")
             cat("=\n")
@@ -59,8 +83,8 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
     # private
     # ------------------------------------------------------------------------
     private = list(
-        #' Make sure input datasets are all EDADataSet instances and include
-        #' the same column identifiers
+        # Make sure input datasets are all EDADataSet instances and include
+        # the same column identifiers
         check_inputs = function() {
             # make sure inputs are all EDADataSets, and are indexed by the same columns
             ids <- sort(colnames(self$datasets[[1]]$dat))
@@ -83,7 +107,7 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
     # active
     # ------------------------------------------------------------------------
     active = list(
-        #' Make datasets publically visible for EDAMultiDataSet instances
+        # Make datasets publically visible for EDAMultiDataSet instances
         datasets = function() {
             private$datasets
         }       

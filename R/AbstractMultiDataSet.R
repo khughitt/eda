@@ -16,16 +16,16 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         }
     ),
     private = list(
-        #' private params
+        # private params
         datasets = NULL,
 
-        #' Computes cross-dataset correlation matrix
-        #'
-        #' @param key1 Numeric or character index of first dataset to use
-        #' @param key2 Numeric or character index of second dataset to use
-        #' @param method Correlation method to use (passed to `cor` function)
-        #'
-        #' @return Matrix of pairwise dataset1 - dataset2 correlations
+        # Computes cross-dataset correlation matrix
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param method Correlation method to use (passed to `cor` function)
+        #
+        # @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1=1, key2=2, method='pearson') {
             # make sure datasets are ordered similarly
             dat1 <- private$datasets[[key1]]
@@ -100,12 +100,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             cor_mat
         },
 
-        #' Plots multidataset correlation heatmap
-        #'
-        #' @param key1 Numeric or character index of first dataset to use
-        #' @param key2 Numeric or character index of second dataset to use
-        #' @param method Correlation method to use (passed to `cor` function)
-        #'
+        # Plots multidataset correlation heatmap
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param method Correlation method to use (passed to `cor` function)
+        #
         plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
             # compute cross correlations
             cor_mat <- self$cross_cor(key1, key2, method)
@@ -141,11 +141,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             private$plot_heatmap(params, interactive)
         },
 
-        #' Creates a static or interactive heatmap plot
-        #'
-        #' @param params A list of plotting parameters
-        #' @param interactive Logical indicating whether an interactive heatmap
-        #'     should be generated.
+        # Creates a static or interactive heatmap plot
+        #
+        # @param params A list of plotting parameters
+        # @param interactive Logical indicating whether an interactive heatmap
+        #     should be generated.
         plot_heatmap = function(params, interactive) {
             # interactive heatmap
             if (interactive) {
