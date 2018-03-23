@@ -1,6 +1,8 @@
 eda - Exploratory Data Analysis for R
 =====================================
 
+[![Build Status](https://travis-ci.org/khughitt/eda.svg?branch=master)](https://travis-ci.org/khughitt/eda)
+
 **Note Feb 26, 2018**: This library is currently in the early stages of development
 and is likely to change significantly over time. Feedback and suggestions are
 welcome!
