@@ -13,38 +13,38 @@
 #' edm$plot_pca()
 #'
 #' edm$t$subsample(100)$plot_heatmap()
-#' ``` 
+#' ```
 #'
 #' @section Arguments:
 #' - `dat`: An m x n dataset.
-#' - `row_mdata`: A matrix or data frame with rows corresponding to the row 
+#' - `row_mdata`: A matrix or data frame with rows corresponding to the row
 #'      names of `dat`
-#' - `col_mdata`: A matrix or data frame with rows corresponding to the 
+#' - `col_mdata`: A matrix or data frame with rows corresponding to the
 #'      column names of `dat`
 #' - `row_ids`: Column name or number containing row identifiers. If set to
 #'      `rownames` (default), row names will be used as identifiers.
 #' - `col_ids`: Column name or number containing column identifiers. If set to
 #'      `colnames` (default), column names will be used as identifiers.
-#' - `row_mdata_ids`: Column name or number containing row metadata row 
-#'      identifiers. If set to `rownames` (default), row names will be used 
+#' - `row_mdata_ids`: Column name or number containing row metadata row
+#'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
-#' - `col_mdata_ids`: Column name or number containing col metadata row 
-#'      identifiers. If set to `rownames` (default), row names will be used 
+#' - `col_mdata_ids`: Column name or number containing col metadata row
+#'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
 #' - `row_color`: Row metadata field to use for coloring rowwise plot elements.
-#' - `row_shape`: Row metadata field to use for determine rowwise plot 
+#' - `row_shape`: Row metadata field to use for determine rowwise plot
 #'      element shape.
 #' - `row_labels`: Row metadata field to use when labeling plot points or
 #'      other elements.
 #' - `col_color`: Column metadata field to use for coloring columnwise plot elements.
-#' - `col_shape`: Column metadata field to use for determine columnwise plot 
+#' - `col_shape`: Column metadata field to use for determine columnwise plot
 #'      element shape.
 #' - `col_labels`: Column metadata field to use when labeling plot points or
 #'      other elements.
-#' - `color_pal`: Color palette to use for relevant plotting methods 
+#' - `color_pal`: Color palette to use for relevant plotting methods
 #'      (default: `Set1`).
 #' - `title`: Text to use as a title or subtitle for plots.
-#' - `ggplot_theme`: Default theme to use for ggplot2 plots 
+#' - `ggplot_theme`: Default theme to use for ggplot2 plots
 #'      (default: `theme_bw`).
 #'
 #' @section Fields:
@@ -67,60 +67,60 @@
 #'      Outliers are considered to be those rows who mean similarity to
 #'      all other rows is greater than `num_sd` standard deviations from the
 #'      average of averages.
-#'  - `feature_cor()`: Detects dependencies between column metadata entries 
-#'		(features) and dataset rows. 
-#'  - `filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')`: 
-#'		Removes column outliers from the dataset. See `detect_col_outliers()` 
-#'		for details of outlier detection approach.
-#'  - `filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')`: 
-#'		Removes row outliers from the dataset. See `detect_row_outliers()` 
-#'		for details of outlier detection approach.
+#'  - `feature_cor()`: Detects dependencies between column metadata entries
+#'        (features) and dataset rows.
+#'  - `filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#'        Removes column outliers from the dataset. See `detect_col_outliers()`
+#'        for details of outlier detection approach.
+#'  - `filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#'        Removes row outliers from the dataset. See `detect_row_outliers()`
+#'        for details of outlier detection approach.
 #'  - `filter_cols(mask)`: Accepts a logical vector of length `ncol(obj$dat)`
-#'		and returns a new EDAMatrix instance with only the columns associated
+#'        and returns a new EDAMatrix instance with only the columns associated
 #'      with `TRUE` values in the mask.
 #'  - `filter_rows(mask)`: Accepts a logical vector of length `nrow(obj$dat)`
-#'		and returns a new EDAMatrix instance with only the rowsumns associated
+#'        and returns a new EDAMatrix instance with only the rowsumns associated
 #'      with `TRUE` values in the mask.
 #'  - `impute(method='knn')`: Imputes missing values in the dataset and stores
-#'		the result _in-place_. Currently only k-Nearest Neighbors (kNN) 
-#'		imputation is supported.
+#'        the result _in-place_. Currently only k-Nearest Neighbors (kNN)
+#'        imputation is supported.
 #'  - `log(base=exp(1), offset=0)`: Log-transforms data.
 #'  - `log1p()`: Log(x + 1)-transforms data.
 #'  - `pca(...)`: Performs principle component analysis (PCA) on the dataset
-#'		and returns a new EDAMatrix instance of the projected data points.
+#'        and returns a new EDAMatrix instance of the projected data points.
 #'      Any additional arguements specified are passed to the `prcomp()` function.
 #'  - `pca_feature_cor(method='pearson', ...)`: Measures correlation between
-#'		dataset features (column metadata fields) and dataset principle
+#'        dataset features (column metadata fields) and dataset principle
 #'      components.
-#'  - `plot_cor_heatmap(method='pearson', interactive=TRUE, ...)`: Plots a 
-#'		correlation heatmap of the dataset.
-#'  - `plot_densities(color=NULL, title="", ...)`: Plots densities for each 
-#'		column in the dataset.
+#'  - `plot_cor_heatmap(method='pearson', interactive=TRUE, ...)`: Plots a
+#'        correlation heatmap of the dataset.
+#'  - `plot_densities(color=NULL, title="", ...)`: Plots densities for each
+#'        column in the dataset.
 #'  - `plot_feature_cor(method='pearson', color_scale=c('green', 'red')`:
-#'		Creates a tile plot of projected data / feature correlations. See
-#'		`feature_cor()` function.
-#'  - `plot_heatmap(interactive=TRUE, ...)`: Generates a heatmap plot of the 
-#'		dataset
+#'        Creates a tile plot of projected data / feature correlations. See
+#'        `feature_cor()` function.
+#'  - `plot_heatmap(interactive=TRUE, ...)`: Generates a heatmap plot of the
+#'        dataset
 #'  - `plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))`:
-#'		Plot median pairwise column correlations for each variable (column)
-#'		in the dataset.
+#'        Plot median pairwise column correlations for each variable (column)
+#'        in the dataset.
 #'  - `plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL,
 #'               text_labels=FALSE, ...)`:
-#'		Generates a two-dimensional PCA plot from the dataset.
+#'        Generates a two-dimensional PCA plot from the dataset.
 #'  - `plot_tsne(color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)`:
-#'		Generates a two-dimensional t-SNE plot from the dataset.
+#'        Generates a two-dimensional t-SNE plot from the dataset.
 #'  - `print()`: Prints an overview of the object instance.
 #'  - `subsample(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL)`:
-#'		Subsamples dataset rows and/or columns.
-#'  - `summary(markdown=FALSE, num_digits=2)`: Summarizes overall 
-#'		characteristics of a dataset.
+#'        Subsamples dataset rows and/or columns.
+#'  - `summary(markdown=FALSE, num_digits=2)`: Summarizes overall
+#'        characteristics of a dataset.
 #'  - `t()`: Transposes dataset rows and columns.
-#'  - `tsne(...)`: Performs T-distributed stochastic neighbor embedding (t-SNE) 
-#'		on the dataset and returns a new EDAMatrix instance of the projected 
-#' 		data points. Any additional arguements specified are passed to the 
-#'		`Rtsne()` function.
+#'  - `tsne(...)`: Performs T-distributed stochastic neighbor embedding (t-SNE)
+#'        on the dataset and returns a new EDAMatrix instance of the projected
+#'         data points. Any additional arguements specified are passed to the
+#'        `Rtsne()` function.
 #'  - `tsne_feature_cor(method='pearson', ...)`: Measures correlation between
-#'		dataset features (column metadata fields) and dataset t-SNE projected
+#'        dataset features (column metadata fields) and dataset t-SNE projected
 #'      axes.
 #'
 #' @section Examples:
@@ -138,7 +138,7 @@
 #' edm$plot_pca()
 #' edm$log1p()$plot_cor_heatmap()
 #' edm$subsample(100)$plot_tsne()
-#' ``` 
+#' ```
 #'
 #' @importFrom R6 R6Class
 #' @export
@@ -156,7 +156,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                               row_mdata_ids='rownames', col_mdata_ids='rownames',
                               row_color=NULL, row_shape=NULL, row_labels=NULL,
                               col_color=NULL, col_shape=NULL, col_labels=NULL,
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
+                              color_pal='Set1', title='', ggplot_theme=theme_bw) {
             # verify input data type and call parent constructor
             private$check_input(dat)
 
@@ -198,7 +198,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         detect_col_outliers = function(num_sd=2, avg=median, method='pearson') {
             # TODO: include correlation in results?
             # TODO: Write alternative version for data frame datasets?
-            cor_mat <- cor(self$dat, method=method)
+            cor_mat <- cor(self$dat, method = method)
             avg_column_cors <- apply(cor_mat, 1, avg)
             cutoff <- mean(avg_column_cors) - (num_sd * sd(avg_column_cors))
             colnames(self$dat)[avg_column_cors < cutoff]
@@ -217,7 +217,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # return Character vector or row ids for rows with low
         #     average pairwise correlations.
         detect_row_outliers = function(num_sd=2, avg=median, method='pearson') {
-            cor_mat <- cor(t(self$dat), method=method)
+            cor_mat <- cor(t(self$dat), method = method)
             avg_row_cors <- apply(cor_mat, 1, avg)
             cutoff <- mean(avg_row_cors) - num_sd * sd(avg_row_cors)
             rownames(self$dat)[avg_row_cors < cutoff]
@@ -245,7 +245,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # return A filtered version of the original EDADataSet object.
         filter_col_outliers = function(num_sd=2, avg=median, method='pearson') {
             obj <- private$clone_()
-			outliers <- obj$detect_col_outliers(num_sd, avg, method)
+            outliers <- obj$detect_col_outliers(num_sd, avg, method)
             obj$filter_cols(!colnames(obj$dat) %in% outliers)
         },
 
@@ -262,7 +262,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # return A filtered version of the original EDADataSet object.
         filter_row_outliers = function(num_sd=2) {
             obj <- private$clone_()
-			outliers <- obj$detect_row_outliers(num_sd, avg, method)
+            outliers <- obj$detect_row_outliers(num_sd, avg, method)
             obj$filter_rows(!rownames(obj$dat) %in% outliers)
         },
 
@@ -302,6 +302,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             self$t$pca(...)$t$feature_cor(method)
         },
 
+        #
         # t-SNE
         #
         tsne = function (...) {
@@ -319,7 +320,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         print = function() {
             cat("=========================================\n")
             cat("=\n")
-            cat(sprintf("= EDAMatrix (%s)\n", class(self$dat[,1])))
+            cat(sprintf("= EDAMatrix (%s)\n", class(self$dat[, 1])))
             cat("=\n")
             cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
             cat(sprintf("=   columns: %d\n", ncol(self$dat)))
@@ -343,33 +344,35 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #      methods.
         plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
             # generate correlation matrix
-            cor_mat <- cor(t(self$dat), method=method)
+            cor_mat <- cor(t(self$dat), method = method)
 
             # list of parameters to pass to heatmaply
             params <- list(
-                x=cor_mat,
-                showticklabels=c(FALSE, FALSE),
-                subplot_widths=c(0.65, 0.35),
-                subplot_heights=c(0.35, 0.65)
+                x               = cor_mat,
+                showticklabels  = c(FALSE, FALSE),
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
             )
 
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$row_mdata)) {
                 # for heatmaps, show binary/logical variables on one side of the heatmap and
                 # other variables on the other side
-                lens <- apply(self$row_mdata, 2, function(x) { length(unique(x)) })
+                lens <- apply(self$row_mdata, 2, function(x) {
+                    length(unique(x))
+                })
                 binary_vars <- lens == 2
 
                 # col colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$row_mdata[,binary_vars, drop=FALSE]
+                    params[['col_side_colors']] <- self$row_mdata[, binary_vars, drop = FALSE]
                     params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
 
                 # row colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['row_side_colors']] <- self$row_mdata[,!binary_vars, drop=FALSE]
-                    params[['subplot_widths']] <- c(0.55, 0.3, 0.15)
+                    params[['row_side_colors']] <- self$row_mdata[, !binary_vars, drop = FALSE]
+                    params[['subplot_widths']]  <- c(0.55, 0.3, 0.15)
                 }
             }
 
@@ -385,16 +388,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         plot_heatmap = function(interactive=TRUE, ...) {
             # list of parameters to pass to heatmaply
             params <- list(
-                x=self$dat,
-                showticklabels=c(FALSE, FALSE),
-                subplot_widths=c(0.65, 0.35),
-                subplot_heights=c(0.35, 0.65)
+                x               = self$dat,
+                showticklabels  = c(FALSE, FALSE),
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
             )
 
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$row_mdata)) {
                 params[['row_side_colors']] <- self$row_mdata
-                params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
+                params[['subplot_widths']]  <- c(0.15, 0.3, 0.55)
             }
 
             if (!is.null(self$col_mdata)) {
@@ -421,7 +424,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # return ggplot plot instance
         plot_feature_cor = function(method='pearson', color_scale=c('green', 'red')) {
             # compute feature correlations
-            dat <- melt(private$feature_cor(method=method))
+            dat <- melt(private$feature_cor(method = method))
             colnames(dat) <- c('dim', 'variable', 'value')
 
             # Labels
@@ -433,16 +436,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             xlab_text <- 'TODO...'
 
             # create plot
-            ggplot(dat, aes(x=dim, y=variable)) +
-                geom_tile(aes(fill=value)) +
-                geom_text(aes(label=value), size=2, show.legend=FALSE) +
-                scale_fill_gradient(low=color_scale[1], high=color_scale[2]) +
+            ggplot(dat, aes(x = dim, y = variable)) +
+                geom_tile(aes(fill = value)) +
+                geom_text(aes(label = value), size = 2, show.legend = FALSE) +
+                scale_fill_gradient(low = color_scale[1], high = color_scale[2]) +
                 private$ggplot_theme() +
-                theme(axis.text.x=element_text(size=8, angle=45, vjust=1, hjust=1),
-                      axis.text.y=element_text(size=8)) +
+                theme(axis.text.x = element_text(size = 8, angle = 45,
+                                                 vjust = 1, hjust = 1),
+                      axis.text.y = element_text(size = 8)) +
                 xlab(xlab_text) +
                 ylab("Features") +
-                guides(fill=guide_legend("R^2"))
+                guides(fill = guide_legend("R^2"))
         },
 
         # Generates a two-dimensional PCA plot from the dataset
@@ -463,22 +467,22 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
             # perform pca
-            prcomp_results <- prcomp(self$dat, scale=scale)
-            var_explained <- round(summary(prcomp_results)$importance[2,] * 100, 2)
+            prcomp_results <- prcomp(self$dat, scale = scale)
+            var_explained <- round(summary(prcomp_results)$importance[2, ] * 100, 2)
 
             # create data frame for plotting
-            dat <- data.frame(id=rownames(self$dat),
-                              pc1=prcomp_results$x[,pcx],
-                              pc2=prcomp_results$x[,pcy])
+            dat <- data.frame(id = rownames(self$dat),
+                              pc1 = prcomp_results$x[, pcx],
+                              pc2 = prcomp_results$x[, pcy])
 
             # get color/shape styles
             styles <- private$get_geom_point_styles(color, shape)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color=styles$color)
+                dat <- cbind(dat, color = styles$color)
             }
             if (!is.null(styles$shape)) {
-                dat <- cbind(dat, shape=styles$shape)
+                dat <- cbind(dat, shape = styles$shape)
             }
 
             xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
@@ -491,16 +495,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # PC1 vs PC2
             plt <- ggplot(dat, aes(pc1, pc2)) +
-                geom_point(stat="identity", styles$aes, size=0.5) +
+                geom_point(stat = "identity", styles$aes, size = 0.5) +
                 xlab(xl) + ylab(yl) +
                 ggtitle(title) +
                 private$ggplot_theme() +
-                theme(axis.ticks=element_blank(),
-                      axis.text.x=element_text(angle=-90))
+                theme(axis.ticks = element_blank(),
+                      axis.text.x = element_text(angle = -90))
 
             # text labels
             if (text_labels) {
-                plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
+                plt <- plt + geom_text(aes(label = id), angle = 45,
+                                       size = 0.5, vjust = 2)
             }
 
             # legend labels
@@ -527,16 +532,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
             # add column ids
-            dat <- cbind(dat, id=rownames(self$dat))
+            dat <- cbind(dat, id = rownames(self$dat))
 
             # get color/shape styles
             styles <- private$get_geom_point_styles(color, shape)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color=styles$color)
+                dat <- cbind(dat, color = styles$color)
             }
             if (!is.null(styles$shape)) {
-                dat <- cbind(dat, shape=styles$shape)
+                dat <- cbind(dat, shape = styles$shape)
             }
 
             # plot title
@@ -546,16 +551,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # treatment response
             plt <- ggplot(dat, aes(x, y)) +
-                   geom_point(styles$aes, stat="identity", size=0.5) +
+                   geom_point(styles$aes, stat = "identity", size = 0.5) +
                    ggtitle(title) +
                    private$ggplot_theme() +
-                   theme(axis.ticks=element_blank(),
-                         axis.text.x=element_text(angle=-90),
-                         legend.text=element_text(size=7))
+                   theme(axis.ticks = element_blank(),
+                         axis.text.x = element_text(angle = -90),
+                         legend.text = element_text(size = 7))
 
             # text labels
             if (text_labels) {
-                plt <- plt + geom_text(aes(label=id), angle=45, size=0.5, vjust=2)
+                plt <- plt + geom_text(aes(label = id), angle = 45, size = 0.5,
+                                       vjust = 2)
             }
 
             # legend labels
@@ -577,11 +583,11 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # return None
         plot_pairwise_column_cors = function (color=NULL, title="",
                                               method='pearson',
-                                              mar=c(12,6,4,6)) {
+                                              mar=c(12, 6, 4, 6)) {
             # compute pairwise variable correlations
-            median_pairwise_cor <- apply(cor(self$dat * 1.0, method=method), 1, median)
+            median_pairwise_cor <- apply(cor(self$dat * 1.0, method = method), 1, median)
 
-            quantiles <- quantile(median_pairwise_cor, probs=c(0.25, 0.75))
+            quantiles <- quantile(median_pairwise_cor, probs = c(0.25, 0.75))
             iqr <- diff(quantiles)
 
             #outlimit
@@ -602,23 +608,22 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # render plot
-            par(mar=mar)
-            plot(median_pairwise_cor, xaxt="n", ylim=ylimit,
-                 ylab="Median Pairwise Correlation", xlab="", main=title,
-                 col=color_vector, pch=16, cex=2.2)
-            axis(side=1, at=seq(along=median_pairwise_cor),
-                 labels=var_labels, las=2)
-            abline(h=cutoff, lty=2)
-            abline(v=1:length(var_labels), lty=3, col="black")
+            par(mar = mar)
+            plot(median_pairwise_cor, xaxt = "n", ylim = ylimit,
+                 ylab = "Median Pairwise Correlation", xlab = "", main = title,
+                 col = color_vector, pch = 16, cex = 2.2)
+            axis(side = 1, at = seq(along = median_pairwise_cor),
+                 labels = var_labels, las = 2)
+            abline(h = cutoff, lty = 2)
+            abline(v = 1:length(var_labels), lty = 3, col = "black")
         }
     ),
     private = list(
         # Verifies that input data is of type matrix
         check_input = function(dat) {
-            if(!is.matrix(dat)) {
+            if (!is.matrix(dat)) {
                 stop("Invalid input for EDAMatrix: dat must be a matrix.")
             }
         }
     )
 )
-
