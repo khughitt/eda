@@ -290,7 +290,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         # PCA
         #
-        pca = function (...) {
+        pca = function(...) {
             obj <- private$clone_()
             obj$dat <- prcomp(self$dat, ...)$x
             obj$col_mdata <- NULL
@@ -305,7 +305,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #
         # t-SNE
         #
-        tsne = function (...) {
+        tsne = function(...) {
             obj <- private$clone_()
             obj$dat <- Rtsne::Rtsne(obj$dat, ...)
             obj$col_mdata <- NULL
@@ -581,7 +581,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #
         # return None
-        plot_pairwise_column_cors = function (color=NULL, title="",
+        plot_pairwise_column_cors = function(color=NULL, title="",
                                               method='pearson',
                                               mar=c(12, 6, 4, 6)) {
             # compute pairwise variable correlations

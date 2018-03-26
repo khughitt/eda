@@ -41,7 +41,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 dat2 <- dat2$dat
             }
 
-            # for single dataset metadata (feature) correlations, column 
+            # for single dataset metadata (feature) correlations, column
             # metadata need to be transposed to be in the proper order
             if (key2 == 'col_mdata') {
                 # transpose metadata
@@ -60,20 +60,20 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # only compare matching columns
             col_ind <- intersect(colnames(dat1), colnames(dat2))
 
-            dat1 <- dat1[,col_ind, drop=FALSE]
-            dat2 <- dat2[,col_ind, drop=FALSE]
+            dat1 <- dat1[,col_ind, drop = FALSE]
+            dat2 <- dat2[,col_ind, drop = FALSE]
 
             # drop any rows with zero variance
             mask <- apply(dat1, 1, function(x) { length(table(x))} ) > 1
             if (sum(!mask) > 0) {
                 message(sprintf("Excluding %d zero-variance rows from first dataset.", sum(!mask)))
-                dat1 <- dat1[mask,, drop=FALSE]
+                dat1 <- dat1[mask,, drop = FALSE]
             }
 
             mask <- apply(dat2, 1, function(x) { length(table(x))} ) > 1
             if (sum(!mask) > 0) {
                 message(sprintf("Excluding %d zero-variance rows from second dataset.", sum(!mask)))
-                dat2 <- dat2[mask,, drop=FALSE]
+                dat2 <- dat2[mask,, drop = FALSE]
             }
 
 
@@ -85,7 +85,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             if (method == 'lm') {
                 # construct linear model to measure dependence of each projected
                 # axis on column metadata
-                cor_mat <- matrix(0, nrow=nrow(dat1), ncol=nrow(dat2))
+                cor_mat <- matrix(0, nrow = nrow(dat1), ncol = nrow(dat2))
 
                 for (i in 1:nrow(dat2)) {
                     feature_cor <- function(y) {
@@ -94,12 +94,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     cor_mat[,i] <- apply(dat1, 1, feature_cor)
                 }
             } else if (method == 'mi') {
-                # mutual information
-                cor_mat <- mpmi::cminjk(t(rbind(dat1, dat2)), ...)
+                # mutual information (jackknife bias adjusted)
+                cor_mat <- mpmi::cmi(t(rbind(dat1, dat2)), ...)$bcmi
                 cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
             } else {
                 # Pearson correlation, etc.
-                cor_mat <- cor(t(rbind(dat1, dat2)), method=method, ...)
+                cor_mat <- cor(t(rbind(dat1, dat2)), method = method, ...)
 
                 # limit to cross-dataset correlations
                 cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
@@ -124,28 +124,28 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # list of parameters to pass to heatmaply
             params <- list(
-                x=cor_mat,
-                showticklabels=c(FALSE, FALSE),
-                subplot_widths=c(0.65, 0.35),
-                subplot_heights=c(0.35, 0.65)
+                x               = cor_mat,
+                showticklabels  = c(FALSE, FALSE),
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
             )
 
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$datasets[[key1]]$row_mdata)) {
                 mdata1 <- self$datasets[[key1]]$row_mdata
                 mask1  <- sapply(mdata1, function(x) { max(table(x)) > 1 })
-                mdata1 <- mdata1[,mask1, drop=FALSE]
+                mdata1 <- mdata1[, mask1, drop = FALSE]
 
-                params[['row_side_colors']] <- mdata1 
+                params[['row_side_colors']] <- mdata1
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
-            
+
             if (!is.null(self$datasets[[key2]]$row_mdata)) {
                 mdata2 <- self$datasets[[key2]]$row_mdata
                 mask2  <- sapply(mdata2, function(x) { max(table(x)) > 1 })
-                mdata2 <- mdata2[,mask2, drop=FALSE]
+                mdata2 <- mdata2[, mask2, drop = FALSE]
 
-                params[['col_side_colors']] <- mdata2 
+                params[['col_side_colors']] <- mdata2
                 params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
             }
 
