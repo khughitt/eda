@@ -23,10 +23,14 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
+        # @param method Correlation method to use. Supported options:
+        #   - pearson  (Pearson correlation)
+        #   - spearman (Spearman correlation)
+        #   - lm       (Linear model)
+        #   - mi       (Mututal information)
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        cross_cor = function(key1=1, key2=2, method='pearson') {
+        cross_cor = function(key1=1, key2=2, method='pearson', ...) {
             # make sure datasets are ordered similarly
             dat1 <- private$datasets[[key1]]
             dat2 <- private$datasets[[key2]]
@@ -89,14 +93,22 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     }
                     cor_mat[,i] <- apply(dat1, 1, feature_cor)
                 }
-                colnames(cor_mat) <- rownames(dat2)
+            } else if (method == 'mi') {
+                # mutual information
+                cor_mat <- mpmi::cminjk(t(rbind(dat1, dat2)), ...)
+                cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
             } else {
                 # Pearson correlation, etc.
-                cor_mat <- cor(t(rbind(dat1, dat2)), method=method)
+                cor_mat <- cor(t(rbind(dat1, dat2)), method=method, ...)
 
                 # limit to cross-dataset correlations
                 cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
             }
+
+            # fix row and column names
+            rownames(cor_mat) <- rownames(dat1)
+            colnames(cor_mat) <- rownames(dat2)
+
             cor_mat
         },
 
