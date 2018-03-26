@@ -98,16 +98,15 @@
 #'  - `plot_cor_heatmap(method='pearson', interactive=TRUE, ...)`: Plots a
 #'		correlation heatmap of the dataset.
 #'  - `plot_densities(color=NULL, title="", ...)`: Plots densities for each
-#'		column in the dataset.
+#'		column in the dataset. (For histogram and bar plots, see the
+#'		`plot_libsizes` method.)
 #'  - `plot_feature_cor(method='pearson', color_scale=c('green', 'red')`:
 #'		Creates a tile plot of projected data / feature correlations. See
 #'		`feature_cor()` function.
 #'  - `plot_heatmap(interactive=TRUE, ...)`: Generates a heatmap plot of the
 #'		dataset
-#'  - `plot_libsize_hist(color=NULL, title=NULL)`: Plots a histogram of sample
-#'     library sizes.
-#'  - `plot_libsize_bargraph(color=NULL, title=NULL)`: Plots a bargraph of
-#'     sample library sizes.
+#'  - `plot_libsizes(color=NULL, title=NULL, geom='bar')`: Creates a histogram
+#'     or bar plot of sample library sizes.
 #'  - `plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))`:
 #'		Plot median pairwise column correlations for each variable (column)
 #'		in the dataset.
@@ -204,20 +203,31 @@ BioExprSet <- R6::R6Class("BioExprSet",
             self$log(2, offset = 1)
         },
 
-        # Plots a histogram of sample library sizes.
+        # Creates a histogram or bar plot of sample library sizes.
         #
-        # Generates a histogram of sample library sizes (sum of expression
-        # levels within each column/sample).
+        # Generates a bargraph or histogram plot of sample library sizes
+        # (sum of expression levels within each column/sample). For the bar
+        # graph plot, each sample is shown as a separate bar in the plot.
+        # For larger datasets, a histogram of library sizes may be more useful
+        # to display.
         #
         # @param color Column metadata field to use for coloring points.
         # @param title Title to use for plot.
+        # @param geom ggplot geometry to use (bar|histogram)
         #
         # @return A ggplot instance.
-        plot_libsize_hist = function(color=NULL, title=NULL) {
+        plot_libsizes = function(color=NULL, title=NULL, geom='hist') {
+            # create a data frame of library sizes
             dat <- data.frame(libsize = colSums(self$dat))
 
-            styles <- private$get_geom_histogram_styles(color)
+            # determine plot styles to use
+            if (geom == 'hist') {
+                styles <- private$get_geom_histogram_styles(color)
+            } else {
+                styles <- private$get_geom_bar_styles(color)
+            }
 
+            # update styles and title
             if (!is.null(styles$color)) {
                 dat <- cbind(dat, color = styles$color)
             }
@@ -225,47 +235,22 @@ BioExprSet <- R6::R6Class("BioExprSet",
                 title <- sprintf("Library sizes: %s", private$title)
             }
 
-            plt <- ggplot(aes(x = libsize), data = dat) +
-                geom_histogram(styles$aes) +
-                private$ggplot_theme()
-
-			# legend labels
-			if (length(styles$labels) > 0) {
-				plt <- plt + styles$labels
-			}
-            plt
-        },
-
-        # Plots bar graph of sample library sizes
-        #
-        # Generates a bargraph plot of sample library sizes (sum of expression
-        # levels within each column/sample). Each sample is shown as a separate
-        # bar in the plot.
-        #
-        # @param color Column metadata field to use for coloring points.
-        # @param title Title to use for plot.
-        #
-        # @return A ggplot instance.
-        plot_libsize_bargraph = function(color=NULL, title=NULL) {
-            # data frame with sample library sizes
-            dat <- data.frame(libsize = colSums(self$dat))
-
-            styles <- private$get_geom_histogram_styles(color)
-
-            if (!is.null(styles$color)) {
-                dat <- cbind(dat, color = styles$color)
+            # create plot
+            if (geom == 'hist') {
+                # histogram
+                plt <- ggplot(aes(x = libsize), data = dat) +
+                    geom_histogram(styles$aes) +
+                    private$ggplot_theme()
+            } else {
+                # bar plot
+                plt <- ggplot(aes(x = rownames(libsizes), y = libsize), data = dat) +
+                    geom_bar(styles$aes, stat = 'identity') +
+                    xlab("Samples") +
+                    ylab("Total expression") +
+                    private$ggplot_theme() +
+                    theme(axis.text.x = element_text(angle = 90),
+                          legend.text = element_text(size = 8))
             }
-            if (is.null(title)) {
-                title <- sprintf("Library sizes: %s", private$title)
-            }
-
-            plt <- ggplot(aes(x = rownames(libsizes), y = libsize), data = dat) +
-                geom_bar(styles$aes, stat = 'identity') +
-                   xlab("Samples") +
-                   ylab("Total expression") +
-                   private$ggplot_theme() +
-                   theme(axis.text.x = element_text(angle = 90),
-                         legend.text = element_text(size = 8))
 
 			# legend labels
 			if (length(styles$labels) > 0) {

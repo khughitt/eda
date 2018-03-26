@@ -257,11 +257,11 @@ EDADataSet <- R6Class("EDADataSet",
         # plotting methods
         ######################################################################
 
-        # Kernel density plot
+        # Plot column densities
         #
-        # Plots densities for each row or column in the dataset. This is most
+        # Plots densities for each column in the dataset. This is most
         # useful when you are interested in similarties or differences in
-        # distributions across columns, for a relatively small number of
+        # distributions across columns for a relatively small number of
         # columns.
         #
         # @param color Variable to color density curves by. If not is
@@ -354,6 +354,17 @@ EDADataSet <- R6Class("EDADataSet",
             obj <- self$clone()
             obj$clear_cache()
             obj
+        },
+
+        # Generates ggplot aesthetics for bar plots
+        #
+        # @param color Color variable as passed into plot function call
+        #
+        # @return List of style information
+        get_geom_bar_styles = function(color) {
+            # list to store style properties
+            res <- list(aes = aes(), labels = list())
+            private$add_color_styles(res, color)
         },
 
         # Generates ggplot aesthetics for density plots
@@ -496,10 +507,10 @@ EDADataSet <- R6Class("EDADataSet",
         get_var_colors = function(color, color_pal) {
             # if no variable is specified, use default black for plots
             if (is.null(color)) {
-                if (is.null(private$col_colo)) {
+                if (is.null(private$col_color)) {
                     return('black')
                 }
-                color <- private$col_colo
+                color <- private$col_color
             } else if (color == FALSE) {
                 return('black')
             }
