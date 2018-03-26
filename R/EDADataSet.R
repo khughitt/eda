@@ -312,6 +312,24 @@ EDADataSet <- R6Class("EDADataSet",
             cat(sprintf("=   columns: %d %s\n", ncol(self$dat), cm))
             cat("=\n")
             cat("=========================================\n")
+        },
+        t = function() {
+            # EDADataSet class
+            cls <- get(class(self)[1])
+
+            # Preserve underlying dataset class (dataframe or matrix)
+            dat_cls <- get(sprintf("as.%s", class(self$dat)))
+            tdat <- dat_cls(t(self$dat))
+
+            rownames(tdat) <- colnames(self$dat)
+            colnames(tdat) <- rownames(self$dat)
+
+            cls$new(tdat, row_mdata = self$col_mdata, col_mdata = self$row_mdata,
+                    row_color = self$col_color, row_shape = self$col_shape,
+                    row_labels = self$col_labels, col_color = self$row_color,
+                    col_shape = self$row_shape, col_labels = self$row_labels,
+                    color_pal = self$color_pal,
+                    ggplot_theme = private$ggplot_theme)
         }
     ),
 
@@ -720,25 +738,6 @@ EDADataSet <- R6Class("EDADataSet",
             } else {
                 private$datasets[['row_mdata']] <- value
             }
-        },
-
-        t = function() {
-            # EDADataSet class
-            cls <- get(class(self)[1])
-
-            # Preserve underlying dataset class (dataframe or matrix)
-            dat_cls <- get(sprintf("as.%s", class(self$dat)))
-            tdat <- dat_cls(t(self$dat))
-
-            rownames(tdat) <- colnames(self$dat)
-            colnames(tdat) <- rownames(self$dat)
-
-            cls$new(tdat, row_mdata = self$col_mdata, col_mdata = self$row_mdata,
-                    row_color = self$col_color, row_shape = self$col_shape,
-                    row_labels = self$col_labels, col_color = self$row_color,
-                    col_shape = self$row_shape, col_labels = self$row_labels,
-                    color_pal = self$color_pal,
-                    ggplot_theme = private$ggplot_theme)
         }
     )
 )
