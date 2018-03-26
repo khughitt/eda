@@ -1,7 +1,7 @@
 #
-# EDAMatrix Unit Tests
+# BioExprSet Unit Tests
 #
-context("EDAMatrix")
+context("BioExprSet")
 
 ##############################
 # Setup
@@ -29,26 +29,14 @@ col_mdat <- data.frame(var_prop1 = sample(5, num_cols, replace = TRUE),
 rownames(col_mdat) <- colnames(mat)
 
 # create EDAMatrix
-edm <- EDAMatrix$new(mat, row_mdata = row_mdat, col_mdata = col_mdat)
+bset <- BioExprSet$new(mat, row_mdata = row_mdat, col_mdata = col_mdat)
 
 ##############################
 # Tests
 ##############################
 
-# EDAMatrix construction
-test_that("initialization works", {
-    expect_equal(edm$dat, mat)
-    expect_equal(edm$row_mdata, row_mdat)
-    expect_equal(edm$col_mdata, col_mdat)
+test_that("pathway statistics works", {
+    expect_error(bset$compute_pathway_stats(NULL, stat='nonexistent_stat'), 
+                 "Invalid pathway statistic specified.", fixed = TRUE)
 })
 
-# transpose
-test_that("transposition works", {
-    expect_equal(edm$t()$dat, t(edm$dat))
-    expect_equal(edm$t()$col_mdata, edm$row_mdata)
-    expect_equal(edm$t()$row_mdata, edm$col_mdata)
-    expect_equal(class(edm$t())[1], 'EDAMatrix')
-    expect_equal(class(edm$t()$dat), class(edm$dat))
-    expect_equal(rownames(edm$t()$dat), colnames(edm$dat))
-    expect_equal(colnames(edm$t()$dat), rownames(edm$dat))
-})
