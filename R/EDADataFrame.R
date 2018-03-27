@@ -51,20 +51,20 @@
 #' @section Methods:
 #'  - `clear_cache()`: Clears EDADataFrame cache.
 #'  - `clone()`: Creates a copy of the EDADataFrame instance.
-#' - `detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#' - `detect_col_outliers(num_sd=2, avg='median', method='pearson')`:
 #'      Measures average pairwise similarities between all columns in the dataset.
 #'      Outliers are considered to be those columns who mean similarity to
 #'      all other columns is greater than `num_sd` standard deviations from the
 #'      average of averages.
-#' - `detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#' - `detect_row_outliers(num_sd=2, avg='median', method='pearson')`:
 #'      Measures average pairwise similarities between all rows in the dataset.
 #'      Outliers are considered to be those rows who mean similarity to
 #'      all other rows is greater than `num_sd` standard deviations from the
 #'      average of averages.
-#'  - `filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#'  - `filter_col_outliers(num_sd=2, avg='median', method='pearson')`:
 #'		Removes column outliers from the dataset. See `detect_col_outliers()`
 #'		for details of outlier detection approach.
-#'  - `filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#'  - `filter_row_outliers(num_sd=2, avg='median', method='pearson')`:
 #'		Removes row outliers from the dataset. See `detect_row_outliers()`
 #'		for details of outlier detection approach.
 #'  - `filter_cols(mask)`: Accepts a logical vector of length `ncol(obj$dat)`

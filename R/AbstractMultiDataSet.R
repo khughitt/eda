@@ -19,6 +19,102 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # private params
         datasets = NULL,
 
+        #
+        # Supported similarity measures
+        #
+        # Each of the below functions should accept either one or two matrices
+        # or data frames, measures the similarity/dependence either within
+        # (single dataset) or across (two datasets) columns in the dataset(s).
+        #
+        # The result is a matrix of similarity scores (e.g. correlation scores, 
+        # r^2, etc.) of dimensions:
+        #
+        # ncol(dat1) x ncol(dat1)  - single dataset
+        # ncol(dat1) x nrow(dat2)  - two datasets
+        #
+        similarity_measures = list(
+            #
+            # linear model fit
+            #
+            'lm' = function(dat1, dat2=NULL, ...) {
+                # single dataset
+                if (is.null(dat2)) {
+                    # construct linear model to measure pairwise dependence of
+                    # dataset1 columns on dataset2 columns
+                    cor_mat <- matrix(0, nrow = ncol(dat1), ncol = ncol(dat1))
+
+                    # for each column in dataset1
+                    for (i in 1:ncol(dat1)) {
+                        # fit a linear model between the ith column of dataset1
+                        # and the jth column of dataset1
+                        feature_cor <- function(y) {
+                            round(summary(lm(y ~ dat1[, i]))$r.squared * 100, 2)
+                        }
+                        # for each column in dataset1
+                        cor_mat[,i] <- apply(dat1, 2, feature_cor)
+                    }
+                } else {
+                    # two datasets
+
+                    # construct linear model to measure pairwise dependence of
+                    # dataset1 columns on dataset2 columns
+                    cor_mat <- matrix(0, nrow = ncol(dat1), ncol = ncol(dat2))
+
+                    # for each column in dataset2
+                    for (i in 1:ncol(dat2)) {
+                        # fit a linear model between the ith column of dat2 and the
+                        # jth column of dat1
+                        feature_cor <- function(y) {
+                            round(summary(lm(y ~ dat2[, i]))$r.squared * 100, 2)
+                        }
+                        # for each column in dataset1
+                        cor_mat[,i] <- apply(dat1, 2, feature_cor)
+                    }
+                }
+                cor_mat
+            },
+            #
+            # Mutual Information
+            #
+            'mi' = function(dat1, dat2=NULL, ...) {
+                if (!is.null(dat2)) {
+                    # two datasets
+                    cor_mat <- mpmi::cmi(cbind(dat1, dat2), ...)$bcmi
+                    cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
+                } else {
+                    # single dataset
+                    mpmi::cmi(dat1, ...)$bcmi
+                }
+            },
+            #
+            # Pearson correlation
+            #
+            'pearson' = function(dat1, dat2=NULL, ...) {
+                if (!is.null(dat2)) {
+                    cor_mat <- cor(cbind(dat1, dat2), method = 'pearson', ...)
+
+                    # limit to cross-dataset correlations
+                    cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
+                } else {
+                    cor(dat1, method='pearson')
+                }
+            },
+
+            #
+            # Spearman correlation
+            #
+            'spearman' = function(dat1, dat2=NULL, ...) {
+                if (!is.null(dat2)) {
+                    cor_mat <- cor(cbind(dat1, dat2), method = 'spearman', ...)
+
+                    # limit to cross-dataset correlations
+                    cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
+                } else {
+                    cor(dat1, method='spearman')
+                }
+            }
+        ),
+
         # Computes cross-dataset correlation matrix
         #
         # @param key1 Numeric or character index of first dataset to use
@@ -63,52 +159,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat1 <- dat1[,col_ind, drop = FALSE]
             dat2 <- dat2[,col_ind, drop = FALSE]
 
-            # drop any rows with zero variance
-            mask <- apply(dat1, 1, function(x) { length(table(x))} ) > 1
-            if (sum(!mask) > 0) {
-                message(sprintf("Excluding %d zero-variance rows from first dataset.", sum(!mask)))
-                dat1 <- dat1[mask,, drop = FALSE]
-            }
+            # measure similarity between rows in datasets 1 and rows in 
+            # dataset 2; the similarity() method operates on columns so we
+            # transposes the datasets first
+            cor_mat <- private$similarity(t(dat1), t(dat2), method=method, ...)
 
-            mask <- apply(dat2, 1, function(x) { length(table(x))} ) > 1
-            if (sum(!mask) > 0) {
-                message(sprintf("Excluding %d zero-variance rows from second dataset.", sum(!mask)))
-                dat2 <- dat2[mask,, drop = FALSE]
-            }
-
-
-            # linear model
-            #
-            # Based on code adapted from cbcbSEQ
-            # (https://github.com/kokrah/cbcbSEQ/) originally written by
-            # Kwame Okrah.
-            if (method == 'lm') {
-                # construct linear model to measure dependence of each projected
-                # axis on column metadata
-                cor_mat <- matrix(0, nrow = nrow(dat1), ncol = nrow(dat2))
-
-                for (i in 1:nrow(dat2)) {
-                    feature_cor <- function(y) {
-                        round(summary(lm(y~dat2[i,]))$r.squared*100, 2)
-                    }
-                    cor_mat[,i] <- apply(dat1, 1, feature_cor)
-                }
-            } else if (method == 'mi') {
-                # mutual information (jackknife bias adjusted)
-                cor_mat <- mpmi::cmi(t(rbind(dat1, dat2)), ...)$bcmi
-                cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
-            } else {
-                # Pearson correlation, etc.
-                cor_mat <- cor(t(rbind(dat1, dat2)), method = method, ...)
-
-                # limit to cross-dataset correlations
-                cor_mat <- cor_mat[1:nrow(dat1), (nrow(dat1) + 1):ncol(cor_mat)]
-            }
-
-            # fix row and column names
-            rownames(cor_mat) <- rownames(dat1)
-            colnames(cor_mat) <- rownames(dat2)
-
+            # TODO: TRANSPOSE BACK?
             cor_mat
         },
 
@@ -197,6 +253,45 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             params <- params[!names(params) %in% heatmaply_args]
 
             do.call(heatmap.plus::heatmap.plus, params)
+        },
+        #
+        # Measures similarity between columns within or across datasets
+        #
+        similarity = function(dat1, dat2=NULL, method='pearson', ...) {
+            # check to make sure specified similarity measure is valid
+            if (!method %in% names(private$similarity_measures)) {
+                stop('Unsupported similarity method specified.')
+            }
+
+            # drop any columns with zero variance
+            var_mask1 <- apply(dat1, 2, function(x) { length(table(x))} ) > 1
+
+            if (sum(!var_mask1) > 0) {
+                message(sprintf("Excluding %d zero-variance entries from first dataset.", sum(!var_mask1)))
+                dat1 <- dat1[, var_mask1, drop = FALSE]
+            }
+
+            if (!is.null(dat2)) {
+                var_mask2 <- apply(dat2, 2, function(x) { length(table(x))} ) > 1
+                if (sum(!var_mask2) > 0) {
+                    message(sprintf("Excluding %d zero-variance entries from second dataset.", sum(!var_mask2)))
+                    dat2 <- dat2[, var_mask2, drop = FALSE]
+                }
+            }
+
+            # construct similarity matrix
+            cor_mat <- private$similarity_measures[[method]](dat1, dat2, ...)
+
+            # fix row and column names
+            rownames(cor_mat) <- colnames(dat1)
+
+            if (!is.null(dat2)) {
+                colnames(cor_mat) <- colnames(dat2)
+            } else {
+                colnames(cor_mat) <- colnames(dat1)
+            }
+
+            cor_mat
         }
     )
 )

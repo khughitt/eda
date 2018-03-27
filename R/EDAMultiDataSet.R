@@ -86,14 +86,17 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
         # Make sure input datasets are all EDADataSet instances and include
         # the same column identifiers
         check_inputs = function() {
-            # make sure inputs are all EDADataSets, and are indexed by the same columns
-            ids <- sort(colnames(self$datasets[[1]]$dat))
-
+            # make sure inputs are all EDADataSets
             for (ds in self$datasets) {
                 if (!'EDADataSet' %in% class(ds)) {
                     stop("Invalid input: each input dataset much be an EDADataSet instance.")
                 }
+            }
 
+            # make sure datasets are indexed by the same column ids
+            ids <- sort(colnames(self$datasets[[1]]$dat))
+
+            for (ds in self$datasets) {
                 # TODO: Allow datasets with partially overlapping columns..
                 if (!all(sort(colnames(ds$dat)) == ids)) {
                     stop("Input datasets must all include the same columns identifiers.")

@@ -24,7 +24,7 @@ row_mdat <- data.frame(obs_prop1 = sample(10, num_rows, replace = TRUE),
 rownames(row_mdat) <- rownames(mat)
 
 col_mdat <- data.frame(var_prop1 = sample(5, num_cols, replace = TRUE),
-                       var_prop2 = factor(sample(c(T,F), num_cols, replace = TRUE)),
+                       var_prop2 = factor(sample(c(T, F), num_cols, replace = TRUE)),
                        var_prop3 = rnorm(num_cols))
 rownames(col_mdat) <- colnames(mat)
 

@@ -57,22 +57,22 @@
 #'  - `clone()`: Creates a copy of the EDAMatrix instance.
 #'  - `cluster_tsne(k=10, ...)`: Clusters rows in dataset using a combination
 #'      of t-SNE and k-means clustering.
-#' - `detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#' - `detect_col_outliers(num_sd=2, ctend='median', method='pearson')`:
 #'      Measures average pairwise similarities between all columns in the dataset.
 #'      Outliers are considered to be those columns who mean similarity to
 #'      all other columns is greater than `num_sd` standard deviations from the
 #'      average of averages.
-#' - `detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#' - `detect_row_outliers(num_sd=2, ctend='median', method='pearson')`:
 #'      Measures average pairwise similarities between all rows in the dataset.
 #'      Outliers are considered to be those rows who mean similarity to
 #'      all other rows is greater than `num_sd` standard deviations from the
 #'      average of averages.
 #'  - `feature_cor()`: Detects dependencies between column metadata entries
 #'        (features) and dataset rows.
-#'  - `filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#'  - `filter_col_outliers(num_sd=2, ctend='median', method='pearson')`:
 #'        Removes column outliers from the dataset. See `detect_col_outliers()`
 #'        for details of outlier detection approach.
-#'  - `filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')`:
+#'  - `filter_row_outliers(num_sd=2, ctend='median', method='pearson')`:
 #'        Removes row outliers from the dataset. See `detect_row_outliers()`
 #'        for details of outlier detection approach.
 #'  - `filter_cols(mask)`: Accepts a logical vector of length `ncol(obj$dat)`
@@ -169,7 +169,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # Clusters dataset rows using k-means clustering in a t-SNE projected
         # space.
         #
-        # k Number of clusters to detect (default: 10)
+        # k     Number of clusters to detect (default: 10)
+        # ...   Additional arguments passed to Rtsne function
         #
         # return Vector of cluster assignments with length equal to the
         #     number of rows in the dataset.
@@ -190,16 +191,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # is greater than `num_sd` standard deviations from the average
         # average correlation are considered to be outliers.
         #
-        # num_sd Number of standard deviations to use to determine
-        #      outliers.
+        # num_sd    Number of standard deviations to use to determine outliers.
+        # ctend     Measure of central tendency to use (default: median)
+        # method
         #
         # return Character vector or column ids for columns with low
         #     average pairwise correlations.
-        detect_col_outliers = function(num_sd=2, avg=median, method='pearson') {
+        detect_col_outliers = function(num_sd=2, ctend=median, method='pearson', ...) {
             # TODO: include correlation in results?
             # TODO: Write alternative version for data frame datasets?
-            cor_mat <- cor(self$dat, method = method)
-            avg_column_cors <- apply(cor_mat, 1, avg)
+            cor_mat <- private$similarity(self$dat, method=method, ...)
+
+            avg_column_cors <- apply(cor_mat, 1, ctend)
             cutoff <- mean(avg_column_cors) - (num_sd * sd(avg_column_cors))
             colnames(self$dat)[avg_column_cors < cutoff]
         },
@@ -216,9 +219,10 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #
         # return Character vector or row ids for rows with low
         #     average pairwise correlations.
-        detect_row_outliers = function(num_sd=2, avg=median, method='pearson') {
-            cor_mat <- cor(t(self$dat), method = method)
-            avg_row_cors <- apply(cor_mat, 1, avg)
+        detect_row_outliers = function(num_sd=2, ctend=median, method='pearson', ...) {
+            cor_mat <- private$similarity(t(self$dat), method=method, ...)
+
+            avg_row_cors <- apply(cor_mat, 1, ctend)
             cutoff <- mean(avg_row_cors) - num_sd * sd(avg_row_cors)
             rownames(self$dat)[avg_row_cors < cutoff]
         },
@@ -243,7 +247,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #      outliers.
         #
         # return A filtered version of the original EDADataSet object.
-        filter_col_outliers = function(num_sd=2, avg=median, method='pearson') {
+        filter_col_outliers = function(num_sd=2, ctend=median, method='pearson') {
             obj <- private$clone_()
             outliers <- obj$detect_col_outliers(num_sd, avg, method)
             obj$filter_cols(!colnames(obj$dat) %in% outliers)
@@ -260,9 +264,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #      outliers.
         #
         # return A filtered version of the original EDADataSet object.
-        filter_row_outliers = function(num_sd=2) {
+        filter_row_outliers = function(num_sd=2, ctend=median, method='pearson') {
             obj <- private$clone_()
-            outliers <- obj$detect_row_outliers(num_sd, avg, method)
+            outliers <- obj$detect_row_outliers(num_sd, ctend, method)
             obj$filter_rows(!rownames(obj$dat) %in% outliers)
         },
 
@@ -344,7 +348,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #      methods.
         plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
             # generate correlation matrix
-            cor_mat <- cor(t(self$dat), method = method)
+            cor_mat <- private$similarity(self$dat, method=method, ...)
 
             # list of parameters to pass to heatmaply
             params <- list(
@@ -581,11 +585,14 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #
         # return None
-        plot_pairwise_column_cors = function(color=NULL, title="",
-                                              method='pearson',
-                                              mar=c(12, 6, 4, 6)) {
+        plot_pairwise_column_cors = function(color=NULL, 
+                                             label=NULL, title="",
+                                             method='pearson',
+                                             mar=c(12, 6, 4, 6),
+                                             ...) {
             # compute pairwise variable correlations
-            median_pairwise_cor <- apply(cor(self$dat * 1.0, method = method), 1, median)
+            cor_mat <- private$similarity(self$dat, method=method, ...)
+            median_pairwise_cor <- apply(cor_mat, 1, median)
 
             quantiles <- quantile(median_pairwise_cor, probs = c(0.25, 0.75))
             iqr <- diff(quantiles)
@@ -597,8 +604,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                         max(median_pairwise_cor))
 
             # get color properties
-            color_vector <- get_var_colors(color)
-            label_vector <- get_var_labels()
+            color_vector <- private$get_var_colors(color)
+            label_vector <- private$get_var_labels(label)
 
             # variable labels
             if (!all(colnames(self$dat) == label_vector)) {

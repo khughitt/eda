@@ -70,6 +70,11 @@ EDADataSet <- R6Class("EDADataSet",
             invisible(gc())
         },
 
+        # Measure similarity between columns
+        cor = function(method='pearson', ...) {
+            private$similarity(self$dat, method=method, ...)
+        },
+
         # Applies a filter to rows of the dataset
         #
         # @param mask Logical vector of length equal to the number of rows in
