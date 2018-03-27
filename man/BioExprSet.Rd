@@ -11,7 +11,7 @@ ExpressionSet instance. Methods are provided for common transformations
 and visualizations.
 }
 \section{Usage}{
-\preformatted{bset <- BioExprSet$new(count_matrix, row_mdata=gene_annotations, 
+\preformatted{bset <- BioExprSet$new(count_matrix, row_mdata=gene_annotations,
                        col_mdata=sample_annotations, row_color='some_var')
 bset$summary()
 
@@ -73,22 +73,22 @@ other elements.
 \item \code{cluster_tsne(k=10, ...)}: Clusters rows in dataset using a combination
 of t-SNE and k-means clustering.
 \item \code{cpm()}: Performs counts-per-million (CPM) transformation.
-\item \code{detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{detect_col_outliers(num_sd=2, avg='median', method='pearson')}:
 Measures average pairwise similarities between all columns in the dataset.
 Outliers are considered to be those columns who mean similarity to
 all other columns is greater than \code{num_sd} standard deviations from the
 average of averages.
-\item \code{detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{detect_row_outliers(num_sd=2, avg='median', method='pearson')}:
 Measures average pairwise similarities between all rows in the dataset.
 Outliers are considered to be those rows who mean similarity to
 all other rows is greater than \code{num_sd} standard deviations from the
 average of averages.
 \item \code{feature_cor()}: Detects dependencies between column metadata entries
 (features) and dataset rows.
-\item \code{filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{filter_col_outliers(num_sd=2, avg='median', method='pearson')}:
 Removes column outliers from the dataset. See \code{detect_col_outliers()}
 for details of outlier detection approach.
-\item \code{filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{filter_row_outliers(num_sd=2, avg='median', method='pearson')}:
 Removes row outliers from the dataset. See \code{detect_row_outliers()}
 for details of outlier detection approach.
 \item \code{filter_cols(mask)}: Accepts a logical vector of length \code{ncol(obj$dat)}
@@ -112,16 +112,15 @@ components.
 \item \code{plot_cor_heatmap(method='pearson', interactive=TRUE, ...)}: Plots a
 correlation heatmap of the dataset.
 \item \code{plot_densities(color=NULL, title="", ...)}: Plots densities for each
-column in the dataset.
+column in the dataset. (For histogram and bar plots, see the
+\code{plot_libsizes} method.)
 \item \code{plot_feature_cor(method='pearson', color_scale=c('green', 'red')}:
 Creates a tile plot of projected data / feature correlations. See
 \code{feature_cor()} function.
 \item \code{plot_heatmap(interactive=TRUE, ...)}: Generates a heatmap plot of the
 dataset
-\item \code{plot_libsize_hist(color=NULL, title=NULL)}: Plots a histogram of sample
-library sizes.
-\item \code{plot_libsize_bargraph(color=NULL, title=NULL)}: Plots a bargraph of
-sample library sizes.
+\item \code{plot_libsizes(color=NULL, title=NULL, geom='bar')}: Creates a histogram
+or bar plot of sample library sizes.
 \item \code{plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))}:
 Plot median pairwise column correlations for each variable (column)
 in the dataset.

@@ -116,7 +116,6 @@
 #'      axes.
 #'
 #' @importFrom R6 R6Class
-#' @export
 #' @name BioEDADataSet
 #'
 NULL

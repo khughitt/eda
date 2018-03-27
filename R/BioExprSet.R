@@ -153,7 +153,7 @@
 NULL
 
 BioExprSet <- R6::R6Class("BioExprSet",
-    inherit = BioEDADataSet,
+    inherit = eda:::BioEDADataSet,
     public = list(
         # BioExprSet constructor
         initialize = function(dat,

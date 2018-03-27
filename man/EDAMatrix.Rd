@@ -71,22 +71,22 @@ other elements.
 \item \code{clone()}: Creates a copy of the EDAMatrix instance.
 \item \code{cluster_tsne(k=10, ...)}: Clusters rows in dataset using a combination
 of t-SNE and k-means clustering.
-\item \code{detect_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{detect_col_outliers(num_sd=2, ctend='median', method='pearson')}:
 Measures average pairwise similarities between all columns in the dataset.
 Outliers are considered to be those columns who mean similarity to
 all other columns is greater than \code{num_sd} standard deviations from the
 average of averages.
-\item \code{detect_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{detect_row_outliers(num_sd=2, ctend='median', method='pearson')}:
 Measures average pairwise similarities between all rows in the dataset.
 Outliers are considered to be those rows who mean similarity to
 all other rows is greater than \code{num_sd} standard deviations from the
 average of averages.
 \item \code{feature_cor()}: Detects dependencies between column metadata entries
 (features) and dataset rows.
-\item \code{filter_col_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{filter_col_outliers(num_sd=2, ctend='median', method='pearson')}:
 Removes column outliers from the dataset. See \code{detect_col_outliers()}
 for details of outlier detection approach.
-\item \code{filter_row_outliers(num_sd=2, avg='median', sim_method='pearson')}:
+\item \code{filter_row_outliers(num_sd=2, ctend='median', method='pearson')}:
 Removes row outliers from the dataset. See \code{detect_row_outliers()}
 for details of outlier detection approach.
 \item \code{filter_cols(mask)}: Accepts a logical vector of length \code{ncol(obj$dat)}

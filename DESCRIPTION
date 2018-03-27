@@ -14,6 +14,7 @@ Depends:
 Imports:
     corpcor,
     heatmaply,
+    mpmi,
     RColorBrewer,
     Rtsne
 License: MIT + file LICENSE
