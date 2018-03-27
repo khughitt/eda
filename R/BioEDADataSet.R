@@ -190,6 +190,19 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
 
             as.matrix(res)
         },
+        
+        # load annotations from a supported source
+        get_annotations = function(source='cpdb', keytype='ensembl') {
+            # check to make sure annotation type is valid
+            if (!source %in% c('cpdb')) {
+                stop("Unsupported annotation source specified.") 
+            }
+
+            # CPDB
+            if (source == 'cpdb') {
+                private$get_cpdb_annotations(keytype)
+            }
+        },
 
         # Log2 transforms data (adding 1 to ensure finite results).
         #
@@ -267,6 +280,9 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
         }
     ),
     private = list(
+        # list for storing annotations
+        annotations = list(),
+
         # Helper functions for pathway-level statistics; used by the
         # `compute_pathway_stats` method.
         pathway_stats = list(
@@ -301,6 +317,54 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
             if (!is.matrix(dat) && (class(dat) != 'ExpressionSet')) {
                 stop("Invalid input for BioEDADataSet: dat must be a matrix or ExpressionSet.")
             }
+        },
+
+        # load ConsensusPathDB annotations
+        get_cpdb_annotations = function(keytype) {
+            # Check to make sure key type is valid
+            if (!keytype %in% c('ensembl', 'entrez-gene', 'hgnc-symbol')) {
+                stop("Invalid key type specified.")
+            }
+
+            # If annotations have already been retrieved, simply return them
+            if ('cpdb' %in% names(private$annotations)) {
+                return(private$annotations[['cpdb']])
+            }
+
+            # Load CPDB pathways
+            url <- sprintf('http://cpdb.molgen.mpg.de/CPDB/getPathwayGenes?idtype=%s', keytype)
+            cpdb <- read.delim(url, sep = '\t', header = TRUE)
+
+            # There are a few pathways with multiple entries, each with a
+            # different list of genes; for now, arbitrarily choose one of the
+            # mappings.
+            cpdb <- cpdb[!duplicated(cpdb$external_id), ]
+
+            header_key <- sprintf('%s_ids', sub('-', '_', keytype))
+
+            # convert to an n x 2 mapping of pathway, gene pairs
+            cpdb_pathway_list <- apply(cpdb, 1, function(x) {
+                cbind(x['pathway'], unlist(strsplit(x[header_key], ',')))
+            })
+            cpdb <- as.data.frame(do.call('rbind', cpdb_pathway_list))
+
+            colnames(cpdb) <- c('pathway', 'gene')
+            rownames(cpdb) <- NULL
+
+            # For now, remove all genes from mapping that are not in our dataset
+            #cpdb <- cpdb[cpdb$gene %in% rownames(self$dat),]
+
+            # exclude any pathways with only a single gene (not that interesting..)
+            mask <- cpdb$pathway %in% names(which(table(cpdb$pathway) > 1))
+            cpdb <- cpdb[mask, ]
+
+            # discard unused factor levels
+            cpdb$pathway <- factor(cpdb$pathway)
+
+            # store and return mapping
+            private$annotations[['cpdb']] <- cpdb
+
+            cpdb
         }
     )
 )
