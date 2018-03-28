@@ -145,7 +145,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
                 # for metadata, we can also exclude factor fields with all
                 # unique values (e.g. alternate identifiers)
-                exclude <- apply(drug_mdata, 1, function(x) { is.factor(x) && length(unique(x)) == length(x) })
+                exclude <- apply(dat2, 1, function(x) { is.factor(x) && length(unique(x)) == length(x) })
 
                 if (sum(exclude) > 0) {
                     message(sprintf("Excluding %d unique factor fields", sum(exclude)))
