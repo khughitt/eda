@@ -1,4 +1,5 @@
-#' An S6 class representing a generic collection of datasets
+#' An S6 class representing a generic collection of datasets linked by
+#' either column or row identifiers.
 #'
 #' @importFrom R6 R6Class
 #' @name AbstractMultiDataSet
@@ -11,13 +12,15 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
     # ------------------------------------------------------------------------
     public = list(
         # AbstractMultiDataSet constructor
-        initialize = function(...) {
-            private$datasets <- list(...)
+        initialize = function(dat, row_data=list(), col_data=list()) {
+            private$row_data <- c(list('dat' = dat), row_data)
+            private$col_data <- c(list('dat' = dat), col_data)
         }
     ),
     private = list(
         # private params
-        datasets = NULL,
+        row_data = NULL,
+        col_data = NULL,
 
         #
         # Supported similarity measures
@@ -26,7 +29,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # or data frames, measures the similarity/dependence either within
         # (single dataset) or across (two datasets) columns in the dataset(s).
         #
-        # The result is a matrix of similarity scores (e.g. correlation scores, 
+        # The result is a matrix of similarity scores (e.g. correlation scores,
         # r^2, etc.) of dimensions:
         #
         # ncol(dat1) x ncol(dat1)  - single dataset
@@ -51,7 +54,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                             round(summary(lm(y ~ dat1[, i]))$r.squared * 100, 2)
                         }
                         # for each column in dataset1
-                        cor_mat[,i] <- apply(dat1, 2, feature_cor)
+                        cor_mat[, i] <- apply(dat1, 2, feature_cor)
                     }
                 } else {
                     # two datasets
@@ -68,7 +71,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                             round(summary(lm(y ~ dat2[, i]))$r.squared * 100, 2)
                         }
                         # for each column in dataset1
-                        cor_mat[,i] <- apply(dat1, 2, feature_cor)
+                        cor_mat[, i] <- apply(dat1, 2, feature_cor)
                     }
                 }
                 cor_mat
@@ -96,7 +99,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     # limit to cross-dataset correlations
                     cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
                 } else {
-                    cor(dat1, method='pearson')
+                    cor(dat1, method = 'pearson')
                 }
             },
 
@@ -110,12 +113,20 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     # limit to cross-dataset correlations
                     cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
                 } else {
-                    cor(dat1, method='spearman')
+                    cor(dat1, method = 'spearman')
                 }
             }
         ),
 
+        check_input = function() {
+            # TODO: Check to make sure row_data and col_data shared expected
+            # keys with dat 
+        },
+
         # Computes cross-dataset correlation matrix
+        #
+        # Operates on datasets sharing a common column name (i.e. members
+        # of col_data).
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
@@ -126,10 +137,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #   - mi       (Mututal information)
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        cross_cor = function(key1=1, key2=2, method='pearson', ...) {
+        cross_cor = function(key1='dat', key2=2, method='pearson', ...) {
             # make sure datasets are ordered similarly
-            dat1 <- private$datasets[[key1]]
-            dat2 <- private$datasets[[key2]]
+            dat1 <- private$col_data[[key1]]
+            dat2 <- private$col_data[[key2]]
 
             # for multidatasets, get underlying data
             if ('EDADataSet' %in% class(dat1)) {
@@ -137,34 +148,29 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 dat2 <- dat2$dat
             }
 
-            # for single dataset metadata (feature) correlations, column
-            # metadata need to be transposed to be in the proper order
-            if (key2 == 'col_mdata') {
-                # transpose metadata
-                dat2 <- t(dat2)
+            # TODO: Include checks?
 
-                # for metadata, we can also exclude factor fields with all
-                # unique values (e.g. alternate identifiers)
-                exclude <- apply(dat2, 1, function(x) { is.factor(x) && length(unique(x)) == length(x) })
+            # for metadata, we can also exclude factor fields with all
+            # unique values (e.g. alternate identifiers)
+            #exclude <- apply(dat2, 1, function(x) {
+            #    is.factor(x) && length(unique(x)) == length(x)
+            #})
 
-                if (sum(exclude) > 0) {
-                    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
-                    dat2 <- dat2[!exclude,]
-                }
-            }
+            #if (sum(exclude) > 0) {
+            #    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
+            #    dat2 <- dat2[!exclude, ]
 
             # only compare matching columns
             col_ind <- intersect(colnames(dat1), colnames(dat2))
 
-            dat1 <- dat1[,col_ind, drop = FALSE]
-            dat2 <- dat2[,col_ind, drop = FALSE]
+            dat1 <- dat1[, col_ind, drop = FALSE]
+            dat2 <- dat2[, col_ind, drop = FALSE]
 
-            # measure similarity between rows in datasets 1 and rows in 
+            # measure similarity between rows in datasets 1 and rows in
             # dataset 2; the similarity() method operates on columns so we
             # transposes the datasets first
-            cor_mat <- private$similarity(t(dat1), t(dat2), method=method, ...)
+            cor_mat <- private$similarity(t(dat1), t(dat2), method = method, ...)
 
-            # TODO: TRANSPOSE BACK?
             cor_mat
         },
 
@@ -174,7 +180,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param key2 Numeric or character index of second dataset to use
         # @param method Correlation method to use (passed to `cor` function)
         #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
+        plot_cross_cor_heatmap = function(key1='dat', key2=2, method='pearson', interactive=TRUE) {
             # compute cross correlations
             cor_mat <- self$cross_cor(key1, key2, method)
 
@@ -187,18 +193,18 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             )
 
             # if metadata is availble, display along side of heatmap
-            if (!is.null(self$datasets[[key1]]$row_mdata)) {
-                mdata1 <- self$datasets[[key1]]$row_mdata
-                mask1  <- sapply(mdata1, function(x) { max(table(x)) > 1 })
+            if ('row_mdata' %in% names(self$row_data)) {
+                mdata1 <- self$row_data[['row_mdata']]
+                mask1  <- sapply(mdata1, function(x) max(table(x)) > 1 )
                 mdata1 <- mdata1[, mask1, drop = FALSE]
 
                 params[['row_side_colors']] <- mdata1
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
 
-            if (!is.null(self$datasets[[key2]]$row_mdata)) {
-                mdata2 <- self$datasets[[key2]]$row_mdata
-                mask2  <- sapply(mdata2, function(x) { max(table(x)) > 1 })
+            if ('col_mdata' %in% names(self$col_data)) {
+                mdata1 <- self$col_data[['col_mdata']]
+                mask2  <- sapply(mdata2, function(x) max(table(x)) > 1 )
                 mdata2 <- mdata2[, mask2, drop = FALSE]
 
                 params[['col_side_colors']] <- mdata2
@@ -228,8 +234,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 colors <- c('blue', 'yellow')
 
                 for (col_name in colnames(params$ColSideColors)) {
-                    col <- params$ColSideColors[,col_name]
-                    params$ColSideColors[,col_name] <- colors[as.numeric(factor(col))]
+                    col <- params$ColSideColors[, col_name]
+                    params$ColSideColors[, col_name] <- colors[as.numeric(factor(col))]
                 }
                 params$ColSideColors <- as.matrix(params$ColSideColors)
             }
@@ -240,9 +246,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 pal <- RColorBrewer::brewer.pal(8, 'Set1')
 
                 for (col_name in colnames(params$RowSideColors)) {
-                    col <- params$RowSideColors[,col_name]
+                    col <- params$RowSideColors[, col_name]
                     colors <- colorRampPalette(pal)(min(1E4, length(unique(col))))
-                    params$RowSideColors[,col_name] <- colors[as.numeric(factor(col))]
+                    params$RowSideColors[, col_name] <- colors[as.numeric(factor(col))]
                 }
                 params$RowSideColors <- as.matrix(params$RowSideColors)
             }
@@ -264,7 +270,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             # drop any columns with zero variance
-            var_mask1 <- apply(dat1, 2, function(x) { length(table(x))} ) > 1
+            var_mask1 <- apply(dat1, 2, function(x) length(table(x)) ) > 1
 
             if (sum(!var_mask1) > 0) {
                 message(sprintf("Excluding %d zero-variance entries from first dataset.", sum(!var_mask1)))
@@ -272,7 +278,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             if (!is.null(dat2)) {
-                var_mask2 <- apply(dat2, 2, function(x) { length(table(x))} ) > 1
+                var_mask2 <- apply(dat2, 2, function(x) length(table(x)) ) > 1
                 if (sum(!var_mask2) > 0) {
                     message(sprintf("Excluding %d zero-variance entries from second dataset.", sum(!var_mask2)))
                     dat2 <- dat2[, var_mask2, drop = FALSE]
@@ -292,6 +298,21 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             cor_mat
+        }
+    ),
+
+    # ------------------------------------------------------------------------
+    # active bindings
+    # ------------------------------------------------------------------------
+    active = list(
+        # main dataset
+        dat = function(value) {
+            if (missing(value)) {
+                private$col_data[['dat']]
+            } else {
+                private$row_data[['dat']] <- value
+                private$col_data[['dat']] <- value
+            }
         }
     )
 )

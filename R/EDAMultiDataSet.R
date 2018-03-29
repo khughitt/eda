@@ -1,19 +1,24 @@
 #' An S6 class representing collection of related datasets
-#' 
+#'
 #' @section Usage:
 #' ```
 #' # TODO
-#' ``` 
+#' ```
 #'
 #' @section Arguments:
-#' - `...`: Two or more EDADataSet instances, indexed by the same column 
-#'      identifiers.
+#' - `dat`: Primary dataset (matrix, data frame, etc.)
+#' - `row_data`: List of zero or more additional datasets which share some
+#'     or all row identifiers with dat.
+#' - `col_data`: List of zero or more additional datasets which share some
+#'     or all column identifiers with dat.
 #'
 #' @section Fields:
-#'  - `datasets`: List of datasets
+#'  - `dat`: Primary dataset
+#'  - `row_data`: List of additional data keyed on row identifiers
+#'  - `col_data`: List of additional data keyed on column identifiers
 #'
 #' @section Methods:
-#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset 
+#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
 #'     correlation matrix between rows in two specified datasets.
 #'  - `plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)`:
 #'      Plots multidataset correlation heatmap.
@@ -22,7 +27,7 @@
 #' @section Examples:
 #' ```
 #' TODO
-#' ``` 
+#' ```
 #'
 #' @importFrom R6 R6Class
 #' @name EDAMultiDataSet
@@ -38,9 +43,8 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
     # ------------------------------------------------------------------------
     public = list(
         # EDADataSet constructor
-        initialize = function(...) {
-            super$initialize(...)
-            private$check_inputs()
+        initialize = function(dat, row_data=list(), col_data=list()) {
+            super$initialize(dat, row_data = row_data, col_data = col_data)
         },
 
         # Computes cross-dataset correlation matrix
@@ -68,11 +72,26 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
         print = function() {
             cat("=========================================\n")
             cat("=\n")
-            cat(sprintf("= EDAMultiDataSet (n=%d)\n", length(private$datasets)))
+            cat(sprintf("= AbstractMultiDataSet (n=%d)\n", length(private$datasets)))
             cat("=\n")
-            for (i in 1:length(private$datasets)) {
-                ds <- private$datasets[[i]]
-                cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
+            cat(sprintf("= dat: %s (%d x %d)\n", class(self$dat)[1], nrow(self$dat), ncol(self$dat)))
+            if (length(private$row_data) > 1) {
+                cat("=\n")
+                cat("= Row data\n")
+                cat("=\n")
+                for (i in 2:length(private$row_data)) {
+                    ds <- private$row_data[[i]]
+                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
+                }
+            }
+            if (length(private$col_data) > 1) {
+                cat("=\n")
+                cat("= Column data\n")
+                cat("=\n")
+                for (i in 2:length(private$col_data)) {
+                    ds <- private$col_data[[i]]
+                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
+                }
             }
             cat("=\n")
             cat("=========================================\n")
@@ -82,37 +101,26 @@ EDAMultiDataSet <- R6Class("EDAMultiDataSet",
     # ------------------------------------------------------------------------
     # private
     # ------------------------------------------------------------------------
-    private = list(
-        # Make sure input datasets are all EDADataSet instances and include
-        # the same column identifiers
-        check_inputs = function() {
-            # make sure inputs are all EDADataSets
-            for (ds in self$datasets) {
-                if (!'EDADataSet' %in% class(ds)) {
-                    stop("Invalid input: each input dataset much be an EDADataSet instance.")
-                }
-            }
-
-            # make sure datasets are indexed by the same column ids
-            ids <- sort(colnames(self$datasets[[1]]$dat))
-
-            for (ds in self$datasets) {
-                # TODO: Allow datasets with partially overlapping columns..
-                if (!all(sort(colnames(ds$dat)) == ids)) {
-                    stop("Input datasets must all include the same columns identifiers.")
-                }
-            }
-
-        }
-    ),
+    private = list(),
 
     # ------------------------------------------------------------------------
     # active
     # ------------------------------------------------------------------------
     active = list(
         # Make datasets publically visible for EDAMultiDataSet instances
-        datasets = function() {
-            private$datasets
-        }       
+        row_data = function(value) {
+            if (missing(value)) {
+                private$row_data
+            } else {
+                private$row_data <- value
+            }
+        },
+        col_data = function(value) {
+            if (missing(value)) {
+                private$col_data
+            } else {
+                private$col_data <- value
+            }
+        }
     )
 )

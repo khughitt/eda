@@ -46,7 +46,9 @@ EDADataSet <- R6Class("EDADataSet",
             row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
             col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
 
-            super$initialize(dat = dat, row_mdata = row_mdata, col_mdata = col_mdata)
+            super$initialize(dat = dat,
+                             row_data = list('row_mdata' = row_mdata),
+                             col_data = list('col_mdata' = col_mdata))
 
             # default variables to use for plot color, shape, and labels when
             # visualizing either columns or rows in the dataset
@@ -732,27 +734,18 @@ EDADataSet <- R6Class("EDADataSet",
     # ------------------------------------------------------------------------
     active = list(
         # params
-        dat = function(value) {
-            if (missing(value)) {
-                private$datasets[['dat']]
-            } else {
-                private$datasets[['dat']] <- value
-            }
-        },
-
-        col_mdata = function(value) {
-            if (missing(value)) {
-                private$datasets[['col_mdata']]
-            } else {
-                private$datasets[['col_mdata']] <- value
-            }
-        },
-
         row_mdata = function(value) {
             if (missing(value)) {
-                private$datasets[['row_mdata']]
+                private$row_data[['row_mdata']]
             } else {
-                private$datasets[['row_mdata']] <- value
+                private$row_data[['row_mdata']] <- value
+            }
+        },
+        col_mdata = function(value) {
+            if (missing(value)) {
+                private$col_data[['col_mdata']]
+            } else {
+                private$col_data[['col_mdata']] <- value
             }
         }
     )
