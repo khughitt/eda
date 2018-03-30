@@ -1,35 +1,24 @@
-#' An S6 class representing an biological dataset
+#' An S6 class representing collection of related biological datasets
 #'
-#' BioEDADataSet is an abstract class for interacting with biological datasets,
-#' typically those collected from high-throughput experiments. It is not meant
-#' to be used directly, but rather should is subclassed by other datatype-
-#' specific classes such as BioExprDataSet.
+#' BioEDADataSet is a class for interacting with one or more biological
+#' datasets, typically those collected from high-throughput experiments.
 #'
 #' @section Arguments:
 #' - `dat`: An m x n dataset.
-#' - `row_mdata`: A matrix or data frame with rows corresponding to the row
-#'      names of `dat`
-#' - `col_mdata`: A matrix or data frame with rows corresponding to the
-#'      column names of `dat`
-#' - `row_ids`: Column name or number containing row identifiers. If set to
-#'      `rownames` (default), row names will be used as identifiers.
-#' - `col_ids`: Column name or number containing column identifiers. If set to
-#'      `colnames` (default), column names will be used as identifiers.
-#' - `row_mdata_ids`: Column name or number containing row metadata row
-#'      identifiers. If set to `rownames` (default), row names will be used
-#'      as identifiers.
-#' - `col_mdata_ids`: Column name or number containing col metadata row
-#'      identifiers. If set to `rownames` (default), row names will be used
-#'      as identifiers.
+#' - `row_data`: List of zero or more additional datasets which share some
+#'     or all row identifiers with dat.
+#' - `col_data`: List of zero or more additional datasets which share some
+#'     or all column identifiers with dat.
+#'
 #' - `row_color`: Row metadata field to use for coloring rowwise plot elements.
 #' - `row_shape`: Row metadata field to use for determine rowwise plot
 #'      element shape.
-#' - `row_labels`: Row metadata field to use when labeling plot points or
+#' - `row_label`: Row metadata field to use when labeling plot points or
 #'      other elements.
 #' - `col_color`: Column metadata field to use for coloring columnwise plot elements.
 #' - `col_shape`: Column metadata field to use for determine columnwise plot
 #'      element shape.
-#' - `col_labels`: Column metadata field to use when labeling plot points or
+#' - `col_label`: Column metadata field to use when labeling plot points or
 #'      other elements.
 #' - `color_pal`: Color palette to use for relevant plotting methods
 #'      (default: `Set1`).
@@ -38,9 +27,10 @@
 #'      (default: `theme_bw`).
 #'
 #' @section Fields:
-#'  - `dat`: Underlying data matrix
-#'  - `row_mdata`: Dataframe containing row metadata
-#'  - `col_mdata`: Dataframe containing column metadata
+#'  - `dat`: Primary dataset
+#'  - `row_data`: List of additional data keyed on row identifiers
+#'  - `col_data`: List of additional data keyed on column identifiers
+#'  - `annotations`: A list of gene, etc. annotations from external sources.
 #'
 #' @section Methods:
 #' - `clear_cache()`: Clears BioEDADataSet cache.
@@ -114,27 +104,43 @@
 #'  - `tsne_feature_cor(method='pearson', ...)`: Measures correlation between
 #'		dataset features (column metadata fields) and dataset t-SNE projected
 #'      axes.
+#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
+#'     correlation matrix between rows in two specified datasets.
+#'  - `plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)`:
+#'      Plots multidataset correlation heatmap.
+#'  - `print()`: Prints an overview of the object instance.
+#'
+#' @section Examples:
+#' ```
+#' TODO
+#' ```
 #'
 #' @importFrom R6 R6Class
-#' @name BioEDADataSet
+#' @name BioDataSet
+#' @export
 #'
 NULL
 
-BioEDADataSet <- R6::R6Class("BioEDADataSet",
-    inherit = EDAMatrix,
-    public = list(
-        # BioEDADataSet constructor
-        initialize = function(dat,
-                              row_mdata=NULL, col_mdata=NULL,
-                              row_ids='rownames', col_ids='colnames',
-                              row_mdata_ids='rownames', col_mdata_ids='rownames',
-                              row_color=NULL, row_shape=NULL, row_labels=NULL,
-                              col_color=NULL, col_shape=NULL, col_labels=NULL,
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
+BioDataSet <- R6Class("BioDataSet",
+    inherit = eda:::EDAMultiMatrix,
 
-            super$initialize(dat, row_mdata, col_mdata, row_ids, col_ids,
-                             row_mdata_ids, col_mdata_ids, row_color, row_shape,
-                             row_labels, col_color, col_shape, col_labels,
+    # ------------------------------------------------------------------------
+    # public
+    # ------------------------------------------------------------------------
+    public = list(
+        # EDADataSet constructor
+        initialize = function(dat, row_data=list(), col_data=list(),
+                              row_color=NULL, row_color_ds='dat',
+                              row_shape=NULL, row_shape_ds='dat',
+                              row_label=NULL, row_label_ds='dat',
+                              col_color=NULL, col_color_ds='dat',
+                              col_shape=NULL, col_shape_ds='dat',
+                              col_label=NULL, col_label_ds='dat',
+                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
+            super$initialize(dat, row_data = row_data, col_data = col_data,
+                             row_color, row_color_ds, row_shape, row_shape_ds,
+                             row_label, row_label_ds, col_color, col_color_ds,
+                             col_shape, col_shape_ds, col_label, col_label_ds,
                              color_pal, title, ggplot_theme)
         },
 
@@ -158,33 +164,40 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
         #   - `ratio_nonzero`       ratio of genes with values not equal to zero
         #   - `ratio_zero`          ratio of genes with values equal to zero
         #
-        compute_pathway_stats = function(annot, stat=median, ...) {
+        annotation_stats = function(annotation, stat=median, ...) {
             # output data frame
             res <- data.frame()
 
+            # check to see if annotation has been loaded, and if not, load it
+            # TODO
+            mapping <- private$get_annotations(annotation)
+
             # determine statistic to use
             if (!is.function(stat)) {
-                if (stat %in% names(private$pathway_stats)) {
-                    stat <- private$pathway_stats[[stat]]
+                if (stat %in% names(private$annotation_stat_fxns)) {
+                    stat <- private$annotation_stat_fxns[[stat]]
                 } else {
-                    stop("Invalid pathway statistic specified.")
+                    stop("Invalid statistic specified.")
                 }
             }
 
-            # iterate over annotations / pathways
-            for (pathway in unique(annot$pathway)) {
-                # get list of genes in the pathway
-                genes <- annot$gene[annot$pathway == pathway]
+            # iterate over annotations
+            ANNOT_IND <- 1
+            ITEM_IND  <- 2
+
+            for (annot in unique(mapping[, ANNOT_IND])) {
+                # get list of genes, etc. associated with the annotation
+                annot_items <- mapping[mapping[, ANNOT_IND] == annot, ITEM_IND]
 
                 # get data values for relevant genes
-                path_dat <- self$dat[rownames(self$dat) %in% genes,, drop = FALSE]
+                dat_subset <- self$dat[rownames(self$dat) %in% annot_items,, drop = FALSE]
 
                 # compute statistic for each column (cell line) and append to result
-                res <- rbind(res, apply(path_dat, 2, stat, ...))
+                res <- rbind(res, apply(dat_subset, 2, stat, ...))
             }
 
             # fix column and row names and return result
-            rownames(res) <- unique(annot$pathway)
+            rownames(res) <- unique(annot[, ANNOT_IND])
             colnames(res) <- colnames(self$dat)
 
             as.matrix(res)
@@ -265,26 +278,67 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
 			}
             plt
         },
+        # Computes cross-dataset correlation matrix
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param method Correlation method to use (passed to `cor` function)
+        #
+        # @return Matrix of pairwise dataset1 - dataset2 correlations
+        cross_cor = function(key1=1, key2=2, method='pearson') {
+            super$cross_cor(key1, key2, method)
+        },
+
+        # Plots multidataset correlation heatmap
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param method Correlation method to use (passed to `cor` function)
+        #
+        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
+            super$plot_cross_cor_heatmap(key1, key2, method, interactive)
+        },
 
         # Prints an overview of the object instance
         print = function() {
             cat("=========================================\n")
             cat("=\n")
-            cat(sprintf("= BioEDADataSet (%s)\n", class(self$dat[,1])))
+            cat(sprintf("= BioDataSet (n=%d)\n", length(private$datasets)))
             cat("=\n")
-            cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
-            cat(sprintf("=   columns: %d\n", ncol(self$dat)))
+            cat(sprintf("= dat: %s (%d x %d)\n", class(self$dat)[1], nrow(self$dat), ncol(self$dat)))
+            if (length(private$row_data) > 1) {
+                cat("=\n")
+                cat("= Row data\n")
+                cat("=\n")
+                for (i in 2:length(private$row_data)) {
+                    ds <- private$row_data[[i]]
+                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
+                }
+            }
+            if (length(private$col_data) > 1) {
+                cat("=\n")
+                cat("= Column data\n")
+                cat("=\n")
+                for (i in 2:length(private$col_data)) {
+                    ds <- private$col_data[[i]]
+                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
+                }
+            }
             cat("=\n")
             cat("=========================================\n")
         }
     ),
+
+    # ------------------------------------------------------------------------
+    # private
+    # ------------------------------------------------------------------------
     private = list(
-        # list for storing annotations
-        annotations = list(),
+        # list of loaded annotation sources
+        annotation_sources = c(),
 
         # Helper functions for pathway-level statistics; used by the
-        # `compute_pathway_stats` method.
-        pathway_stats = list(
+        # `annotation_stats` method.
+        annotation_stat_fxns = list(
             'num_nonzero' = function(x) {
                 sum(x != 0)
             },
@@ -326,8 +380,8 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
             }
 
             # If annotations have already been retrieved, simply return them
-            if ('cpdb' %in% names(private$annotations)) {
-                return(private$annotations[['cpdb']])
+            if ('cpdb' %in% names(private$annotation_sources)) {
+                return(private$row_data[['cpdb']])
             }
 
             # Load CPDB pathways
@@ -361,10 +415,40 @@ BioEDADataSet <- R6::R6Class("BioEDADataSet",
             cpdb$pathway <- factor(cpdb$pathway)
 
             # store and return mapping
-            private$annotations[['cpdb']] <- cpdb
+            private$row_data[['cpdb']] <- cpdb
+            private$annotation_sources <- c(private$annotation_sources, 'cpdb')
 
             cpdb
         }
+    ),
+
+    # ------------------------------------------------------------------------
+    # active
+    # ------------------------------------------------------------------------
+    active = list(
+        annotations = function(value) {
+            # indices of any loaded annotations
+            ind <- names(private$row_data) %in% private$annotation_sources
+
+            if (missing(value)) {
+                private$row_data[ind]
+            } else {
+                private$row_data[ind] <- value
+            }
+        },             
+        row_data = function(value) {
+            if (missing(value)) {
+                private$row_data
+            } else {
+                private$row_data <- value
+            }
+        },
+        col_data = function(value) {
+            if (missing(value)) {
+                private$col_data
+            } else {
+                private$col_data <- value
+            }
+        }
     )
 )
-

@@ -35,12 +35,12 @@
 #' - `row_color`: Row metadata field to use for coloring rowwise plot elements.
 #' - `row_shape`: Row metadata field to use for determine rowwise plot
 #'      element shape.
-#' - `row_labels`: Row metadata field to use when labeling plot points or
+#' - `row_label`: Row metadata field to use when labeling plot points or
 #'      other elements.
 #' - `col_color`: Column metadata field to use for coloring columnwise plot elements.
 #' - `col_shape`: Column metadata field to use for determine columnwise plot
 #'      element shape.
-#' - `col_labels`: Column metadata field to use when labeling plot points or
+#' - `col_label`: Column metadata field to use when labeling plot points or
 #'      other elements.
 #' - `color_pal`: Color palette to use for relevant plotting methods
 #'      (default: `Set1`).
@@ -160,8 +160,8 @@ BioExprSet <- R6::R6Class("BioExprSet",
                               row_mdata=NULL, col_mdata=NULL,
                               row_ids='rownames', col_ids='colnames',
                               row_mdata_ids='rownames', col_mdata_ids='rownames',
-                              row_color=NULL, row_shape=NULL, row_labels=NULL,
-                              col_color=NULL, col_shape=NULL, col_labels=NULL,
+                              row_color=NULL, row_shape=NULL, row_label=NULL,
+                              col_color=NULL, col_shape=NULL, col_label=NULL,
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
             # verify input data type and call parent constructor
             private$check_input(dat)
@@ -179,7 +179,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
 
             super$initialize(dat, row_mdata, col_mdata, row_ids, col_ids,
                              row_mdata_ids, col_mdata_ids, row_color, row_shape,
-                             row_labels, col_color, col_shape, col_labels,
+                             row_label, col_color, col_shape, col_label,
                              color_pal, title, ggplot_theme)
         },
 
