@@ -37,7 +37,7 @@ colnames(dat2) <- sprintf('var%02d', 1:5)
 # next, we will create instances of two subclasses of AbstractMultiDataset,
 # in order to test various inherited methods.
 sds <- EDAMatrix$new(rbind(dat1, dat2))
-mds <- EDAMultiDataSet$new(dat1, col_data=list(dat2))
+mds <- EDAMultiMatrix$new(dat1, col_data=list(dat2))
 
 # expected correlation result (zero-variance middle rows removed)
 
@@ -45,7 +45,7 @@ mds <- EDAMultiDataSet$new(dat1, col_data=list(dat2))
 # Tests
 ##############################
 
-# EDAMultiDataSet construction
+# AbstractMultiDataSet construction
 test_that("initialization works", {
     expect_equal(mds$col_data[[1]], dat1)
     expect_equal(mds$col_data[[2]], dat2)

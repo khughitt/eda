@@ -160,19 +160,15 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            dat       <- private$normalize_data_ids(dat, row_ids, col_ids)
-            row_mdata <- private$normalize_metadata_order(row_mdata, rownames(dat))
-            col_mdata <- private$normalize_metadata_order(col_mdata, colnames(dat))
-
             super$initialize(dat,
-                             list('row_mdata'=row_mdata),
-                             list('col_mdata'=col_mdata),
-                             row_color=row_color, row_color_ds='row_mdata',
-                             row_shape=row_shape, row_shape_ds='row_mdata',
-                             row_label=row_label, row_label_ds='row_mdata',
-                             col_color=col_color, col_color_ds='col_mdata',
-                             col_shape=col_shape, col_shape_ds='col_mdata',
-                             col_label=col_label, col_label_ds='col_mdata',
+                             list('metadata'=row_mdata),
+                             list('metadata'=col_mdata),
+                             row_color=row_color, row_color_ds='metadata',
+                             row_shape=row_shape, row_shape_ds='metadata',
+                             row_label=row_label, row_label_ds='metadata',
+                             col_color=col_color, col_color_ds='metadata',
+                             col_shape=col_shape, col_shape_ds='metadata',
+                             col_label=col_label, col_label_ds='metadata',
                              color_pal, title, ggplot_theme)
         },
 
@@ -189,53 +185,53 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             cat(sprintf("=   columns: %d %s\n", ncol(self$dat), cm))
             cat("=\n")
             cat("=========================================\n")
-        },
-
-        t = function() {
-            # EDADataSet class
-            cls <- get(class(self)[1])
-
-            # Preserve underlying dataset class (dataframe or matrix)
-            dat_cls <- get(sprintf("as.%s", class(self$dat)))
-            tdat <- dat_cls(t(self$dat))
-
-            rownames(tdat) <- colnames(self$dat)
-            colnames(tdat) <- rownames(self$dat)
-
-            # do the same for row and column metadata
-            row_mdata <- NULL
-            col_mdata <- NULL
-
-            if (!is.null(self$col_mdata)) {
-                dat <- self$col_mdata
-
-                # Preserve underlying dataset class (dataframe or matrix)
-                dat_cls <- get(sprintf("as.%s", class(dat)))
-                row_mdata <- dat_cls(t(dat))
-
-                rownames(row_mdata) <- colnames(dat)
-                colnames(row_mdata) <- rownames(dat)
-            }
-
-            if (!is.null(self$row_mdata)) {
-                dat <- self$row_mdata
-
-                # Preserve underlying dataset class (dataframe or matrix)
-                dat_cls <- get(sprintf("as.%s", class(dat)))
-                col_mdata <- dat_cls(t(dat))
-
-                rownames(col_mdata) <- colnames(dat)
-                colnames(col_mdata) <- rownames(dat)
-            }
-
-            cls$new(tdat, row_mdata = row_mdata, col_mdata = col_mdata,
-                    row_color = private$col_color, row_shape = private$col_shape,
-                    row_label = private$col_label, col_color = private$row_color,
-                    col_shape = private$row_shape, col_label = private$row_label,
-                    color_pal = private$color_pal,
-                    title     = private$title,
-                    ggplot_theme = private$ggplot_theme)
         }
+
+        #t = function() {
+        #    # EDADataSet class
+        #    cls <- get(class(self)[1])
+
+        #    # Preserve underlying dataset class (dataframe or matrix)
+        #    dat_cls <- get(sprintf("as.%s", class(self$dat)))
+        #    tdat <- dat_cls(t(self$dat))
+
+        #    rownames(tdat) <- colnames(self$dat)
+        #    colnames(tdat) <- rownames(self$dat)
+
+        #    # do the same for row and column metadata
+        #    row_mdata <- NULL
+        #    col_mdata <- NULL
+
+        #    if (!is.null(self$col_mdata)) {
+        #        dat <- self$col_mdata
+
+        #        # Preserve underlying dataset class (dataframe or matrix)
+        #        dat_cls <- get(sprintf("as.%s", class(dat)))
+        #        row_mdata <- dat_cls(t(dat))
+
+        #        rownames(row_mdata) <- colnames(dat)
+        #        colnames(row_mdata) <- rownames(dat)
+        #    }
+
+        #    if (!is.null(self$row_mdata)) {
+        #        dat <- self$row_mdata
+
+        #        # Preserve underlying dataset class (dataframe or matrix)
+        #        dat_cls <- get(sprintf("as.%s", class(dat)))
+        #        col_mdata <- dat_cls(t(dat))
+
+        #        rownames(col_mdata) <- colnames(dat)
+        #        colnames(col_mdata) <- rownames(dat)
+        #    }
+
+        #    cls$new(tdat, row_mdata = row_mdata, col_mdata = col_mdata,
+        #            row_color = private$col_color, row_shape = private$col_shape,
+        #            row_label = private$col_label, col_color = private$row_color,
+        #            col_shape = private$row_shape, col_label = private$row_label,
+        #            color_pal = private$color_pal,
+        #            title     = private$title,
+        #            ggplot_theme = private$ggplot_theme)
+        #}
     ),
     private = list(
         # Verifies that input data is of type matrix
@@ -249,77 +245,6 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             obj <- self$clone()
             obj$clear_cache()
             obj
-        },
-
-        # Normalizes handling of data row and column identifiers
-        #
-        # Checks dataset row and column identifiers and converts them to row
-        # and column names, respectively, if they are not already stored there.
-        #
-        # @param dat Dataset
-        # @param row_ids Column id or number where row identifiers are stored.
-        # @param col_ids Row id or number where column identifiers are stored.
-        #
-        # @param Dataset with identifiers as rows and columns
-        normalize_data_ids = function(dat, row_ids, col_ids) {
-            # row ids
-            if (row_ids != 'rownames') {
-                # column number containing row ids specified
-                if (is.numeric(row_ids)) {
-                    rownames(dat) <- dat[, row_ids]
-                    dat <- dat[, -row_ids]
-                } else if (row_ids %in% colnames(dat)) {
-                    # column name containing row ids specified
-                    ind <- which(colnames(dat) == row_ids)
-                    rownames(dat) <- dat[, ind]
-                    dat <- dat[, -ind]
-                }
-            }
-
-            # column ids
-            if (col_ids != 'colnames') {
-                # row number containing column ids
-                if (is.numeric(col_ids)) {
-                    colnames(dat) <- dat[col_ids, ]
-                    dat <- dat[-col_ids, ]
-                } else if (col_ids %in% colnames(dat)) {
-                    # row name containing columns ids
-                    ind <- which(rownames(dat) == col_ids)
-                    colnames(dat) <- dat[ind, ]
-                    dat <- dat[-ind, ]
-                }
-            }
-
-            # if either row or column id's are missing, assign arbitrary numeric
-            # identifiers; required for some plotting, etc. functionality.
-            if (is.null(colnames(dat))) {
-                colnames(dat) <- 1:ncol(dat)
-            }
-            if (is.null(rownames(dat))) {
-                rownames(dat) <- 1:nrow(dat)
-            }
-
-            # return normalized dataset
-            dat
-        },
-
-        # normalize dat / metadata order
-        normalize_metadata_order = function(metadata, ids) {
-            # If no metadata was provided, do nothing
-            if (is.null(metadata)) {
-                return(NULL)
-            }
-
-            # if already in the right order, return as-is
-            if (all(rownames(metadata) == ids)) {
-                return(metadata)
-            }
-
-            # otherwise match metadata row order to row/col names specified
-            ind <- order(match(rownames(metadata), ids))
-
-            # return result
-            metadata[ind,, drop = FALSE]
         },
 
         # Prints dataset summary to screen
@@ -419,16 +344,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # params
         row_mdata = function(value) {
             if (missing(value)) {
-                private$row_data[['row_mdata']]
+                private$row_data[['metadata']]
             } else {
-                private$row_data[['row_mdata']] <- value
+                private$row_data[['metadata']] <- value
             }
         },
         col_mdata = function(value) {
             if (missing(value)) {
-                private$col_data[['col_mdata']]
+                private$col_data[['metadata']]
             } else {
-                private$col_data[['col_mdata']] <- value
+                private$col_data[['metadata']] <- value
             }
         }
     )

@@ -26,7 +26,10 @@ rownames(row_mdat) <- rownames(mat)
 col_mdat <- data.frame(var_prop1 = sample(5, num_cols, replace = TRUE),
                        var_prop2 = factor(sample(c(T, F), num_cols, replace = TRUE)),
                        var_prop3 = rnorm(num_cols))
-rownames(col_mdat) <- colnames(mat)
+col_mdat <- data.table::transpose(col_mdat)
+colnames(col_mdat) <- colnames(mat)
+rownames(col_mdat) <- paste0('var_prop', 1:3)
+
 
 # create EDAMatrix
 edm <- EDAMatrix$new(mat, row_mdata = row_mdat, col_mdata = col_mdat)
@@ -44,9 +47,12 @@ test_that("initialization works", {
 
 # transpose
 test_that("transposition works", {
+    expect_equal(edm$t()$t()$dat, edm$dat)
+    expect_equal(edm$t()$t()$row_mdata, edm$row_mdata)
+    expect_equal(edm$t()$t()$col_mdata, edm$col_mdata)
     expect_equal(edm$t()$dat, t(edm$dat))
-    expect_equal(edm$t()$col_mdata, edm$row_mdata)
-    expect_equal(edm$t()$row_mdata, edm$col_mdata)
+    expect_equal(edm$t()$col_mdata, as.data.frame(t(edm$row_mdata)))
+    expect_equal(edm$t()$row_mdata, as.data.frame(t(edm$col_mdata)))
     expect_equal(class(edm$t())[1], 'EDAMatrix')
     expect_equal(class(edm$t()$dat), class(edm$dat))
     expect_equal(rownames(edm$t()$dat), colnames(edm$dat))

@@ -153,7 +153,7 @@
 NULL
 
 BioExprSet <- R6::R6Class("BioExprSet",
-    inherit = eda:::BioEDADataSet,
+    inherit = eda:::BioDataSet,
     public = list(
         # BioExprSet constructor
         initialize = function(dat,
@@ -177,9 +177,17 @@ BioExprSet <- R6::R6Class("BioExprSet",
                 dat <- exprs(dat)
             }
 
-            super$initialize(dat, row_mdata, col_mdata, row_ids, col_ids,
-                             row_mdata_ids, col_mdata_ids, row_color, row_shape,
-                             row_label, col_color, col_shape, col_label,
+            super$initialize(dat, 
+                             list('row_mdata'=row_mdata), 
+                             list('col_mdata'=col_mdata),
+                             #row_ids, col_ids,
+                             #row_mdata_ids, col_mdata_ids, 
+                             row_color=row_color, row_color_ds='row_mdata',
+                             row_shape=row_shape, row_shape_ds='row_mdata',
+                             row_label=row_label, row_label_ds='row_mdata',
+                             col_color=col_color, col_color_ds='col_mdata',
+                             col_shape=col_shape, col_shape_ds='col_mdata',
+                             col_label=col_label, col_label_ds='col_mdata',
                              color_pal, title, ggplot_theme)
         },
 
