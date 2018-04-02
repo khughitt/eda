@@ -166,7 +166,7 @@ BioDataSet <- R6Class("BioDataSet",
         #
         annotation_stats = function(key, annotation, stat=median, ...) {
             # check for valid dataset key
-            if (!key %in% names(self$datasets)) {
+            if (!key %in% c(1:length(self$datasets), names(self$datasets))) {
                 stop(sprintf("Invalid dataset specified: %s", key))
             }
 
