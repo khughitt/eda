@@ -17,7 +17,7 @@ Imports:
     heatmaply,
     mpmi,
     RColorBrewer,
-    Rtsne
+    Rtsne,
     VIM
 License: MIT + file LICENSE
 Encoding: UTF-8

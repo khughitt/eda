@@ -146,6 +146,7 @@ BioDataSet <- R6Class("BioDataSet",
         # Computes pathway- or annotation-level statistics for a given dataset and
         # annotation mapping.
         #
+        # @param key Name of dataset to analyze.
         # @param annot A n x 2 gene/pathway mapping where each row is a pathway,gene
         #     pair; should contain columns named 'pathway' and 'gene'.
         # @param stat The pathway-level statistic to compute. Can either be a
@@ -163,7 +164,12 @@ BioDataSet <- R6Class("BioDataSet",
         #   - `ratio_nonzero`       ratio of genes with values not equal to zero
         #   - `ratio_zero`          ratio of genes with values equal to zero
         #
-        annotation_stats = function(annotation, stat=median, ...) {
+        annotation_stats = function(key, annotation, stat=median, ...) {
+            # check for valid dataset key
+            if (!key %in% names(self$datasets)) {
+                stop(sprintf("Invalid dataset specified: %s", key))
+            }
+
             # determine statistic to use
             if (!is.function(stat)) {
                 if (stat %in% names(private$annotation_stat_fxns)) {
@@ -173,41 +179,72 @@ BioDataSet <- R6Class("BioDataSet",
                 }
             }
 
+            # check to see if already computed
+            stat_name <- as.character(substitute(stat))
+            result_key <- paste(c(key, annotation, stat_name), collapse='_')
+
+            if (result_key %in% names(self$datasets)) {
+                return(self$fget(result_key))
+            }
+
             # output data frame
             res <- data.frame()
 
             # check to see if annotation has been loaded, and if not, load it
             # TODO
-            mapping <- private$get_annotations(annotation)
+            mapping <- self$load_annotations(annotation)
 
-            # iterate over annotations
+            # annotations are parsed into n x 2 dataframes consisting of
+            # with each row containing an (annotation, gene id) pair.
             ANNOT_IND <- 1
             ITEM_IND  <- 2
 
+            # dataset to compute statistics on
+            dat <- self$datasets[[key]]$fdat
+
+            message("Computing annotation statistics...")
+
+            # iterate over annotations
             for (annot in unique(mapping[, ANNOT_IND])) {
                 # get list of genes, etc. associated with the annotation
                 annot_items <- mapping[mapping[, ANNOT_IND] == annot, ITEM_IND]
 
                 # get data values for relevant genes
-                dat_subset <- self$dat[rownames(self$dat) %in% annot_items,, drop = FALSE]
+                dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
 
                 # compute statistic for each column (cell line) and append to result
                 res <- rbind(res, apply(dat_subset, 2, stat, ...))
             }
 
             # fix column and row names and return result
-            rownames(res) <- unique(annot[, ANNOT_IND])
-            colnames(res) <- colnames(self$dat)
+            rownames(res) <- unique(mapping[, ANNOT_IND])
+            colnames(res) <- colnames(dat)
 
-            as.matrix(res)
+            # load result as a new dataset
+            # TODO: alternatively, could return a new BioDataSet instance with
+            # this replacing the key that was used as input...
+            message(sprintf("Saving result as %s...", result_key))
+
+            self$datasets[[result_key]] <- EDADat$new(as.matrix(res), 
+                                                      xlab=stat_name,
+                                                      ylab=colnames(mapping)[ANNOT_IND])
+
+            self
         },
         
         # load annotations from a supported source
-        get_annotations = function(source='cpdb', keytype='ensembl') {
+        load_annotations = function(source='cpdb', keytype='ensembl') {
             # check to make sure annotation type is valid
             if (!source %in% c('cpdb')) {
                 stop("Unsupported annotation source specified.") 
             }
+
+            # If annotations have already been retrieved, simply return them
+            if (source %in% names(self$annotations)) {
+                return(self$annotations[[source]])
+            }
+
+            message(sprintf("Loading %s annotations...", source))
 
             # CPDB
             if (source == 'cpdb') {
@@ -277,6 +314,51 @@ BioDataSet <- R6Class("BioDataSet",
 			}
             plt
         },
+
+        # Prints an overview of the object instance
+        print = function() {
+            dat <- self$fget(1)
+            cls <- class(self)[1]
+
+            # create a vector of dataset keys to display
+            if (!is.null(names(private$datasets))) {
+                keys <- names(private$datasets)
+
+                # default to numeric key if no character key exists
+                keys[is.na(keys)] <- seq_along(keys)[is.na(keys)]
+            }
+
+            # determine lengtht to use for justification
+            key_format <- sprintf("%%%ds", max(nchar(keys)) + 1)
+
+            # entry output string
+            entry_template <- sprintf("= %s : %%s (%%d x %%d)\n", key_format)
+
+            cat("=========================================\n")
+            cat("=\n")
+            cat(sprintf("= %s (n=%d)\n", cls, length(private$datasets)))
+            cat("=\n")
+            for (i in seq_along(private$datasets)) {
+                ds <- self$fget(i) 
+                
+                # print dataset entry
+                cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
+            }
+            cat("=\n")
+            if (length(self$annotations) > 0) {
+                cat("= Annotations:\n")
+                cat("=\n")
+                for (source in names(self$annotations)) {
+                    annot <- self$annotations[[source]]
+                    cat(sprintf("= - %s (%d annotations, %d genes)\n", source, 
+                                length(unique(annot[,1])),
+                                length(annot[,2])))
+                }
+                cat("=\n")
+            }
+            cat("=========================================\n")
+        },
+
         # Computes cross-dataset correlation matrix
         #
         # @param key1 Numeric or character index of first dataset to use
@@ -346,14 +428,9 @@ BioDataSet <- R6Class("BioDataSet",
                 stop("Invalid key type specified.")
             }
 
-            # If annotations have already been retrieved, simply return them
-            if ('cpdb' %in% names(self$annotations)) {
-                return(self$annotations[['cpdb']])
-            }
-
             # Load CPDB pathways
             url <- sprintf('http://cpdb.molgen.mpg.de/CPDB/getPathwayGenes?idtype=%s', keytype)
-            cpdb <- read.delim(url, sep = '\t', header = TRUE)
+            cpdb <- read.delim(url, sep = '\t', header = TRUE, stringsAsFactors = FALSE)
 
             # There are a few pathways with multiple entries, each with a
             # different list of genes; for now, arbitrarily choose one of the

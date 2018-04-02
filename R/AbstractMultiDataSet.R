@@ -285,13 +285,28 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat <- self$fget(1)
             cls <- class(self)[1]
 
+            # create a vector of dataset keys to display
+            if (!is.null(names(private$datasets))) {
+                keys <- names(private$datasets)
+
+                # default to numeric key if no character key exists
+                keys[is.na(keys)] <- seq_along(keys)[is.na(keys)]
+            }
+
+            # determine lengtht to use for justification
+            key_format <- sprintf("%%%ds", max(nchar(keys)) + 1)
+
+            # entry output string
+            entry_template <- sprintf("= %s : %%s (%%d x %%d)\n", key_format)
+
             cat("=========================================\n")
             cat("=\n")
             cat(sprintf("= %s (n=%d)\n", cls, length(private$datasets)))
             cat("=\n")
             for (i in seq_along(private$datasets)) {
+                # print dataset entry
                 ds <- self$fget(i) 
-                cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds), nrow(ds), ncol(ds)))
+                cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
             }
             cat("=\n")
             cat("=========================================\n")
