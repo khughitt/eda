@@ -72,3 +72,39 @@ test_that("transposition works", {
     expect_equal(rownames(edm$t()$row_mdata), colnames(edm$col_mdata))
     expect_equal(colnames(edm$t()$row_mdata), rownames(edm$col_mdata))
 })
+
+# impute
+test_that("imputation works", {
+    # matrix with missing data
+    na_mat <- mat
+    na_mat[sample(50, 10)] <- NA
+
+    # data frame with missing data
+    na_dat <- head(iris, 20)
+    na_dat[1, 1] <- NA
+    na_dat[8, 3] <- NA
+    na_dat[12,5] <- NA
+
+    # test each available imputation method
+    IMPUTE_METHODS = c('knn')
+
+    for (method in IMPUTE_METHODS) {
+        # test matrix imputation
+        edm <- EDAMatrix$new(na_mat, row_mdata = row_mdat, col_mdata = col_mdat)
+        edm$impute(method=method)
+
+        expect_equal(class(edm$dat), 'matrix')
+        expect_equal(rownames(edm$dat), rownames(na_mat))
+        expect_equal(colnames(edm$dat), colnames(na_mat))
+        expect_equal(sum(is.na(edm$dat)), 0)
+
+        # test data frame imputation
+        #edf <- EDADataFrame$new(na_mat, row_mdata = row_mdat, col_mdata = col_mdat)
+        #edf$impute(method=method)
+
+        #expect_equal(class(edf$dat), 'matrix')
+        #expect_equal(rownames(edf$dat), rownames(na_mat))
+        #expect_equal(colnames(edf$dat), colnames(na_mat))
+        #expect_equal(sum(is.na(edf$dat)), 0)
+    }
+})

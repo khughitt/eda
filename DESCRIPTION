@@ -18,6 +18,7 @@ Imports:
     mpmi,
     RColorBrewer,
     Rtsne
+    VIM
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
