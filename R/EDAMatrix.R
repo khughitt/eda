@@ -160,7 +160,16 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            super$initialize(list('dat'=dat, 'row_mdata'=row_mdata, 'col_mdata'=col_mdata),
+            inputs <- list('dat'=dat)
+            
+            if(!is.null(row_mdata)) {
+                inputs[['row_mdata']] <- row_mdata
+            }
+            if(!is.null(col_mdata)) {
+                inputs[['col_mdata']] <- col_mdata
+            }
+
+            super$initialize(inputs,
                              row_color=row_color, row_color_ds='metadata',
                              row_shape=row_shape, row_shape_ds='metadata',
                              row_label=row_label, row_label_ds='metadata',
@@ -168,6 +177,25 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                              col_shape=col_shape, col_shape_ds='metadata',
                              col_label=col_label, col_label_ds='metadata',
                              color_pal, title, ggplot_theme)
+        },
+
+        impute = function(method='knn') {
+            super$impute(key=1, method=method)
+        },
+
+        plot_pca = function(pcx=1, pcy=2, scale=FALSE,
+                            color=NULL, shape=NULL, title=NULL,
+                            text_labels=FALSE, ...) {
+
+            super$plot_pca(key=1, pcx=pcx, pcy=pcy, scale=scale,
+                            color=color, shape=shape, title=title,
+                            text_labels=text_labels, ...)
+        },
+
+        plot_tsne = function(color=NULL, shape=NULL, title=NULL,
+                             text_labels=FALSE, ...) {
+            super$plot_tsne(key=1, color=color, shape=NULL, title=NULL,
+                            text_labels=text_labels, ...)
         },
 
         # Prints class greeting to the screen
@@ -301,10 +329,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             private$datasets[['dat']]$fdat
         },
         row_mdata = function(value) {
-            private$datasets[['row_mdata']]$fdat
+            if ('row_mdata' %in% names(private$datasets)) {
+                private$datasets[['row_mdata']]$fdat
+            } else {
+                NULL
+            }
         },
         col_mdata = function(value) {
-            private$datasets[['col_mdata']]$fdat
+            if ('col_mdata' %in% names(private$datasets)) {
+                private$datasets[['col_mdata']]$fdat
+            } else {
+                NULL
+            }
         }
     )
 )

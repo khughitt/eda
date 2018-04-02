@@ -45,7 +45,7 @@ EDADat <- R6Class("EDADat",
         # EDADat constructor
         initialize = function(dat, orientation='rows', key=NULL,
                               transposed=FALSE, xlab=NULL, ylab=NULL) {
-            # original data frame or matrix
+           # original data frame or matrix
             self$dat <- dat
             self$orientation <- orientation
 
@@ -193,6 +193,15 @@ EDADat <- R6Class("EDADat",
                     colnames(dat) <- dat[ind, ]
                     dat <- dat[-ind, ]
                 }
+            }
+
+            # ensure that formatted data has both row and column names;
+            # used by some functions.
+            if (is.null(rownames(dat))) {
+                rownames(dat) <- paste0('row_', 1:nrow(dat))
+            }
+            if (is.null(colnames(dat))) {
+                colnames(dat) <- paste0('col_', 1:ncol(dat))
             }
 
             dat

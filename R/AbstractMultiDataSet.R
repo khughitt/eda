@@ -141,11 +141,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # kNN
             if (method == 'knn') {
                 imputed <- VIM::kNN(dat)[, 1:ncol(dat)]
-                rownames(imputed) <- rownames(dat)
 
                 if (cls == 'matrix') {
                     imputed <- as.matrix(imputed)
                 }
+                rownames(imputed) <- rownames(dat)
             }
             message("Done.")
             self$set(key, imputed)

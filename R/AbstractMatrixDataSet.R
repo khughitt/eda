@@ -356,7 +356,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # ...
         #
         # return ggplot plot instance
-        plot_pca = function(pcx=1, pcy=2, scale=FALSE,
+        plot_pca = function(key=1, pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
             # perform pca
@@ -418,7 +418,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # ...
         #
         # return ggplot plot instance
-        plot_tsne = function(color=NULL, shape=NULL, title=NULL,
+        plot_tsne = function(key=1, color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
             # compute t-SNE projection
             tsne <- Rtsne::Rtsne(self$dat, ...)
