@@ -4,11 +4,9 @@
 #' datasets, typically those collected from high-throughput experiments.
 #'
 #' @section Arguments:
-#' - `dat`: An m x n dataset.
-#' - `row_data`: List of zero or more additional datasets which share some
-#'     or all row identifiers with dat.
-#' - `col_data`: List of zero or more additional datasets which share some
-#'     or all column identifiers with dat.
+#' - `dataset`: A list of datasets (matrices, data frames, etc.), each of
+#'      which shared some column / row identifiers with the first entry in
+#'      the list.
 #'
 #' - `row_color`: Row metadata field to use for coloring rowwise plot elements.
 #' - `row_shape`: Row metadata field to use for determine rowwise plot
@@ -27,9 +25,7 @@
 #'      (default: `theme_bw`).
 #'
 #' @section Fields:
-#'  - `dat`: Primary dataset
-#'  - `row_data`: List of additional data keyed on row identifiers
-#'  - `col_data`: List of additional data keyed on column identifiers
+#'  - `datasets`: List of datasets
 #'  - `annotations`: A list of gene, etc. annotations from external sources.
 #'
 #' @section Methods:
@@ -128,8 +124,11 @@ BioDataSet <- R6Class("BioDataSet",
     # public
     # ------------------------------------------------------------------------
     public = list(
+        # List of loaded annotations
+        annotations = list(),
+
         # EDADataSet constructor
-        initialize = function(dat, row_data=list(), col_data=list(),
+        initialize = function(datasets,
                               row_color=NULL, row_color_ds='dat',
                               row_shape=NULL, row_shape_ds='dat',
                               row_label=NULL, row_label_ds='dat',
@@ -137,7 +136,7 @@ BioDataSet <- R6Class("BioDataSet",
                               col_shape=NULL, col_shape_ds='dat',
                               col_label=NULL, col_label_ds='dat',
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(dat, row_data = row_data, col_data = col_data,
+            super$initialize(datasets,
                              row_color, row_color_ds, row_shape, row_shape_ds,
                              row_label, row_label_ds, col_color, col_color_ds,
                              col_shape, col_shape_ds, col_label, col_label_ds,
@@ -165,13 +164,6 @@ BioDataSet <- R6Class("BioDataSet",
         #   - `ratio_zero`          ratio of genes with values equal to zero
         #
         annotation_stats = function(annotation, stat=median, ...) {
-            # output data frame
-            res <- data.frame()
-
-            # check to see if annotation has been loaded, and if not, load it
-            # TODO
-            mapping <- private$get_annotations(annotation)
-
             # determine statistic to use
             if (!is.function(stat)) {
                 if (stat %in% names(private$annotation_stat_fxns)) {
@@ -180,6 +172,13 @@ BioDataSet <- R6Class("BioDataSet",
                     stop("Invalid statistic specified.")
                 }
             }
+
+            # output data frame
+            res <- data.frame()
+
+            # check to see if annotation has been loaded, and if not, load it
+            # TODO
+            mapping <- private$get_annotations(annotation)
 
             # iterate over annotations
             ANNOT_IND <- 1
@@ -297,35 +296,6 @@ BioDataSet <- R6Class("BioDataSet",
         #
         plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
             super$plot_cross_cor_heatmap(key1, key2, method, interactive)
-        },
-
-        # Prints an overview of the object instance
-        print = function() {
-            cat("=========================================\n")
-            cat("=\n")
-            cat(sprintf("= BioDataSet (n=%d)\n", length(private$datasets)))
-            cat("=\n")
-            cat(sprintf("= dat: %s (%d x %d)\n", class(self$dat)[1], nrow(self$dat), ncol(self$dat)))
-            if (length(private$row_data) > 1) {
-                cat("=\n")
-                cat("= Row data\n")
-                cat("=\n")
-                for (i in 2:length(private$row_data)) {
-                    ds <- private$row_data[[i]]
-                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
-                }
-            }
-            if (length(private$col_data) > 1) {
-                cat("=\n")
-                cat("= Column data\n")
-                cat("=\n")
-                for (i in 2:length(private$col_data)) {
-                    ds <- private$col_data[[i]]
-                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
-                }
-            }
-            cat("=\n")
-            cat("=========================================\n")
         }
     ),
 
@@ -333,9 +303,6 @@ BioDataSet <- R6Class("BioDataSet",
     # private
     # ------------------------------------------------------------------------
     private = list(
-        # list of loaded annotation sources
-        annotation_sources = c(),
-
         # Helper functions for pathway-level statistics; used by the
         # `annotation_stats` method.
         annotation_stat_fxns = list(
@@ -380,8 +347,8 @@ BioDataSet <- R6Class("BioDataSet",
             }
 
             # If annotations have already been retrieved, simply return them
-            if ('cpdb' %in% names(private$annotation_sources)) {
-                return(private$row_data[['cpdb']])
+            if ('cpdb' %in% names(self$annotations)) {
+                return(self$annotations[['cpdb']])
             }
 
             # Load CPDB pathways
@@ -415,40 +382,9 @@ BioDataSet <- R6Class("BioDataSet",
             cpdb$pathway <- factor(cpdb$pathway)
 
             # store and return mapping
-            private$row_data[['cpdb']] <- cpdb
-            private$annotation_sources <- c(private$annotation_sources, 'cpdb')
+            self$annotations[['cpdb']] <- cpdb
 
             cpdb
-        }
-    ),
-
-    # ------------------------------------------------------------------------
-    # active
-    # ------------------------------------------------------------------------
-    active = list(
-        annotations = function(value) {
-            # indices of any loaded annotations
-            ind <- names(private$row_data) %in% private$annotation_sources
-
-            if (missing(value)) {
-                private$row_data[ind]
-            } else {
-                private$row_data[ind] <- value
-            }
-        },             
-        row_data = function(value) {
-            if (missing(value)) {
-                private$row_data
-            } else {
-                private$row_data <- value
-            }
-        },
-        col_data = function(value) {
-            if (missing(value)) {
-                private$col_data
-            } else {
-                private$col_data <- value
-            }
         }
     )
 )

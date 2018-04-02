@@ -7,16 +7,12 @@
 #' ```
 #'
 #' @section Arguments:
-#' - `dat`: Primary dataset (matrix, data frame, etc.)
-#' - `row_data`: List of zero or more additional datasets which share some
-#'     or all row identifiers with dat.
-#' - `col_data`: List of zero or more additional datasets which share some
-#'     or all column identifiers with dat.
+#' - `dataset`: A list of datasets (matrices, data frames, etc.), each of
+#'      which shared some column / row identifiers with the first entry in
+#'      the list.
 #'
 #' @section Fields:
-#'  - `dat`: Primary dataset
-#'  - `row_data`: List of additional data keyed on row identifiers
-#'  - `col_data`: List of additional data keyed on column identifiers
+#'  - `datasets`: List of datasets
 #'
 #' @section Methods:
 #'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
@@ -44,7 +40,7 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
     # ------------------------------------------------------------------------
     public = list(
         # EDADataSet constructor
-        initialize = function(dat, row_data=list(), col_data=list(),
+        initialize = function(datasets,
                               row_color=NULL, row_color_ds='dat',
                               row_shape=NULL, row_shape_ds='dat',
                               row_label=NULL, row_label_ds='dat',
@@ -52,7 +48,7 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
                               col_shape=NULL, col_shape_ds='dat',
                               col_label=NULL, col_label_ds='dat',
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(dat, row_data = row_data, col_data = col_data,
+            super$initialize(datasets,
                              row_color, row_color_ds, row_shape, row_shape_ds,
                              row_label, row_label_ds, col_color, col_color_ds,
                              col_shape, col_shape_ds, col_label, col_label_ds,
@@ -91,18 +87,13 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
     # ------------------------------------------------------------------------
     active = list(
         # Make datasets publically visible for EDAMultiMatrix instances
-        row_data = function(value) {
+        # Question: should datasets expose EDADat-wrapped objects? or underlying
+        # (original / formatted) datasets?
+        datasets = function(value) {
             if (missing(value)) {
-                private$row_data
+                private$datasets
             } else {
-                private$row_data <- value
-            }
-        },
-        col_data = function(value) {
-            if (missing(value)) {
-                private$col_data
-            } else {
-                private$col_data <- value
+                private$datasets <- value
             }
         }
     )

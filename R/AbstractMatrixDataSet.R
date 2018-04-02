@@ -6,11 +6,9 @@
 #' ```
 #'
 #' @section Arguments:
-#' - `dat`: Primary dataset (matrix, data frame, etc.)
-#' - `row_data`: List of zero or more additional datasets which share some
-#'     or all row identifiers with dat.
-#' - `col_data`: List of zero or more additional datasets which share some
-#'     or all column identifiers with dat.
+#' - `dataset`: A list of datasets (matrices, data frames, etc.), each of
+#'      which shared some column / row identifiers with the first entry in
+#'      the list.
 #'
 #' @section Fields:
 #'  - `dat`: Primary dataset
@@ -43,7 +41,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
     # ------------------------------------------------------------------------
     public = list(
         # EDADataSet constructor
-        initialize = function(dat, row_data=list(), col_data=list(),
+        initialize = function(datasets,
                               row_color=NULL, row_color_ds='dat',
                               row_shape=NULL, row_shape_ds='dat',
                               row_label=NULL, row_label_ds='dat',
@@ -51,7 +49,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                               col_shape=NULL, col_shape_ds='dat',
                               col_label=NULL, col_label_ds='dat',
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(dat, row_data = row_data, col_data = col_data,
+            super$initialize(datasets,
                              row_color, row_color_ds, row_shape, row_shape_ds,
                              row_label, row_label_ds, col_color, col_color_ds,
                              col_shape, col_shape_ds, col_label, col_label_ds,
@@ -221,18 +219,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
         tsne_feature_cor = function(method='pearson', ...) {
             self$t$tsne(...)$t$feature_cor(...)
-        },
-
-        # Prints an overview of the object instance
-        print = function() {
-            cat("=========================================\n")
-            cat("=\n")
-            cat(sprintf("= EDAMatrix (%s)\n", class(self$dat[, 1])))
-            cat("=\n")
-            cat(sprintf("=   rows   : %d\n", nrow(self$dat)))
-            cat(sprintf("=   columns: %d\n", ncol(self$dat)))
-            cat("=\n")
-            cat("=========================================\n")
         },
 
         ######################################################################

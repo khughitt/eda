@@ -41,12 +41,12 @@ as identifiers.
 \item \code{row_color}: Row metadata field to use for coloring rowwise plot elements.
 \item \code{row_shape}: Row metadata field to use for determine rowwise plot
 element shape.
-\item \code{row_labels}: Row metadata field to use when labeling plot points or
+\item \code{row_label}: Row metadata field to use when labeling plot points or
 other elements.
 \item \code{col_color}: Column metadata field to use for coloring columnwise plot elements.
 \item \code{col_shape}: Column metadata field to use for determine columnwise plot
 element shape.
-\item \code{col_labels}: Column metadata field to use when labeling plot points or
+\item \code{col_label}: Column metadata field to use when labeling plot points or
 other elements.
 \item \code{color_pal}: Color palette to use for relevant plotting methods
 (default: \code{Set1}).

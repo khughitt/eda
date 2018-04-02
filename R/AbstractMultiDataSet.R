@@ -15,7 +15,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
     # ------------------------------------------------------------------------
     public = list(
         # AbstractMultiDataSet constructor
-        initialize = function(dat, row_data=list(), col_data=list(),
+        initialize = function(datasets,
                               row_color=NULL, row_color_ds='dat',
                               row_shape=NULL, row_shape_ds='dat',
                               row_label=NULL, row_label_ds='dat',
@@ -23,20 +23,23 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                               col_shape=NULL, col_shape_ds='dat',
                               col_label=NULL, col_label_ds='dat',
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
+            
+            # assign names to datasets list if not already present
+            if (is.null(names(datasets))) {
+                names(datasets) <- paste0('dat', seq_along(datasets))
+            } else if (sum(names(datasets) == '') > 0) {
+                num_missing <- sum(names(datasets) == '')
+                names(datasets)[names(datasets) == ''] <- paste0('dat', 1:num_missing)
+            }
 
-            #dat <- private$normalize_data_ids(dat, row_ids, col_ids)
-
-            # determine orientation of any addition row and column datasets,
-            # relative to dat
-
-            # TODO: revisit handling of row / column id's for multiple datasets
-            # with MultiDataset classes... (skipping for now..)
-            row_mdata <- private$normalize_row_order(row_data, rownames(dat))
-            col_mdata <- private$normalize_col_order(col_data, colnames(dat))
-
-            # store datasets
-            private$row_data <- c(list('dat' = dat), row_data)
-            private$col_data <- c(list('dat' = dat), col_data)
+            # store datasets as a list of EDADat objects
+            for (id in names(datasets)) {
+                if (!class(datasets[[id]])[1] == 'EDADat') {
+                    # TODO: Guess proper orientation?
+                    datasets[[id]] <- EDADat$new(datasets[[id]])
+                }
+            }
+            private$datasets <- datasets
 
             # default variables to use for plot color, shape, and labels when
             # visualizing either columns or rows in the dataset
@@ -60,6 +63,25 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             private$title        <- title
         },
 
+        # return original dataset
+        get = function(key=1) {
+            private$datasets[[key]]$dat
+        },
+
+        # return formatted dataset
+        fget = function(key=1) {
+            private$datasets[[key]]$fdat
+        },
+
+        # return transposed formatted dataset
+        tget = function(key=1) {
+            private$datasets[[key]]$tdat
+        },
+
+        set = function(key=1, dat) {
+            private$datasets[[key]]$dat <- dat
+        },
+
         # Clears any cached resuts and performs garbage collection to free
         # up memory.
         clear_cache = function() {
@@ -68,8 +90,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # Measure similarity between columns
-        cor = function(method='pearson', ...) {
-            private$similarity(self$dat, method=method, ...)
+        cor = function(key=1, method='pearson', ...) {
+            private$similarity(self$fget(key), method=method, ...)
         },
 
         # Applies a filter to rows of the dataset
@@ -80,16 +102,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @return A filtered version of the original EDADataSet object.
         filter_rows = function(mask) {
             obj <- private$clone_()
-
-            # update data and metadata matrices
-            obj$dat <- obj$dat[mask,, drop = FALSE]
-
-            # TODO: Create setter method to allow metadata to be updated?
-            # or, implement downstream...
-            #if ('metadata' %in% names(private$row_data)) {
-                #obj$metadata <- obj$metadata[mask,, drop = FALSE]
-            #}
-
+            obj$set(1, obj$get()[mask,, drop = FALSE])
             obj
         },
 
@@ -101,15 +114,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @return A filtered version of the original EDADataSet object.
         filter_cols = function(mask) {
             obj <- private$clone_()
-
-            # update data and metadata matrices
-            obj$dat <- obj$dat[, mask, drop = FALSE]
-
-            # TODO (see above)
-            #if (!is.null(obj$metadata)) {
-            #    obj$metadata <- obj$metadata[mask,, drop = FALSE]
-            #}
-
+            obj$set(1, obj$get()[, mask, drop = FALSE])
             obj
         },
 
@@ -126,25 +131,24 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param method Character array specifying imputation method to use
         #     (options: knn)
-        impute = function(method='knn') {
+        impute = function(key=1, method='knn') {
             # Keep track of original dataset class
-            cls <- class(self$dat)
+            dat <- self$get(key)
+            cls <- class(dat)
 
-            message(sprintf("Imputing %d missing values...", sum(is.na(self$dat))))
+            message(sprintf("Imputing %d missing values...", sum(is.na(dat))))
 
             # kNN
             if (method == 'knn') {
-                imputed <- VIM::kNN(self$dat)[, 1:ncol(self$dat)]
-                rownames(imputed) <- rownames(self$dat)
+                imputed <- VIM::kNN(dat)[, 1:ncol(dat)]
+                rownames(imputed) <- rownames(dat)
 
                 if (cls == 'matrix') {
                     imputed <- as.matrix(imputed)
                 }
             }
-
             message("Done.")
-
-            self$dat <- imputed
+            self$set(key, imputed)
         },
 
         # Subsample dataset
@@ -162,38 +166,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return An EDADataSet instance
         subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
-            row_ind <- 1:nrow(self$dat)
-            col_ind <- 1:ncol(self$dat)
-
-            # subsample rows
-            if (!is.null(row_n)) {
-                row_ind <- sample(row_ind, row_n)
-            } else if (!is.null(row_ratio)) {
-                row_ind <- sample(row_ind, round(row_ratio * nrow(self$dat)))
-            }
-
-            # subsample columns
-            if (!is.null(col_n)) {
-                col_ind <- sample(col_ind, col_n)
-            } else if (!is.null(col_ratio)) {
-                col_ind <- sample(col_ind, round(col_ratio * ncol(self$dat)))
-            }
-
             # clone and subsample dataset
             obj <- private$clone_()
-
-            # update data and metadata matrices
-            obj$dat <- obj$dat[row_ind, col_ind, drop = FALSE]
-
-            # TODO: Move to child method... (no row_mdata here...)
-            #if (!is.null(obj$metadata)) {
-            #    obj$metadata <- obj$metadata[row_ind,, drop = FALSE]
-            #}
-
-            #if (!is.null(obj$metadata)) {
-            #    obj$metadata <- obj$metadata[col_ind,, drop = FALSE]
-            #}
-
+            obj$datasets[[1]]$subsample(row_n, col_n, row_ratio, col_ratio)
             obj
         },
 
@@ -203,9 +178,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #   formatted using markdown. (NOTE: Not yet implemented...)
         # @param num_digits Number of digits to display when printing summary
         #   output (default: 2).
-        summary = function(markdown=FALSE, num_digits=2) {
+        summary = function(key=1, markdown=FALSE, num_digits=2) {
             # collection summary info
-            x <- self$dat
+            x <- self$fget(key)
 
             # list to store summary info
             info <- list()
@@ -275,8 +250,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # or else, uses a separate color for each column.
         #
         # @return ggplot plot instance.
-        plot_densities = function(color=NULL, title="", ...) {
-            dat <- setNames(melt(self$dat), c('row', 'column', 'val'))
+        plot_densities = function(key=1, color=NULL, title="", ...) {
+            dat <- setNames(melt(self$fget(key)), c('row', 'column', 'val'))
             styles <- private$get_geom_density_styles(color)
 
             if (!is.null(styles$color)) {
@@ -307,28 +282,16 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         # Prints an overview of the object instance
         print = function() {
+            dat <- self$fget(1)
+            cls <- class(self)[1]
+
             cat("=========================================\n")
             cat("=\n")
-            cat(sprintf("= AbstractMultiDataSet (n=%d)\n", length(private$datasets)))
+            cat(sprintf("= %s (n=%d)\n", cls, length(private$datasets)))
             cat("=\n")
-            cat(sprintf("= dat: %s (%d x %d)\n", class(self$dat)[1], nrow(self$dat), ncol(self$dat)))
-            if (length(private$row_data) > 1) {
-                cat("=\n")
-                cat("= Row data\n")
-                cat("=\n")
-                for (i in 2:length(private$row_data)) {
-                    ds <- private$row_data[[i]]
-                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
-                }
-            }
-            if (length(private$col_data) > 1) {
-                cat("=\n")
-                cat("= Column data\n")
-                cat("=\n")
-                for (i in 2:length(private$col_data)) {
-                    ds <- private$col_data[[i]]
-                    cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds)[1], nrow(ds$dat), ncol(ds$dat)))
-                }
+            for (i in seq_along(private$datasets)) {
+                ds <- self$fget(i) 
+                cat(sprintf("= %02d. %s (%d x %d)\n", i, class(ds), nrow(ds), ncol(ds)))
             }
             cat("=\n")
             cat("=========================================\n")
@@ -343,38 +306,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         # transpose (in-place)
         transpose = function() {
-            # transpose main dataset, preserving underlying class
-            dat_cls <- get(sprintf("as.%s", class(self$dat)))
-            self$dat <- dat_cls(t(self$dat))
-
-            # transpose any remaining row- and column-oriented datasets
-            rdat <- private$row_data
-            cdat <- private$col_data
-
-            private$row_data <- cdat
-            private$col_data <- rdat
-
-            # TODO: Find a better way to transpose dataframes, preserving col types and
-            # factor levels
-            #> sapply(x, class)
-            #obs_prop1 obs_prop2                                                                                       
-            #"factor"  "factor"                                                                                       
-            #> sapply(y, class)                                                                                        
-            #obs_prop1 obs_prop2                                                                                       
-            #"integer"  "factor" 
-
-            if (length(private$row_data) > 1) {
-                for (rdat in names(private$row_data)[2:length(private$row_data)]) {
-                    dat_cls <- get(sprintf("as.%s", class(private$row_data[[rdat]])))
-                    private$row_data[[rdat]] <- dat_cls(t(private$row_data[[rdat]]))
-                }
-            }
-
-            if (length(private$col_data) > 1) {
-                for (cdat in names(private$col_data)[2:length(private$col_data)]) {
-                    dat_cls <- get(sprintf("as.%s", class(private$col_data[[cdat]])))
-                    private$col_data[[cdat]] <- dat_cls(t(private$col_data[[cdat]]))
-                }
+            # transpose data
+            for (id in names(private$datasets)) {
+               private$datasets[[id]]$transpose()
             }
 
             # swap row and column style parameters
@@ -392,52 +326,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             private$row_shape_ds <- private$col_shape_ds
             private$row_label_ds <- private$col_label_ds
 
-            private$col_color    <- row_color    
-            private$col_shape    <- row_shape    
-            private$col_label    <- row_label    
-            private$col_shape_ds <- row_color_ds 
-            private$col_shape_ds <- row_shape_ds 
-            private$col_label_ds <- row_label_ds 
-
-            # transpose row datasets, if they exist
-            #if (length(private$row_data) > 1) {
-            #    for (key in names(private$row_data)[2:length(private$row_data)]) {
-            #        dat <- private$row_data[[key]]
-
-            #        # Preserve underlying dataset class (dataframe or matrix)
-            #        dat_cls <- get(sprintf("as.%s", class(dat)))
-            #        col_data[[key]] <- dat_cls(t(dat))
-
-            #        rownames(col_data[[key]]) <- colnames(dat)
-            #        colnames(col_data[[key]]) <- rownames(dat)
-            #    }
-            #}
-
-            ## transpose column datasets, if they exist
-            #if (length(private$col_data) > 1) {
-            #    for (key in names(private$col_data)[2:length(private$col_data)]) {
-            #        dat <- private$col_data[[key]]
-
-            #        # Preserve underlying dataset class (dataframe or matrix)
-            #        dat_cls <- get(sprintf("as.%s", class(dat)))
-            #        row_data[[key]] <- dat_cls(t(dat))
-
-            #        rownames(row_data[[key]]) <- colnames(dat)
-            #        colnames(row_data[[key]]) <- rownames(dat)
-            #    }
-            #}
-
-            ## create transposed object instance
-            #cls$new(tdat, row_data = row_data, col_data = col_data,
-            #        row_color = private$col_color, row_color_ds = private$col_color_ds,
-            #        row_shape = private$col_shape, row_shape_ds = private$col_shape_ds,
-            #        row_label = private$col_label, row_label_ds = private$col_label_ds,
-            #        col_color = private$row_color, col_color_ds = private$row_color_ds,
-            #        col_shape = private$row_shape, col_shape_ds = private$row_shape_ds,
-            #        col_label = private$row_label, col_label_ds = private$row_label_ds,
-            #        color_pal = private$color_pal,
-            #        title     = private$title,
-            #        ggplot_theme = private$ggplot_theme)
+            private$col_color    <- row_color
+            private$col_shape    <- row_shape
+            private$col_shape_ds <- row_shape_ds
+            private$col_label_ds <- row_label_ds
         }
     ),
 
@@ -446,8 +338,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
     # ------------------------------------------------------------------------
     private = list(
         # private params
-        row_data = NULL,
-        col_data = NULL,
+        datasets     = NULL,
 
         row_color    = NULL,
         row_shape    = NULL,
@@ -469,15 +360,37 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         cache        = list(),
 
+        # clone object
+        clone_ = function() {
+            obj <- self$clone(deep = TRUE)
+            obj$clear_cache()
+            obj
+        },
+
+        # deep_clone function necessary to ensure datasets list of R6 classes
+        # are copied during cloning
+        deep_clone = function(name, value) {
+            if (name == "datasets") {
+                copied <- list()
+
+                for (key in names(value)) {
+                    copied[[key]] <- value[[key]]$clone()
+                }
+                copied
+            } else {
+                value
+            }
+        },
+
         # Generates ggplot aesthetics for bar plots
         #
         # @param color Color variable as passed into plot function call
         #
         # @return List of style information
-        get_geom_bar_styles = function(color, dataset_key=NULL) {
+        get_geom_bar_styles = function(color, key=NULL) {
             # list to store style properties
             res <- list(aes = aes(), labels = list())
-            private$add_color_styles(res, color, dataset_key)
+            private$add_color_styles(res, color, key)
         },
 
         # Generates ggplot aesthetics for density plots
@@ -485,10 +398,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param color Color variable as passed into plot function call
         #
         # @return List of style information
-        get_geom_density_styles = function(color, dataset_key=NULL) {
+        get_geom_density_styles = function(color, key=NULL) {
             # list to store style properties
             res <- list(aes = aes(), labels = list())
-            private$add_color_styles(res, color, dataset_key)
+            private$add_color_styles(res, color, key)
         },
 
         # Generates ggplot aesthetics for histogram plots
@@ -496,10 +409,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param color Color variable as passed into plot function call
         #
         # @return List of style information
-        get_geom_histogram_styles = function(color, dataset_key=NULL) {
+        get_geom_histogram_styles = function(color, key=NULL) {
             # list to store style properties
             res <- list(aes = aes(), labels = list())
-            private$add_color_styles(res, color, dataset_key)
+            private$add_color_styles(res, color, key)
         },
 
         # Generates ggplot aesthetics for a geom_point plot
@@ -509,15 +422,15 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return List of geom_point style information
         get_geom_point_styles = function(color, shape,
-                                         color_dataset_key=NULL,
-                                         shape_dataset_key=NULL) {
+                                         color_key=NULL,
+                                         shape_key=NULL) {
             # list to store style properties
             res <- list(
                 aes = aes(),
                 labels = list()
             )
-            res <- private$add_color_styles(res, color, color_dataset_key)
-            res <- private$add_shape_styles(res, shape, shape_dataset_key)
+            res <- private$add_color_styles(res, color, color_key)
+            res <- private$add_shape_styles(res, shape, shape_key)
             res
         },
 
@@ -525,8 +438,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param styles List of color-related style info
         # @param color Color variable passed into plot function call
-        add_color_styles = function(styles, color, dataset_key=NULL) {
-            color_info <- private$get_color_styles(color, dataset_key)
+        add_color_styles = function(styles, color, key=NULL) {
+            color_info <- private$get_color_styles(color, key)
 
             styles[['color']] <- color_info[['color']]
 
@@ -542,8 +455,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param styles List of shape-related style info
         # @param shape shape variable passed into plot function call
-        add_shape_styles = function(styles, shape, dataset_key=NULL) {
-            shape_info <- private$get_shape_styles(shape, dataset_key)
+        add_shape_styles = function(styles, shape, key=NULL) {
+            shape_info <- private$get_shape_styles(shape, key)
 
             styles[['shape']] <- shape_info[['shape']]
 
@@ -557,11 +470,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         # Returns a list of color-related style information
         #
+        # @param key Name of dataset containing field to use for color
         # @param color Color variable as passed into plot function call
-        # @param dataset_key Name of row_data dataset containing field to use for color
         #
         # @return list List of color-related properties
-        get_color_styles = function(color, dataset_key=NULL) {
+        get_color_styles = function(color, key) {
             res <- list(
                 color  = NULL,
                 aes    = aes(),
@@ -569,20 +482,20 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             )
 
             # dataset containing color field
-            if (is.null(dataset_key)) {
-                dataset_key <- private$row_color_ds
+            if (is.null(key)) {
+                key <- private$row_color_ds
             }
 
             # if specified as a function argument, override default color
             if (!is.null(color) && (color != FALSE)) {
                 # color variable can either correspond to a column in the
                 # dataset itself, or in the
-                res[['color']]  <- private$row_data[[dataset_key]][, color]
+                res[['color']]  <- self$fget(key)[, color]
                 res[['aes']]    <- aes(color = color)
                 res[['labels']] <- labs(color = color)
             } else if (is.null(color) && !is.null(private$row_color)) {
                 # otherwise, use object-level default value
-                res[['color']]  <- private$row_data[[dataset_key]][, private$row_color]
+                res[['color']]  <- self$fget(key)[, private$row_color]
                 res[['aes']]    <- aes(color = color)
                 res[['labels']] <- labs(color = private$row_color)
             }
@@ -594,7 +507,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param shape Shape variable as passed into plot function call
         #
         # @return list List of shape-related properties
-        get_shape_styles = function(shape, dataset_key=NULL) {
+        get_shape_styles = function(shape, key=NULL) {
             res <- list(
                 shape  = NULL,
                 aes    = aes(),
@@ -602,18 +515,18 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             )
 
             # dataset containing color field
-            if (is.null(dataset_key)) {
-                dataset_key <- private$row_shape_ds
+            if (is.null(key)) {
+                key <- private$row_shape_ds
             }
 
             # if specified as a function argument, override default shape
             if (!is.null(shape) && (shape != FALSE)) {
-                res[['shape']]  <- private$row_data[[dataset_key]][, shape]
+                res[['shape']]  <- self$fget(key)[, shape]
                 res[['aes']]    <- aes(shape = shape)
                 res[['labels']] <- labs(shape = shape)
             } else if (is.null(shape) && !is.null(private$shape)) {
                 # otherwise, use object-level default value
-                res[['shape']]  <- private$row_data[[dataset_key]][, private$shape]
+                res[['shape']]  <- self$fget(key)[, private$shape]
                 res[['aes']]    <- aes(shape = shape)
                 res[['labels']] <- labs(shape = private$shape)
             }
@@ -629,7 +542,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Vector of colors with length equal to the number of columns
         #            in the data.
-        get_var_colors = function(color, dataset_key, color_pal) {
+        get_var_colors = function(color, key, color_pal) {
             # if no variable is specified, use default black for plots
             if (is.null(color)) {
                 if (is.null(private$col_color)) {
@@ -641,12 +554,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             # dataset containing color field
-            if (is.null(dataset_key)) {
-                dataset_key <- private$row_color_ds
+            if (is.null(key)) {
+                key <- private$row_color_ds
             }
 
             # otherwise, assign colors based on the variable specified
-            column_var <- as.numeric(factor(self$row_data[[dataset_key]][, color]))
+            column_var <- as.numeric(factor(self$fget(key)[, color]))
 
             pal <- RColorBrewer::brewer.pal(9, color_pal)
             colors <- colorRampPalette(pal)(min(1E4, length(unique(column_var))))
@@ -661,99 +574,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Vector of labels with length equal to the number of columns
         #         in the data.
-        get_var_labels = function(label, dataset_key=NULL) {
+        get_var_labels = function(label, key=NULL) {
             if (is.null(label)) {
                 return(colnames(self$dat))
             }
 
             # dataset containing color field
-            if (is.null(dataset_key)) {
-                dataset_key <- private$row_label_ds
+            if (is.null(key)) {
+                key <- private$row_label_ds
             }
 
-            private$row_data[[dataset_key]][, label]
-        },
-
-        # Normalizes handling of data row and column identifiers
-        #
-        # Checks dataset row and column identifiers and converts them to row
-        # and column names, respectively, if they are not already stored there.
-        #
-        # @param dat Dataset
-        # @param row_ids Column id or number where row identifiers are stored.
-        # @param col_ids Row id or number where column identifiers are stored.
-        #
-        # @param Dataset with identifiers as rows and columns
-        normalize_data_ids = function(dat, row_ids, col_ids) {
-            # row ids
-            if (row_ids != 'rownames') {
-                # column number containing row ids specified
-                if (is.numeric(row_ids)) {
-                    rownames(dat) <- dat[, row_ids]
-                    dat <- dat[, -row_ids]
-                } else if (row_ids %in% colnames(dat)) {
-                    # column name containing row ids specified
-                    ind <- which(colnames(dat) == row_ids)
-                    rownames(dat) <- dat[, ind]
-                    dat <- dat[, -ind]
-                }
-            }
-
-            # column ids
-            if (col_ids != 'colnames') {
-                # row number containing column ids
-                if (is.numeric(col_ids)) {
-                    colnames(dat) <- dat[col_ids, ]
-                    dat <- dat[-col_ids, ]
-                } else if (col_ids %in% colnames(dat)) {
-                    # row name containing columns ids
-                    ind <- which(rownames(dat) == col_ids)
-                    colnames(dat) <- dat[ind, ]
-                    dat <- dat[-ind, ]
-                }
-            }
-
-            # if either row or column id's are missing, assign arbitrary numeric
-            # identifiers; required for some plotting, etc. functionality.
-            if (is.null(colnames(dat))) {
-                colnames(dat) <- 1:ncol(dat)
-            }
-            if (is.null(rownames(dat))) {
-                rownames(dat) <- 1:nrow(dat)
-            }
-
-            # return normalized dataset
-            dat
-        },
-
-        # normalize row-oriented dataset row order
-        normalize_row_order = function(row_data, ids) {
-            # iterate over datasets
-            for (rdat in names(row_data)) {
-                # if order is not the same as main dataset, reorder
-                if (!(all(rownames(row_data[[rdat]]) == ids))) {
-                    # match row dataset row order to row names specified
-                    ind <- order(match(rownames(row_data[[rdat]]), ids))
-
-                    # return result
-                    row_data[[rdat]] <- row_data[[rdat]][ind,, drop = FALSE]
-                }
-            }
-        },
-
-        # normalize column-oriented dataset column order
-        normalize_col_order = function(col_data, ids) {
-            # iterate over datasets
-            for (cdat in names(col_data)) {
-                # if order is not the same as main dataset, reorder
-                if (!(all(colnames(col_data[[cdat]]) == ids))) {
-                    # match column dataset column order to column names specified
-                    ind <- order(match(colnames(col_data[[cdat]]), ids))
-
-                    # return result
-                    col_data[[cdat]] <- col_data[[cdat]][ind,, drop = FALSE]
-                }
-            }
+            self$fget(key)[, label]
         },
 
         #
@@ -853,14 +684,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         ),
 
         check_input = function() {
-            # TODO: Check to make sure row_data and col_data shared expected
-            # keys with dat
+            # TODO: Check to make sure all datasets overalp in keys with dat
         },
 
         # Computes cross-dataset correlation matrix
-        #
-        # Operates on datasets sharing a common column name (i.e. members
-        # of col_data).
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
@@ -872,17 +699,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1='dat', key2=2, method='pearson', ...) {
-            # make sure datasets are ordered similarly
-            dat1 <- private$col_data[[key1]]
-            dat2 <- private$col_data[[key2]]
-
-            # for multidatasets, get underlying data
-            if ('EDADataSet' %in% class(dat1)) {
-                dat1 <- dat1$dat
-                dat2 <- dat2$dat
+            # make sure both datasets share the same keys
+            if (private$datasets[[key1]]$orientation != private$datasets[[key2]]$orientation) {
+                stop("Specified datasets don't share common keys")
             }
 
-            # TODO: Include checks?
+            # TODO: make sure datasets are ordered similarly
 
             # for metadata, we can also exclude factor fields with all
             # unique values (e.g. alternate identifiers)
@@ -894,16 +716,24 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
             #    dat2 <- dat2[!exclude, ]
 
-            # only compare matching columns
-            col_ind <- intersect(colnames(dat1), colnames(dat2))
+            if (private$datasets[[key1]]$orientation == 'columns') {
+                dat1 <- self$fget(key1)
+                dat2 <- self$fget(key2)
+            } else {
+                # the similarity() method operates on columns so for datasets
+                # that share common row id's, we transpose the datasets first
+                dat1 <- self$tget(key1)
+                dat2 <- self$tget(key2)
+            }
 
-            dat1 <- dat1[, col_ind, drop = FALSE]
-            dat2 <- dat2[, col_ind, drop = FALSE]
+            row_ind <- intersect(rownames(dat1), rownames(dat2))
+
+            dat1 <- dat1[match(rownames(dat1), row_ind),, drop = FALSE]
+            dat2 <- dat2[match(rownames(dat2), row_ind),, drop = FALSE]
 
             # measure similarity between rows in datasets 1 and rows in
-            # dataset 2; the similarity() method operates on columns so we
-            # transposes the datasets first
-            cor_mat <- private$similarity(t(dat1), t(dat2), method = method, ...)
+            # dataset 2
+            cor_mat <- private$similarity(dat1, dat2, method = method, ...)
 
             cor_mat
         },
@@ -918,7 +748,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # compute cross correlations
             cor_mat <- self$cross_cor(key1, key2, method)
 
-            # list of parameters to pass to heatmaply
+           # list of parameters to pass to heatmaply
             params <- list(
                 x               = cor_mat,
                 showticklabels  = c(FALSE, FALSE),
@@ -927,8 +757,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             )
 
             # if metadata is availble, display along side of heatmap
-            if ('metadata' %in% names(private$row_data)) {
-                mdata1 <- private$row_data[['metadata']]
+            if ('row_mdata' %in% names(private$datasets)) {
+                mdata1 <- self$fget('row_mdata') 
                 mask1  <- sapply(mdata1, function(x) max(table(x)) > 1 )
                 mdata1 <- mdata1[, mask1, drop = FALSE]
 
@@ -936,8 +766,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
             }
 
-            if ('metadata' %in% names(self$col_data)) {
-                mdata1 <- self$col_data[['metadata']]
+            if ('col_mdata' %in% names(private$datasets)) {
+                mdata1 <- self$fget('col_mdata') 
                 mask2  <- sapply(mdata2, function(x) max(table(x)) > 1 )
                 mdata2 <- mdata2[, mask2, drop = FALSE]
 
@@ -1032,21 +862,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             cor_mat
-        }
-    ),
-
-    # ------------------------------------------------------------------------
-    # active bindings
-    # ------------------------------------------------------------------------
-    active = list(
-        # main dataset
-        dat = function(value) {
-            if (missing(value)) {
-                private$col_data[['dat']]
-            } else {
-                private$row_data[['dat']] <- value
-                private$col_data[['dat']] <- value
-            }
         }
     )
 )

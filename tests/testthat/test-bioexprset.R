@@ -36,7 +36,7 @@ bset <- BioExprSet$new(mat, row_mdata = row_mdat, col_mdata = col_mdat)
 ##############################
 
 test_that("pathway statistics works", {
-    expect_error(bset$compute_pathway_stats(NULL, stat='nonexistent_stat'), 
-                 "Invalid pathway statistic specified.", fixed = TRUE)
+    expect_error(bset$annotation_stats(NULL, stat='nonexistent_stat'), 
+                 "Invalid statistic specified.", fixed = TRUE)
 })
 

@@ -160,9 +160,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            super$initialize(dat,
-                             list('metadata'=row_mdata),
-                             list('metadata'=col_mdata),
+            super$initialize(list('dat'=dat, 'row_mdata'=row_mdata, 'col_mdata'=col_mdata),
                              row_color=row_color, row_color_ds='metadata',
                              row_shape=row_shape, row_shape_ds='metadata',
                              row_label=row_label, row_label_ds='metadata',
@@ -185,53 +183,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             cat(sprintf("=   columns: %d %s\n", ncol(self$dat), cm))
             cat("=\n")
             cat("=========================================\n")
+        },
+
+        transpose = function() {
+            # transpose datasets in-place
+            super$transpose()
+
+            # swap keys for row/column metadata
+            row_mdat <- private$datasets[['row_mdata']] 
+            private$datasets[['row_mdata']] <- private$datasets[['col_mdata']]
+            private$datasets[['col_mdata']] <- row_mdat
         }
-
-        #t = function() {
-        #    # EDADataSet class
-        #    cls <- get(class(self)[1])
-
-        #    # Preserve underlying dataset class (dataframe or matrix)
-        #    dat_cls <- get(sprintf("as.%s", class(self$dat)))
-        #    tdat <- dat_cls(t(self$dat))
-
-        #    rownames(tdat) <- colnames(self$dat)
-        #    colnames(tdat) <- rownames(self$dat)
-
-        #    # do the same for row and column metadata
-        #    row_mdata <- NULL
-        #    col_mdata <- NULL
-
-        #    if (!is.null(self$col_mdata)) {
-        #        dat <- self$col_mdata
-
-        #        # Preserve underlying dataset class (dataframe or matrix)
-        #        dat_cls <- get(sprintf("as.%s", class(dat)))
-        #        row_mdata <- dat_cls(t(dat))
-
-        #        rownames(row_mdata) <- colnames(dat)
-        #        colnames(row_mdata) <- rownames(dat)
-        #    }
-
-        #    if (!is.null(self$row_mdata)) {
-        #        dat <- self$row_mdata
-
-        #        # Preserve underlying dataset class (dataframe or matrix)
-        #        dat_cls <- get(sprintf("as.%s", class(dat)))
-        #        col_mdata <- dat_cls(t(dat))
-
-        #        rownames(col_mdata) <- colnames(dat)
-        #        colnames(col_mdata) <- rownames(dat)
-        #    }
-
-        #    cls$new(tdat, row_mdata = row_mdata, col_mdata = col_mdata,
-        #            row_color = private$col_color, row_shape = private$col_shape,
-        #            row_label = private$col_label, col_color = private$row_color,
-        #            col_shape = private$row_shape, col_label = private$row_label,
-        #            color_pal = private$color_pal,
-        #            title     = private$title,
-        #            ggplot_theme = private$ggplot_theme)
-        #}
     ),
     private = list(
         # Verifies that input data is of type matrix
@@ -239,12 +201,6 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             if (!is.matrix(dat)) {
                 stop("Invalid input for EDAMatrix: dat must be a matrix.")
             }
-        },
-
-        clone_ = function() {
-            obj <- self$clone()
-            obj$clear_cache()
-            obj
         },
 
         # Prints dataset summary to screen
@@ -310,7 +266,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             cat(paste0(sprintf("%2d", 1:length(x$row_outliers)), ". ", x$row_outliers, "\n"))
             cat("\n")
             cat("=========================================\n")
-        },
+        }
 
         # Determines metadata columns to include for heatmap, etc. functions
         #
@@ -320,41 +276,35 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # should be excluded from the analysis.
         #
         # @return Character vector of fields to include in analysis.
-        select_features = function(include, exclude) {
-            # determine fields to include based on user arguments
-            if (!is.null(include)) {
-                include <- include
-            } else if (!is.null(exclude)) {
-                include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
-            } else {
-                include <- colnames(self$row_mdata)
-            }
+        #select_features = function(include, exclude) {
+        #    # determine fields to include based on user arguments
+        #    if (!is.null(include)) {
+        #        include <- include
+        #    } else if (!is.null(exclude)) {
+        #        include <- colnames(self$row_mdata)[!colnames(self$row_mdata) %in% exclude]
+        #    } else {
+        #        include <- colnames(self$row_mdata)
+        #    }
 
-            # always exclude fields with all unique values (e.g. identifiers)
-            mask <- sapply(self$row_mdata[, include], function(x) {
-                max(table(x)) > 1
-            })
-            include[mask]
-        }
+        #    # always exclude fields with all unique values (e.g. identifiers)
+        #    mask <- sapply(self$row_mdata[, include], function(x) {
+        #        max(table(x)) > 1
+        #    })
+        #    include[mask]
+        #}
     ),
     # ------------------------------------------------------------------------
     # active bindings
     # ------------------------------------------------------------------------
     active = list(
-        # params
+        dat = function() {
+            private$datasets[['dat']]$fdat
+        },
         row_mdata = function(value) {
-            if (missing(value)) {
-                private$row_data[['metadata']]
-            } else {
-                private$row_data[['metadata']] <- value
-            }
+            private$datasets[['row_mdata']]$fdat
         },
         col_mdata = function(value) {
-            if (missing(value)) {
-                private$col_data[['metadata']]
-            } else {
-                private$col_data[['metadata']] <- value
-            }
+            private$datasets[['col_mdata']]$fdat
         }
     )
 )

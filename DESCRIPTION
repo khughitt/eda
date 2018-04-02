@@ -13,6 +13,7 @@ Depends:
     reshape2
 Imports:
     corpcor,
+    data.table,
     heatmaply,
     mpmi,
     RColorBrewer,

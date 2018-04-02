@@ -177,11 +177,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
                 dat <- exprs(dat)
             }
 
-            super$initialize(dat, 
-                             list('row_mdata'=row_mdata), 
-                             list('col_mdata'=col_mdata),
-                             #row_ids, col_ids,
-                             #row_mdata_ids, col_mdata_ids, 
+            super$initialize(list('dat' = dat, 'row_mdata' = row_mdata, 'col_mdata'=col_mdata),
                              row_color=row_color, row_color_ds='row_mdata',
                              row_shape=row_shape, row_shape_ds='row_mdata',
                              row_label=row_label, row_label_ds='row_mdata',
@@ -195,7 +191,7 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #
         # @return A CPM-transformed version of the BioExprSet instance.
         cpm = function() {
-            obj <- self$clone()
+            obj <- private$clone_() 
             obj$dat <- sweep(obj$dat, 2, colSums(obj$dat), '/') * 1E6
             obj
         },
@@ -229,6 +225,20 @@ BioExprSet <- R6::R6Class("BioExprSet",
             if (!is.matrix(dat) && (class(dat) != 'ExpressionSet')) {
                 stop("Invalid input for BioExprSet: dat must be a matrix or ExpressionSet.")
             }
+        }
+    ),
+    # ------------------------------------------------------------------------
+    # active bindings
+    # ------------------------------------------------------------------------
+    active = list(
+        dat = function() {
+            private$datasets[['dat']]$fdat
+        },
+        row_mdata = function(value) {
+            private$datasets[['row_mdata']]$fdat
+        },
+        col_mdata = function(value) {
+            private$datasets[['col_mdata']]$fdat
         }
     )
 )
