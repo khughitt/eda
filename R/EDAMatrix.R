@@ -179,22 +179,132 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                              color_pal, title, ggplot_theme)
         },
 
+        cluster_tsne = function(k=10, ...) {
+            super$cluster_tsne(key='dat', k=k, ...)
+        },
+
+        detect_col_outliers = function(num_sd=2, ctend=median, method='pearson', ...) {
+            super$detect_col_outliers(key='dat', num_sd=num_sd, ctend=ctend, method=method, ...)
+        },
+
+        detect_row_outliers = function(num_sd=2, ctend=median, method='pearson', ...) {
+            super$detect_row_outliers(key='dat', num_sd=num_sd, ctend=ctend, method=method, ...)
+        },
+
+        # Detects dependencies between column metadata entries (features) and
+        # dataset rows.
+        feature_cor = function(method='pearson') {
+            if (is.null(self$col_mdata)) {
+                stop("Error: missing column metadata.")
+            }
+            private$cross_cor('dat', 'col_mdata', method)
+        },
+
+        filter_col_outliers = function(num_sd=2, ctend=median, method='pearson') {
+            super$filter_col_outliers(key='dat', num_sd=num_sd, ctend=ctend, method=method)
+        },
+
+        filter_rows = function(mask) {
+            super$filter_rows(key='dat', mask=mask)
+        },
+
+        filter_cols = function(mask) {
+            super$filter_cols(key='dat', mask=mask)
+        },
+
+        filter_row_outliers = function(num_sd=2, ctend=median, method='pearson') {
+            super$filter_row_outliers(key='dat', num_sd=num_sd, ctend=ctend, method=method)
+        },
+
         impute = function(method='knn') {
-            super$impute(key=1, method=method)
+            super$impute(key='dat', method=method)
+        },
+
+        pca = function(...) {
+            super$pca(key='dat', ...)
+        },
+
+        tsne = function(...) {
+            super$tsne(key='dat', ...)
+        },
+
+        pca_feature_cor = function(method='pearson', ...) {
+            self$t$pca(...)$t$feature_cor(method)
+        },
+
+        tsne_feature_cor = function(method='pearson', ...) {
+            self$t$tsne(...)$t$feature_cor(method)
+        },
+
+        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
+            plot_cor_heatmap(key='dat', method=method, interactive=interactive, ...)
+        },
+
+        plot_pairwise_column_cors = function(color=NULL, label=NULL, title="", 
+                                             method='pearson',
+                                             mar=c(12, 6, 4, 6), ...) {
+            super$plot_pairwise_column_cors(key='dat', color=color,
+                                            label=label, title=title,
+                                            method=method, mar=mar, ...)
+        },
+
+        # Creates a tile plot of projected data / feature correlations
+        #
+        # include Vector of strings indicating metadata columns which
+        # should be included in the analysis.
+        # exclude Features (column metadata variables) to exclude from
+        #     the analysis.
+        # color_scale Character vector containing colors to sue for
+        #     low-correlation and high-correlation values
+        #     (default: c('green', 'red')).
+        #
+        # return ggplot plot instance
+        plot_feature_cor = function(method='pearson', color_scale=c('green', 'red')) {
+            # compute feature correlations
+            dat <- melt(self$feature_cor(method = method))
+            colnames(dat) <- c('dim', 'variable', 'value')
+
+            # Labels
+            #if (method == 'pca') {
+            #    xlab_text <- 'Principle Components'
+            #} else if (method == 't-sne') {
+            #    xlab_text <- "t-SNE dimension"
+            #}
+            xlab_text <- 'TODO...'
+
+            # create plot
+            ggplot(dat, aes(x = dim, y = variable)) +
+                geom_tile(aes(fill = value)) +
+                geom_text(aes(label = value), size = 2, show.legend = FALSE) +
+                scale_fill_gradient(low = color_scale[1], high = color_scale[2]) +
+                private$ggplot_theme() +
+                theme(axis.text.x = element_text(size = 8, angle = 45,
+                                                 vjust = 1, hjust = 1),
+                      axis.text.y = element_text(size = 8)) +
+                xlab(xlab_text) +
+                ylab("Features") +
+                guides(fill = guide_legend("R^2"))
+        },
+
+        plot_heatmap = function(interactive=TRUE, ...) {
+            plot_heatmap(key='dat', interactive=interactive, ...)
+        },
+
+        plot_densities = function(color=NULL, title="", ...) {
+            super$plot_densities(key='dat', color=color, title=title, ...)
         },
 
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
-
-            super$plot_pca(key=1, pcx=pcx, pcy=pcy, scale=scale,
+            super$plot_pca(key='dat', pcx=pcx, pcy=pcy, scale=scale,
                             color=color, shape=shape, title=title,
                             text_labels=text_labels, ...)
         },
 
         plot_tsne = function(color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
-            super$plot_tsne(key=1, color=color, shape=NULL, title=NULL,
+            super$plot_tsne(key='dat', color=color, shape=NULL, title=NULL,
                             text_labels=text_labels, ...)
         },
 
@@ -217,8 +327,12 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
             # clone and subsample dataset
             obj <- private$clone_()
-            obj$edat$subsample(row_n, col_n, row_ratio, col_ratio)
+            obj$edat[['dat']]$subsample(row_n, col_n, row_ratio, col_ratio)
             obj
+        },
+
+        summary = function(markdown=FALSE, num_digits=2) {
+            super$summary(key='dat', markdown=markdown, num_digits=num_digits)
         },
 
         transpose = function() {
@@ -226,9 +340,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             super$transpose()
 
             # swap keys for row/column metadata
-            row_mdat <- private$datasets[['row_mdata']] 
-            private$datasets[['row_mdata']] <- private$datasets[['col_mdata']]
-            private$datasets[['col_mdata']] <- row_mdat
+            row_mdat <- self$edat[['row_mdata']] 
+            self$edat[['row_mdata']] <- self$edat[['col_mdata']]
+            self$edat[['col_mdata']] <- row_mdat
         }
     ),
     private = list(
@@ -333,24 +447,41 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
     # active bindings
     # ------------------------------------------------------------------------
     active = list(
-        dat = function() {
-            private$datasets[['dat']]$fdat
-        },
-        edat = function () {
-            private$datasets[['dat']]
+        dat = function(value) {
+            if (missing(value)) {
+                self$edat[['dat']]$dat
+            } else {
+                self$edat[['dat']]$dat <- value
+            }
         },
         row_mdata = function(value) {
-            if ('row_mdata' %in% names(private$datasets)) {
-                private$datasets[['row_mdata']]$fdat
+            if (missing(value)) {
+                if ('row_mdata' %in% names(self$edat)) {
+                    self$edat[['row_mdata']]$dat
+                } else {
+                    NULL
+                }
             } else {
-                NULL
+                if ('row_mdata' %in% names(self$edat)) {
+                    self$edat[['row_mdata']]$dat <- value
+                } else {
+                    self$edat[['row_mdata']] <- EDADat$new(value)
+                }
             }
         },
         col_mdata = function(value) {
-            if ('col_mdata' %in% names(private$datasets)) {
-                private$datasets[['col_mdata']]$fdat
+            if (missing(value)) {
+                if ('col_mdata' %in% names(self$edat)) {
+                    self$edat[['col_mdata']]$dat
+                } else {
+                    NULL
+                }
             } else {
-                NULL
+                if ('col_mdata' %in% names(self$edat)) {
+                    self$edat[['col_mdata']]$dat <- value
+                } else {
+                    self$edat[['col_mdata']] <- EDADat$new(value)
+                }
             }
         }
     )

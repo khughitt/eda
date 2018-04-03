@@ -63,7 +63,7 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1=1, key2=2, method='pearson') {
-            super$cross_cor(key1, key2, method)
+            super$compute_cross_cor(key1, key2, method)
         },
 
         # Plots multidataset correlation heatmap
@@ -87,13 +87,12 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
     # ------------------------------------------------------------------------
     active = list(
         # Make datasets publically visible for EDAMultiMatrix instances
-        # Question: should datasets expose EDADat-wrapped objects? or underlying
-        # (original / formatted) datasets?
         datasets = function(value) {
             if (missing(value)) {
-                private$datasets
+                lapply(self$edat, function(x) { x$dat })
             } else {
-                private$datasets <- value
+                # TO TEST (may need to make datasets read-only...)
+                lapply(self$edat, function(x) { x$dat }) <- value
             }
         }
     )

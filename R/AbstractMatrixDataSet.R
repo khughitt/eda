@@ -18,8 +18,6 @@
 #' @section Methods:
 #'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
 #'     correlation matrix between rows in two specified datasets.
-#'  - `plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)`:
-#'      Plots multidataset correlation heatmap.
 #'  - `print()`: Prints an overview of the object instance.
 #'
 #' @section Examples:
@@ -64,25 +62,14 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # return Vector of cluster assignments with length equal to the
         #     number of rows in the dataset.
-        cluster_tsne = function(k=10, ...) {
-            tsne <- Rtsne::Rtsne(self$dat, ...)
+        cluster_tsne = function(key=1, k=10, ...) {
+            tsne <- Rtsne::Rtsne(self$dat(key), ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
             # Cluster patients from t-sne results
             kmeans_clusters <- kmeans(dat, k)$cluster
 
             factor(paste0('cluster_', kmeans_clusters))
-        },
-
-        # Computes cross-dataset correlation matrix
-        #
-        # @param key1 Numeric or character index of first dataset to use
-        # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
-        #
-        # @return Matrix of pairwise dataset1 - dataset2 correlations
-        cross_cor = function(key1=1, key2=2, method='pearson') {
-            super$cross_cor(key1, key2, method)
         },
 
         # Detects column outliers in the dataset
@@ -98,14 +85,15 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # return Character vector or column ids for columns with low
         #     average pairwise correlations.
-        detect_col_outliers = function(num_sd=2, ctend=median, method='pearson', ...) {
+        detect_col_outliers = function(key=1, num_sd=2, ctend=median, method='pearson', ...) {
             # TODO: include correlation in results?
             # TODO: Write alternative version for data frame datasets?
-            cor_mat <- private$similarity(self$dat, method=method, ...)
+            dat <- self$dat(key)
+            cor_mat <- private$similarity(dat, method=method, ...)
 
             avg_column_cors <- apply(cor_mat, 1, ctend)
             cutoff <- mean(avg_column_cors) - (num_sd * sd(avg_column_cors))
-            colnames(self$dat)[avg_column_cors < cutoff]
+            colnames(dat)[avg_column_cors < cutoff]
         },
 
         # Detects row outliers in the dataset
@@ -120,21 +108,13 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # return Character vector or row ids for rows with low
         #     average pairwise correlations.
-        detect_row_outliers = function(num_sd=2, ctend=median, method='pearson', ...) {
-            cor_mat <- private$similarity(t(self$dat), method=method, ...)
+        detect_row_outliers = function(key=1, num_sd=2, ctend=median, method='pearson', ...) {
+            dat <- self$dat(key)
+            cor_mat <- private$similarity(t(dat), method=method, ...)
 
             avg_row_cors <- apply(cor_mat, 1, ctend)
             cutoff <- mean(avg_row_cors) - num_sd * sd(avg_row_cors)
-            rownames(self$dat)[avg_row_cors < cutoff]
-        },
-
-        # Detects dependencies between column metadata entries (features) and
-        # dataset rows.
-        feature_cor = function(method='pearson') {
-            if (is.null(self$col_mdata)) {
-                stop("Error: missing column metadata.")
-            }
-            private$cross_cor('dat', 'col_mdata', method)
+            rownames(dat)[avg_row_cors < cutoff]
         },
 
         # Removes column outliers from the dataset
@@ -148,9 +128,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #      outliers.
         #
         # return A filtered version of the original EDAMatrix object.
-        filter_col_outliers = function(num_sd=2, ctend=median, method='pearson') {
+        filter_col_outliers = function(key=1, num_sd=2, ctend=median, method='pearson') {
             obj <- private$clone_()
-            outliers <- obj$detect_col_outliers(num_sd, avg, method)
+            outliers <- obj$detect_col_outliers(key, num_sd, avg, method)
             obj$filter_cols(!colnames(obj$dat) %in% outliers)
         },
 
@@ -178,9 +158,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #     logarithm (default: 0)
         #
         # return A log-transformed version of the object.
-        log = function(base=exp(1), offset=0) {
+        log = function(key=1, base=exp(1), offset=0) {
             obj <- private$clone_()
-            obj$dat <- log(obj$dat + offset, base)
+            obj$edat[[key]]$dat <- log(obj$edat[[key]]$dat + offset, base)
             obj
         },
 
@@ -189,36 +169,27 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # return A log(x + 1) transformed version of the object.
         log1p = function() {
             obj <- private$clone_()
-            obj$dat <- log(obj$dat + 1)
+            obj$edat[[key]]$dat <- log(obj$edat[[key]]$dat + 1)
             obj
         },
 
         # PCA
         #
-        pca = function(...) {
+        pca = function(key=1, ...) {
             obj <- private$clone_()
-            obj$dat <- prcomp(self$dat, ...)$x
+            obj$edat[[key]]$dat <- prcomp(obj$edat[[key]]$dat, ...)$x
             obj$col_mdata <- NULL
             obj
-        },
-
-        #
-        pca_feature_cor = function(method='pearson', ...) {
-            self$t$pca(...)$t$feature_cor(method)
         },
 
         #
         # t-SNE
         #
-        tsne = function(...) {
+        tsne = function(key=1, ...) {
             obj <- private$clone_()
-            obj$dat <- Rtsne::Rtsne(obj$dat, ...)
+            obj$edat[[key]]$dat <- Rtsne::Rtsne(obj$edat[[key]]$dat, ...)
             obj$col_mdata <- NULL
             obj
-        },
-
-        tsne_feature_cor = function(method='pearson', ...) {
-            self$t$tsne(...)$t$feature_cor(...)
         },
 
         ######################################################################
@@ -235,9 +206,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # @seealso \code{cor} for more information about supported correlation
         #      methods.
-        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
+        plot_cor_heatmap = function(key=1, method='pearson', interactive=TRUE, ...) {
             # generate correlation matrix
-            cor_mat <- private$similarity(self$dat, method=method, ...)
+            cor_mat <- private$similarity(self$dat(key), method=method, ...)
 
 
             # list of parameters to pass to heatmaply
@@ -273,16 +244,16 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             # add any additional function arguments
             params <- c(params, ...)
 
-            private$plot_heatmap(params, interactive)
+            private$construct_heatmap_plot(params, interactive)
         },
 
         # Generates a heatmap plot of the dataset
         #
         # ... Additional arguments
-        plot_heatmap = function(interactive=TRUE, ...) {
+        plot_heatmap = function(key, interactive=TRUE, ...) {
             # list of parameters to pass to heatmaply
             params <- list(
-                x               = self$dat,
+                x               = self$dat(key),
                 showticklabels  = c(FALSE, FALSE),
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
@@ -302,45 +273,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             # add any additional function arguments
             params <- c(params, ...)
 
-            private$plot_heatmap(params, interactive)
-        },
-
-        # Creates a tile plot of projected data / feature correlations
-        #
-        # include Vector of strings indicating metadata columns which
-        # should be included in the analysis.
-        # exclude Features (column metadata variables) to exclude from
-        #     the analysis.
-        # color_scale Character vector containing colors to sue for
-        #     low-correlation and high-correlation values
-        #     (default: c('green', 'red')).
-        #
-        # return ggplot plot instance
-        plot_feature_cor = function(method='pearson', color_scale=c('green', 'red')) {
-            # compute feature correlations
-            dat <- melt(private$feature_cor(method = method))
-            colnames(dat) <- c('dim', 'variable', 'value')
-
-            # Labels
-            #if (method == 'pca') {
-            #    xlab_text <- 'Principle Components'
-            #} else if (method == 't-sne') {
-            #    xlab_text <- "t-SNE dimension"
-            #}
-            xlab_text <- 'TODO...'
-
-            # create plot
-            ggplot(dat, aes(x = dim, y = variable)) +
-                geom_tile(aes(fill = value)) +
-                geom_text(aes(label = value), size = 2, show.legend = FALSE) +
-                scale_fill_gradient(low = color_scale[1], high = color_scale[2]) +
-                private$ggplot_theme() +
-                theme(axis.text.x = element_text(size = 8, angle = 45,
-                                                 vjust = 1, hjust = 1),
-                      axis.text.y = element_text(size = 8)) +
-                xlab(xlab_text) +
-                ylab("Features") +
-                guides(fill = guide_legend("R^2"))
+            private$construct_heatmap_plot(params, interactive)
         },
 
         # Generates a two-dimensional PCA plot from the dataset
@@ -360,12 +293,14 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         plot_pca = function(key=1, pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, title=NULL,
                             text_labels=FALSE, ...) {
+            dat <- self$dat(key)
+
             # perform pca
-            prcomp_results <- prcomp(self$dat, scale = scale)
+            prcomp_results <- prcomp(dat, scale = scale)
             var_explained <- round(summary(prcomp_results)$importance[2, ] * 100, 2)
 
             # create data frame for plotting
-            dat <- data.frame(id = rownames(self$dat),
+            res <- data.frame(id = rownames(dat),
                               pc1 = prcomp_results$x[, pcx],
                               pc2 = prcomp_results$x[, pcy])
 
@@ -373,10 +308,10 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             styles <- private$get_geom_point_styles(color, shape)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color = styles$color)
+                res <- cbind(res, color = styles$color)
             }
             if (!is.null(styles$shape)) {
-                dat <- cbind(dat, shape = styles$shape)
+                res <- cbind(res, shape = styles$shape)
             }
 
             xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
@@ -388,7 +323,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             }
 
             # PC1 vs PC2
-            plt <- ggplot(dat, aes(pc1, pc2)) +
+            plt <- ggplot(res, aes(pc1, pc2)) +
                 geom_point(stat = "identity", styles$aes, size = 0.5) +
                 xlab(xl) + ylab(yl) +
                 ggtitle(title) +
@@ -421,21 +356,23 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # return ggplot plot instance
         plot_tsne = function(key=1, color=NULL, shape=NULL, title=NULL,
                              text_labels=FALSE, ...) {
+            dat <- self$dat(key)
+
             # compute t-SNE projection
-            tsne <- Rtsne::Rtsne(self$dat, ...)
-            dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
+            tsne <- Rtsne::Rtsne(dat, ...)
+            res <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
             # add column ids
-            dat <- cbind(dat, id = rownames(self$dat))
+            res <- cbind(res, id = rownames(dat))
 
             # get color/shape styles
             styles <- private$get_geom_point_styles(color, shape)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color = styles$color)
+                res <- cbind(res, color = styles$color)
             }
             if (!is.null(styles$shape)) {
-                dat <- cbind(dat, shape = styles$shape)
+                res <- cbind(res, shape = styles$shape)
             }
 
             # plot title
@@ -444,7 +381,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             }
 
             # treatment response
-            plt <- ggplot(dat, aes(x, y)) +
+            plt <- ggplot(res, aes(x, y)) +
                    geom_point(styles$aes, stat = "identity", size = 0.5) +
                    ggtitle(title) +
                    private$ggplot_theme() +
@@ -475,13 +412,13 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #
         # return None
-        plot_pairwise_column_cors = function(color=NULL, 
-                                             label=NULL, title="",
-                                             method='pearson',
-                                             mar=c(12, 6, 4, 6),
-                                             ...) {
+        plot_pairwise_column_cors = function(key=1, color=NULL, label=NULL,
+                                             title="", method='pearson',
+                                             mar=c(12, 6, 4, 6), ...) {
+            dat <- self$dat(key)
+
             # compute pairwise variable correlations
-            cor_mat <- private$similarity(self$dat, method=method, ...)
+            cor_mat <- private$similarity(dat, method=method, ...)
             median_pairwise_cor <- apply(cor_mat, 1, median)
 
             quantiles <- quantile(median_pairwise_cor, probs = c(0.25, 0.75))
@@ -498,10 +435,10 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             label_vector <- private$get_var_labels(label)
 
             # variable labels
-            if (!all(colnames(self$dat) == label_vector)) {
-                var_labels <- sprintf("%s (%s)", colnames(self$dat), label_vector)
+            if (!all(colnames(dat) == label_vector)) {
+                var_labels <- sprintf("%s (%s)", colnames(dat), label_vector)
             } else {
-                var_labels <- colnames(self$dat)
+                var_labels <- colnames(dat)
             }
 
             # render plot
@@ -513,16 +450,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                  labels = var_labels, las = 2)
             abline(h = cutoff, lty = 2)
             abline(v = 1:length(var_labels), lty = 3, col = "black")
-        },
-
-        # Plots multidataset correlation heatmap
-        #
-        # @param key1 Numeric or character index of first dataset to use
-        # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
-        #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
-            super$plot_cross_cor_heatmap(key1, key2, method, interactive)
         }
     )
 )

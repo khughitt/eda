@@ -232,13 +232,13 @@ BioExprSet <- R6::R6Class("BioExprSet",
     # ------------------------------------------------------------------------
     active = list(
         dat = function() {
-            private$datasets[['dat']]$fdat
+            self$edat[['dat']]$dat
         },
         row_mdata = function(value) {
-            private$datasets[['row_mdata']]$fdat
+            self$edat[['row_mdata']]$dat
         },
         col_mdata = function(value) {
-            private$datasets[['col_mdata']]$fdat
+            self$edat[['col_mdata']]$dat
         }
     )
 )

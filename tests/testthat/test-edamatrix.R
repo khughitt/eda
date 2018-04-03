@@ -53,10 +53,6 @@ test_that("initialization works", {
     expect_equal(edm$col_mdata, col_mdat)
 })
 
-test_that("getters work", {
-    expect_equal(edm$get('dat'), edm$fget('dat'))
-})
-
 # transpose
 test_that("transposition works", {
     expect_equal(edm$t()$t()$dat, edm$dat)

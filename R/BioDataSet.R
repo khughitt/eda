@@ -25,7 +25,7 @@
 #'      (default: `theme_bw`).
 #'
 #' @section Fields:
-#'  - `datasets`: List of datasets
+#'  - `edat`: List of EDADat dataset instances
 #'  - `annotations`: A list of gene, etc. annotations from external sources.
 #'
 #' @section Methods:
@@ -166,7 +166,7 @@ BioDataSet <- R6Class("BioDataSet",
         #
         annotation_stats = function(key, annotation, stat=median, ...) {
             # check for valid dataset key
-            if (!key %in% c(1:length(self$datasets), names(self$datasets))) {
+            if (!key %in% c(1:length(self$edat), names(self$edat))) {
                 stop(sprintf("Invalid dataset specified: %s", key))
             }
 
@@ -195,7 +195,7 @@ BioDataSet <- R6Class("BioDataSet",
             ITEM_IND  <- 2
 
             # dataset to compute statistics on
-            dat <- self$datasets[[key]]$fdat
+            dat <- self$edat[[key]]$dat
 
             message("Computing annotation statistics...")
 
@@ -217,26 +217,26 @@ BioDataSet <- R6Class("BioDataSet",
 
             # clone BioDataSet instance and replace main dataset with 
             obj <- private$clone_()
-            obj$datasets[[key]] <- NULL
+            obj$edat[[key]] <- NULL
 
             # if replacing the main dataset, also remove any additional datasets
             # that may be linked by row ids (for now, it is assumed that
             # function is passed expression, etc. data in the usual orientation)
-            if ((key == 1) || (!is.null(names(obj$datasets)) && names(obj$datasets)[1] == key)) {
-                for (i in seq_along(obj$datasets)) {
-                    if (obj$datasets[[i]]$orientation == 'rows') {
-                        obj$datasets[[i]] <- NULL
+            if ((key == 1) || (!is.null(names(obj$edat)) && names(obj$edat)[1] == key)) {
+                for (i in seq_along(obj$edat)) {
+                    if (obj$edat[[i]]$orientation == 'rows') {
+                        obj$edat[[i]] <- NULL
                     }    
                 }
             }
 
             # set annotation_stat result as main dataset and return
-            obj$datasets[[1]] <- res
+            obj$edat[[1]] <- res
 
             # key form: <old key>_<annotation>_<stat>
             stat_name <- as.character(substitute(stat))
             res_key <- paste(c(key, annotation, stat_name), collapse='_')
-            names(obj$datasets)[1] <- res_key
+            names(obj$edat)[1] <- res_key
 
             obj
         },
@@ -283,7 +283,7 @@ BioDataSet <- R6Class("BioDataSet",
         # @return A ggplot instance.
         plot_libsizes = function(color=NULL, title=NULL, geom='hist') {
             # create a data frame of library sizes
-            dat <- data.frame(libsize = colSums(self$dat))
+            dat <- data.frame(libsize = colSums(self$edat[[1]]$dat))
 
             # determine plot styles to use
             if (geom == 'hist') {
@@ -326,12 +326,11 @@ BioDataSet <- R6Class("BioDataSet",
 
         # Prints an overview of the object instance
         print = function() {
-            dat <- self$fget(1)
             cls <- class(self)[1]
 
             # create a vector of dataset keys to display
-            if (!is.null(names(private$datasets))) {
-                keys <- names(private$datasets)
+            if (!is.null(names(self$edat))) {
+                keys <- names(self$edat)
 
                 # default to numeric key if no character key exists
                 keys[is.na(keys)] <- seq_along(keys)[is.na(keys)]
@@ -345,10 +344,10 @@ BioDataSet <- R6Class("BioDataSet",
 
             cat("=========================================\n")
             cat("=\n")
-            cat(sprintf("= %s (n=%d)\n", cls, length(private$datasets)))
+            cat(sprintf("= %s (n=%d)\n", cls, length(self$edat)))
             cat("=\n")
-            for (i in seq_along(private$datasets)) {
-                ds <- self$fget(i) 
+            for (i in seq_along(self$edat)) {
+                ds <- self$edat[[i]]$dat
                 
                 # print dataset entry
                 cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
