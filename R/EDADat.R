@@ -39,6 +39,8 @@ EDADat <- R6Class("EDADat",
     # public
     # ------------------------------------------------------------------------
     public = list(
+        # TODO: add parameter to keep track of original data transposition;
+        # have date show data in expected transposition state... 
         dat         = NULL,
         orientation = NULL,
 
@@ -101,11 +103,25 @@ EDADat <- R6Class("EDADat",
             }
 
             # update data and metadata matrices
-            obj$dat <- obj$dat[row_ind, col_ind, drop = FALSE]
+            self$dat <- self$dat[row_ind, col_ind, drop = FALSE]
         },
 
         transpose = function() {
-            private$transposed <- !private$transposed
+            # switch transposition status and data orientation
+            private$transposed  <- !private$transposed
+            self$orientation    <- ifelse(self$orientation == 'rows', 'columns', 'rows')
+
+            # swap keynames if relevant
+            if (private$key == 'rownames') {
+                private$key = 'colnames'
+            } else if (private$key == 'colnames') {
+                private$key = 'rownames'
+            }
+
+            # swap axes labels
+            xlab <- private$xlab
+            private$xlab <- private$ylab
+            private$ylab <- xlab
         }
     ),
 

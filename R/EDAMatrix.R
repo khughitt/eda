@@ -213,6 +213,14 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             cat("=========================================\n")
         },
 
+        # Subsample dataset
+        subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
+            # clone and subsample dataset
+            obj <- private$clone_()
+            obj$edat$subsample(row_n, col_n, row_ratio, col_ratio)
+            obj
+        },
+
         transpose = function() {
             # transpose datasets in-place
             super$transpose()
@@ -327,6 +335,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
     active = list(
         dat = function() {
             private$datasets[['dat']]$fdat
+        },
+        edat = function () {
+            private$datasets[['dat']]
         },
         row_mdata = function(value) {
             if ('row_mdata' %in% names(private$datasets)) {

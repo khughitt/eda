@@ -23,6 +23,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                               col_shape=NULL, col_shape_ds='dat',
                               col_label=NULL, col_label_ds='dat',
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
+
+            # drop any empty datasets
+            datasets <- datasets[!sapply(datasets, is.null)]
             
             # assign names to datasets list if not already present
             if (is.null(names(datasets))) {

@@ -181,11 +181,6 @@ BioDataSet <- R6Class("BioDataSet",
 
             # check to see if already computed
             stat_name <- as.character(substitute(stat))
-            result_key <- paste(c(key, annotation, stat_name), collapse='_')
-
-            if (result_key %in% names(self$datasets)) {
-                return(self$fget(result_key))
-            }
 
             # output data frame
             res <- data.frame()
@@ -220,16 +215,30 @@ BioDataSet <- R6Class("BioDataSet",
             rownames(res) <- unique(mapping[, ANNOT_IND])
             colnames(res) <- colnames(dat)
 
-            # load result as a new dataset
-            # TODO: alternatively, could return a new BioDataSet instance with
-            # this replacing the key that was used as input...
-            message(sprintf("Saving result as %s...", result_key))
+            # clone BioDataSet instance and replace main dataset with 
+            obj <- private$clone_()
+            obj$datasets[[key]] <- NULL
 
-            self$datasets[[result_key]] <- EDADat$new(as.matrix(res), 
-                                                      xlab=stat_name,
-                                                      ylab=colnames(mapping)[ANNOT_IND])
+            # if replacing the main dataset, also remove any additional datasets
+            # that may be linked by row ids (for now, it is assumed that
+            # function is passed expression, etc. data in the usual orientation)
+            if ((key == 1) || (!is.null(names(obj$datasets)) && names(obj$datasets)[1] == key)) {
+                for (i in seq_along(obj$datasets)) {
+                    if (obj$datasets[[i]]$orientation == 'rows') {
+                        obj$datasets[[i]] <- NULL
+                    }    
+                }
+            }
 
-            self
+            # set annotation_stat result as main dataset and return
+            obj$datasets[[1]] <- res
+
+            # key form: <old key>_<annotation>_<stat>
+            stat_name <- as.character(substitute(stat))
+            res_key <- paste(c(key, annotation, stat_name), collapse='_')
+            names(obj$datasets)[1] <- res_key
+
+            obj
         },
         
         # load annotations from a supported source

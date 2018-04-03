@@ -92,3 +92,17 @@ test_that("Correlation measures work", {
     expect_equal(mds$cross_cor(method = 'mi'),      mut_mat[row_ind, col_ind])
     expect_equal(expect_warning(mds$cross_cor(method = 'lm')), lm_mat[row_ind, col_ind])
 })
+
+# Sub-sampling
+test_that("Sub-sampling works", {
+    # 10 x 10 matrix
+    mat <- matrix(rep(0, 100), 10)
+
+    # EDAMatrix$subsample()
+    edm <- EDAMatrix$new(mat)
+    expect_equal(dim(edm$subsample(3, 5)$dat), c(3,5))
+
+    # EDAMultiMatrix$subsample()
+    emm <- EDAMultiMatrix$new(list(foo=mat))
+    expect_equal(dim(edm$subsample(row_ratio=0.6, col_ratio=0.4)$dat), c(6, 4))
+})
