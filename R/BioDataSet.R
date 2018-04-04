@@ -1,4 +1,4 @@
-#' An S6 class representing collection of related biological datasets
+#' An R6 class representing collection of related biological datasets
 #'
 #' BioEDADataSet is a class for interacting with one or more biological
 #' datasets, typically those collected from high-throughput experiments.

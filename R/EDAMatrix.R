@@ -1,4 +1,4 @@
-#' An S6 class representing a matrix dataset.
+#' An R6 class representing a matrix dataset.
 #'
 #' EDAMatrix is a helper class for wrapping data matrices, with optional
 #' support for row and column datadata. Methods are provided for common

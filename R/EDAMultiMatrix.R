@@ -1,4 +1,4 @@
-#' An S6 class representing collection of related datasets with a matrix
+#' An R6 class representing collection of related datasets with a matrix
 #' for the primary dataset.
 #'
 #' @section Usage:
@@ -39,7 +39,7 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
     # public
     # ------------------------------------------------------------------------
     public = list(
-        # EDADataSet constructor
+        # EDAMultiMatrix constructor
         initialize = function(datasets,
                               row_color=NULL, row_color_ds='dat',
                               row_shape=NULL, row_shape_ds='dat',

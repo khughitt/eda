@@ -38,54 +38,41 @@ EDADat <- R6Class("EDADat",
     # public
     # ------------------------------------------------------------------------
     public = list(
-        # TODO: add parameter to keep track of original data transposition;
-        # have date show data in expected transposition state... 
-        dat         = NULL,
-        orientation = NULL,
+        # public properties
+        xid  = NULL,
+        yid  = NULL,
+        xlab = NULL,
+        ylab = NULL,
 
         # EDADat constructor
-        initialize = function(dat, orientation='rows', key=NULL,
-                              transposed=FALSE, xlab=NULL, ylab=NULL) {
-            # determine where primary keys are stored
-            if (is.null(key)) {
-                key <- ifelse(orientation == 'rows', 'rownames', 'colnames')
-            }
+        initialize = function(dat, xid='x', yid='y',
+                              row_names='rownames', col_names='colnames',
+                              xlab=NULL, ylab=NULL) {
+            # properties
+            self$xid  <- xid
+            self$yid  <- yid
+            self$xlab <- xlab
+            self$ylab <- ylab
 
-            private$transposed <- transposed
-            private$col_types  <- NULL
-
-            # make sure a valid orientation / key combination is specified
-            private$check_input(orientation, key)
-
-            #
-            # public
-            #
-            self$dat            <- private$format_data(dat, orientation, key)
-            self$orientation    <- orientation
-
-            #
-            # private
-            #
-            private$key         <- key
-            private$xlab        <- xlab
-            private$ylab        <- ylab
-
-            if (is.null(private$col_types)) {
-                private$col_types <- sapply(self$dat, class)
-            }
-
-            # if data is provided in transposed form relative to main dataset,
-            # transpose it so that datasets are in the same orientation
-            if (transposed) {
-                self$transpose()
-            }
+            # store data
+            private$data <- private$format_data(dat, row_names, col_names)
         },
 
         # subsamples dataset rows and/or columns in-place
         subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
+            # get underlying data
+            dat <- private$data
+
             # indices to sample from
-            row_ind <- 1:nrow(self$dat)
-            col_ind <- 1:ncol(self$dat)
+            if (is.data.frame(private$data) && private$transposed) {
+                # for transposed data frames, swap row and column indices
+                row_ind <- 1:ncol(dat)
+                col_ind <- 1:nrow(dat)
+            } else {
+                # otherwise operate as-is
+                row_ind <- 1:nrow(dat)
+                col_ind <- 1:ncol(dat)
+            }
 
             # subsample rows
             if (!is.null(row_n)) {
@@ -101,101 +88,50 @@ EDADat <- R6Class("EDADat",
                 col_ind <- sample(col_ind, round(col_ratio * length(col_ind)))
             }
 
-            # update data and metadata matrices
-            self$dat <- self$dat[row_ind, col_ind, drop = FALSE]
+            # update data
+            if (is.data.frame(private$data) && private$transposed) {
+                # transposed data frames
+                private$data <- dat[col_ind, row_ind, drop = FALSE]
+            } else {
+                # everything else
+                private$data <- dat[row_ind, col_ind, drop = FALSE]
+            }
         },
 
-        # transpose data in-place
+        # transpose data;
+        # matrices are transposed in-places while data frames are left alone,
+        # but have a transposition flag toggled
         transpose = function() {
-            # Work-around for improved data frame support (2018/04/03)
-            if (is.data.frame(self$dat)) {
-                # store column types
+            # for data frames, keep track of transposition status
+            if (is.data.frame(private$data)) {
                 private$transposed = !private$transposed
             }
 
-            # transpose data
-            if (is.matrix(self$dat)) {
-                self$dat <- t(self$dat)
-            } else if (is.data.frame(self$dat)) {
-                rn <- rownames(self$dat)
-                cn <- colnames(self$dat)
-                self$dat <- data.table::transpose(self$dat)
-                rownames(self$dat) <- cn
-                colnames(self$dat) <- rn
+            # transpose matrix data
+            if (is.matrix(private$data)) {
+                private$data <- t(private$data)
             }
 
-            # Work-around: fix data frame column types
-            if (is.data.frame(self$dat) && !private$transposed) {
-                for(i in 1:ncol(self$dat)) {
-                    cast_fxn <- get(paste0('as.', private$col_types[i]))
-                    self$dat[,i] <- cast_fxn(self$dat[,i])
-                }  
-            }
+            # swap axis ids and labels
+            xid <- self$xid
+            self$xid <- self$yid
+            self$yid <- xid
 
-            # update data orientation status
-            self$orientation    <- ifelse(self$orientation == 'rows', 'columns', 'rows')
-
-            # swap keynames if relevant
-            if (private$key == 'rownames') {
-                private$key = 'colnames'
-            } else if (private$key == 'colnames') {
-                private$key = 'rownames'
-            }
-
-            # swap axes labels
-            xlab <- private$xlab
-            private$xlab <- private$ylab
-            private$ylab <- xlab
+            xlab <- self$xlab
+            self$xlab <- self$ylab
+            self$ylab <- xlab
         }
     ),
 
+    # ------------------------------------------------------------------------
+    # private
+    # ------------------------------------------------------------------------
     private = list(
         # Parameters
-        key         = NULL,
-        xlab        = NULL,
-        ylab        = NULL,
-        transposed  = NULL,
-        col_types   = NULL,
+        data        = NULL,
+        transposed  = FALSE,
 
-        # validate input
-        check_input = function(orientation, key) {
-            # check key/orientation combo
-            if ((orientation == 'rows' && key == 'colnames') ||
-                (orientation == 'columns' && key == 'rownames')) {
-                stop('Invalid combination of orientation and key specified.')
-            }
-        },
-
-        # normalize row-oriented dataset row order
-        #normalize_row_order = function(row_data, ids) {
-        #    # iterate over datasets
-        #    for (rdat in names(row_data)) {
-        #        # if order is not the same as main dataset, reorder
-        #        if (!(all(rownames(row_data[[rdat]]) == ids))) {
-        #            # match row dataset row order to row names specified
-        #            ind <- order(match(rownames(row_data[[rdat]]), ids))
-
-        #            # return result
-        #            row_data[[rdat]] <- row_data[[rdat]][ind,, drop = FALSE]
-        #        }
-        #    }
-        #},
-
-        # normalize column-oriented dataset column order
-        #normalize_col_order = function(col_data, ids) {
-        #    # iterate over datasets
-        #    for (cdat in names(col_data)) {
-        #        # if order is not the same as main dataset, reorder
-        #        if (!(all(colnames(col_data[[cdat]]) == ids))) {
-        #            # match column dataset column order to column names specified
-        #            ind <- order(match(colnames(col_data[[cdat]]), ids))
-
-        #            # return result
-        #            col_data[[cdat]] <- col_data[[cdat]][ind,, drop = FALSE]
-        #        }
-        #    }
-        #},
-        get_key_index = function(dat, key, names_fxn=colnames) {
+        get_names_index = function(dat, key, names_fxn=colnames) {
             # column number containing row ids specified, or
             # row number containing column ids
             if (is.numeric(key)) {
@@ -208,25 +144,22 @@ EDADat <- R6Class("EDADat",
         },
 
         # returns data with row / column names formatted as expected
-        format_data = function(dat, orientation, key) {
-            # row-oriented data
-            if (orientation == 'rows') {
-                if (key != 'rownames') {
-                    ind <- private$get_key_index(dat, key, colnames)
-                    rownames(dat) <- dat[, ind]
-                    dat <- dat[, -ind]
-                }
-            } else {
-                # column-oriented data
-                if (key != 'colnames') {
-                    ind <- private$get_key_index(dat, key, rownames)
-                    colnames(dat) <- dat[ind, ]
-                    dat <- dat[-ind, ]
-                }
+        format_data = function(dat, row_names, col_names) {
+            # normalize rownames
+            if (row_names != 'rownames') {
+                ind <- private$get_names_index(dat, row_names, colnames)
+                rownames(dat) <- dat[, ind]
+                dat <- dat[, -ind]
+            }
+            # normalize colnames
+            if (col_names != 'colnames') {
+                ind <- private$get_names_index(dat, col_names, rownames)
+                colnames(dat) <- dat[ind, ]
+                dat <- dat[-ind, ]
             }
 
             # ensure that formatted data has both row and column names;
-            # used by some functions.
+            # required by some functions.
             if (is.null(rownames(dat))) {
                 rownames(dat) <- paste0('row_', 1:nrow(dat))
             }
@@ -237,7 +170,36 @@ EDADat <- R6Class("EDADat",
         }
     ),
 
+    # ------------------------------------------------------------------------
+    # active
+    # ------------------------------------------------------------------------
     active = list(
+        # return data in expected orientation
+        dat = function(value) {
+            # return data
+            if (missing(value)) {
+                # for transposed data frames, transpose on the fly 
+                if (is.data.frame(private$data) && private$transposed) {
+                    rn <- rownames(private$data)
+                    cn <- colnames(private$data)
+                    dat <- data.table::transpose(private$data)
+                    rownames(dat) <- cn
+                    colnames(dat) <- rn
+                    return(dat)
+                } else {
+                    # otherwise, return as-is
+                    return(private$data)
+                }
+            } else {
+                # store updated matrix / data frame
+                private$data <- value
+
+                # for data frames, reset transposed flag
+                if (is.data.frame(value)) {
+                    private$transposed <- FALSE
+                }
+            }
+        },
         # return data in transposed order
         tdat = function() {
             self$transpose()

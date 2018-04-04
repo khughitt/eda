@@ -1,4 +1,4 @@
-#' An S6 class representing collection of related datasets
+#' An R6 class representing collection of related datasets
 #'
 #' @section Usage:
 #' ```

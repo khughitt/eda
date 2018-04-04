@@ -1,4 +1,4 @@
-#' An S6 class representing an Expression dataset
+#' An R6 class representing an Expression dataset
 #'
 #' BioExprSet is a simple class for interacting with biological expression
 #' data (e.g. from microarray or RNA-Seq experiments.) It can accept either

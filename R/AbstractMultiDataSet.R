@@ -1,4 +1,4 @@
-#' An S6 class representing a generic collection of datasets linked by
+#' An R6 class representing a generic collection of datasets linked by
 #' either column or row identifiers.
 #'
 #' Includes fucntionality and methods that are relevant to all EDA child
