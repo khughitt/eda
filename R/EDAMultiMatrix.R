@@ -40,19 +40,8 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
     # ------------------------------------------------------------------------
     public = list(
         # EDAMultiMatrix constructor
-        initialize = function(datasets,
-                              row_color=NULL, row_color_ds='dat',
-                              row_shape=NULL, row_shape_ds='dat',
-                              row_label=NULL, row_label_ds='dat',
-                              col_color=NULL, col_color_ds='dat',
-                              col_shape=NULL, col_shape_ds='dat',
-                              col_label=NULL, col_label_ds='dat',
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(datasets,
-                             row_color, row_color_ds, row_shape, row_shape_ds,
-                             row_label, row_label_ds, col_color, col_color_ds,
-                             col_shape, col_shape_ds, col_label, col_label_ds,
-                             color_pal, title, ggplot_theme)
+        initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
+            super$initialize(datasets, color_pal, title, ggplot_theme)
         },
 
         # Computes cross-dataset correlation matrix

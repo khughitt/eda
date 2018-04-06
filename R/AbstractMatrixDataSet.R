@@ -38,20 +38,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
     # public
     # ------------------------------------------------------------------------
     public = list(
-        # EDADataSet constructor
-        initialize = function(datasets,
-                              row_color=NULL, row_color_ds='dat',
-                              row_shape=NULL, row_shape_ds='dat',
-                              row_label=NULL, row_label_ds='dat',
-                              col_color=NULL, col_color_ds='dat',
-                              col_shape=NULL, col_shape_ds='dat',
-                              col_label=NULL, col_label_ds='dat',
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(datasets,
-                             row_color, row_color_ds, row_shape, row_shape_ds,
-                             row_label, row_label_ds, col_color, col_color_ds,
-                             col_shape, col_shape_ds, col_label, col_label_ds,
-                             color_pal, title, ggplot_theme)
+        # AbstractMatrixDataSet constructor
+        initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
+            super$initialize(datasets, color_pal, title, ggplot_theme)
         },
 
         # Clusters dataset rows using k-means clustering in a t-SNE projected
@@ -63,7 +52,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # return Vector of cluster assignments with length equal to the
         #     number of rows in the dataset.
         cluster_tsne = function(key=1, k=10, ...) {
-            tsne <- Rtsne::Rtsne(self$dat(key), ...)
+            tsne <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)
             dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
 
             # Cluster patients from t-sne results
@@ -88,7 +77,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         detect_col_outliers = function(key=1, num_sd=2, ctend=median, method='pearson', ...) {
             # TODO: include correlation in results?
             # TODO: Write alternative version for data frame datasets?
-            dat <- self$dat(key)
+            dat <- self$edat[[key]]$dat
             cor_mat <- private$similarity(dat, method=method, ...)
 
             avg_column_cors <- apply(cor_mat, 1, ctend)
@@ -109,7 +98,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # return Character vector or row ids for rows with low
         #     average pairwise correlations.
         detect_row_outliers = function(key=1, num_sd=2, ctend=median, method='pearson', ...) {
-            dat <- self$dat(key)
+            dat <- self$edat[[key]]$dat
             cor_mat <- private$similarity(t(dat), method=method, ...)
 
             avg_row_cors <- apply(cor_mat, 1, ctend)
@@ -208,7 +197,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #      methods.
         plot_cor_heatmap = function(key=1, method='pearson', interactive=TRUE, ...) {
             # generate correlation matrix
-            cor_mat <- private$similarity(self$dat(key), method=method, ...)
+            cor_mat <- private$similarity(self$edat[[key]]$dat, method=method, ...)
 
 
             # list of parameters to pass to heatmaply
@@ -253,7 +242,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         plot_heatmap = function(key, interactive=TRUE, ...) {
             # list of parameters to pass to heatmaply
             params <- list(
-                x               = self$dat(key),
+                x               = self$edat[[key]]$dat,
                 showticklabels  = c(FALSE, FALSE),
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
@@ -291,9 +280,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # return ggplot plot instance
         plot_pca = function(key=1, pcx=1, pcy=2, scale=FALSE,
-                            color=NULL, shape=NULL, title=NULL,
-                            text_labels=FALSE, ...) {
-            dat <- self$dat(key)
+                            color_var=NULL, color_key=NULL,
+                            shape_var=NULL, shape_key=NULL,
+                            label_var=NULL, label_key=NULL,
+                            title=NULL, text_labels=FALSE, ...) {
+            dat <- self$edat[[key]]$dat
 
             # perform pca
             prcomp_results <- prcomp(dat, scale = scale)
@@ -305,13 +296,15 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                               pc2 = prcomp_results$x[, pcy])
 
             # get color/shape styles
-            styles <- private$get_geom_point_styles(color, shape)
+            styles <- private$get_geom_point_styles(key, 
+                                                    color_var, color_key,
+                                                    shape_var, shape_key)
 
             if (!is.null(styles$color)) {
-                res <- cbind(res, color = styles$color)
+                res <- cbind(res, color_var = styles$color)
             }
             if (!is.null(styles$shape)) {
-                res <- cbind(res, shape = styles$shape)
+                res <- cbind(res, shape_var = styles$shape)
             }
 
             xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
@@ -354,9 +347,12 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # ...
         #
         # return ggplot plot instance
-        plot_tsne = function(key=1, color=NULL, shape=NULL, title=NULL,
-                             text_labels=FALSE, ...) {
-            dat <- self$dat(key)
+        plot_tsne = function(key=1,
+                             color_var=NULL, color_key=NULL,
+                             shape_var=NULL, shape_key=NULL,
+                             label_var=NULL, label_key=NULL,
+                             title=NULL, text_labels=FALSE, ...) {
+            dat <- self$edat[[key]]$dat
 
             # compute t-SNE projection
             tsne <- Rtsne::Rtsne(dat, ...)
@@ -366,13 +362,15 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             res <- cbind(res, id = rownames(dat))
 
             # get color/shape styles
-            styles <- private$get_geom_point_styles(color, shape)
+            styles <- private$get_geom_point_styles(key, 
+                                                    color_var, color_key,
+                                                    shape_var, shape_key)
 
             if (!is.null(styles$color)) {
-                res <- cbind(res, color = styles$color)
+                res <- cbind(res, color_var = styles$color)
             }
             if (!is.null(styles$shape)) {
-                res <- cbind(res, shape = styles$shape)
+                res <- cbind(res, shape_var = styles$shape)
             }
 
             # plot title
@@ -412,10 +410,12 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #
         # return None
-        plot_pairwise_column_cors = function(key=1, color=NULL, label=NULL,
+        plot_pairwise_column_cors = function(key=1, 
+                                             color_var=NULL, color_key=NULL, 
+                                             label_var=NULL, label_key=NULL,
                                              title="", method='pearson',
                                              mar=c(12, 6, 4, 6), ...) {
-            dat <- self$dat(key)
+            dat <- self$edat[[key]]$dat
 
             # compute pairwise variable correlations
             cor_mat <- private$similarity(dat, method=method, ...)
@@ -431,8 +431,8 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                         max(median_pairwise_cor))
 
             # get color properties
-            color_vector <- private$get_var_colors(color)
-            label_vector <- private$get_var_labels(label)
+            color_vector <- private$get_var_colors(key, color_var, color_key)
+            label_vector <- private$get_var_labels(key, label_var, label_key)
 
             # variable labels
             if (!all(colnames(dat) == label_vector)) {

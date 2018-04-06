@@ -17,19 +17,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         edat = NULL,
 
         # AbstractMultiDataSet constructor
-        initialize = function(datasets,
-                              row_color=NULL, row_color_ds='dat',
-                              row_shape=NULL, row_shape_ds='dat',
-                              row_label=NULL, row_label_ds='dat',
-                              col_color=NULL, col_color_ds='dat',
-                              col_shape=NULL, col_shape_ds='dat',
-                              col_label=NULL, col_label_ds='dat',
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
+        initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
 
             # drop any empty datasets
             datasets <- datasets[!sapply(datasets, is.null)]
             
-            # assign names to datasets list entries if not already present
+            # assign names to datasets if not provided
             if (is.null(names(datasets))) {
                 names(datasets) <- paste0('dat', seq_along(datasets))
             } else if (sum(names(datasets) == '') > 0) {
@@ -40,29 +33,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # store datasets as a list of EDADat objects
             for (id in names(datasets)) {
                 if (!class(datasets[[id]])[1] == 'EDADat') {
-                    # TODO: Guess proper orientation?
                     datasets[[id]] <- EDADat$new(datasets[[id]])
                 }
             }
             self$edat <- datasets
 
-            # default variables to use for plot color, shape, and labels when
-            # visualizing either columns or rows in the dataset
-            private$row_color <- row_color
-            private$row_shape <- row_shape
-            private$row_label <- row_label
-
-            private$col_color <- col_color
-            private$col_shape <- col_shape
-            private$col_label <- col_label
-
-            private$row_color_ds <- row_color_ds
-            private$row_shape_ds <- row_shape_ds
-            private$row_label_ds <- row_label_ds
-            private$col_color_ds <- col_color_ds
-            private$col_shape_ds <- col_shape_ds
-            private$col_label_ds <- col_label_ds
-
+            # share styles
             private$color_pal    <- color_pal
             private$ggplot_theme <- ggplot_theme
             private$title        <- title
@@ -236,12 +212,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # or else, uses a separate color for each column.
         #
         # @return ggplot plot instance.
-        plot_densities = function(key=1, color=NULL, title="", ...) {
+        plot_densities = function(key=1, color_var=NULL, color_key=NULL, title="", ...) {
             dat <- setNames(melt(self$edat[[key]]$dat), c('row', 'column', 'val'))
-            styles <- private$get_geom_density_styles(color)
+            styles <- private$get_geom_density_styles(key, color_var, color_key)
 
             if (!is.null(styles$color)) {
-                dat <- cbind(dat, color = styles$color)
+                dat <- cbind(dat, color_var = styles$color)
             }
             if (is.null(title)) {
                 title <- sprintf("Column densities: %s", private$title)
@@ -310,26 +286,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             for (id in names(self$edat)) {
                self$edat[[id]]$transpose()
             }
-
-            # swap row and column style parameters
-            row_color    <- private$row_color
-            row_shape    <- private$row_shape
-            row_label    <- private$row_label
-            row_color_ds <- private$row_color_ds
-            row_shape_ds <- private$row_shape_ds
-            row_label_ds <- private$row_label_ds
-
-            private$row_color    <- private$col_color
-            private$row_shape    <- private$col_shape
-            private$row_label    <- private$col_label
-            private$row_color_ds <- private$col_shape_ds
-            private$row_shape_ds <- private$col_shape_ds
-            private$row_label_ds <- private$col_label_ds
-
-            private$col_color    <- row_color
-            private$col_shape    <- row_shape
-            private$col_shape_ds <- row_shape_ds
-            private$col_label_ds <- row_label_ds
         }
     ),
 
@@ -337,21 +293,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
     # private
     # ------------------------------------------------------------------------
     private = list(
-        # private params
-        row_color    = NULL,
-        row_shape    = NULL,
-        row_label    = NULL,
-        col_color    = NULL,
-        col_shape    = NULL,
-        col_label    = NULL,
-
-        row_color_ds = NULL,
-        row_shape_ds = NULL,
-        row_label_ds = NULL,
-        col_color_ds = NULL,
-        col_shape_ds = NULL,
-        col_label_ds = NULL,
-
+        # private properties
         color_pal    = NULL,
         ggplot_theme = NULL,
         title        = NULL,
@@ -385,10 +327,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param color Color variable as passed into plot function call
         #
         # @return List of style information
-        get_geom_bar_styles = function(color, key=NULL) {
+        get_geom_bar_styles = function(key, color_var, color_key) {
             # list to store style properties
             res <- list(aes = aes(), labels = list())
-            private$add_color_styles(res, color, key)
+            private$add_color_styles(key, res, color_var, color_key)
         },
 
         # Generates ggplot aesthetics for density plots
@@ -396,10 +338,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param color Color variable as passed into plot function call
         #
         # @return List of style information
-        get_geom_density_styles = function(color, key=NULL) {
+        get_geom_density_styles = function(key, color_var, color_key) {
             # list to store style properties
             res <- list(aes = aes(), labels = list())
-            private$add_color_styles(res, color, key)
+            private$add_color_styles(key, res, color_var, color_key)
         },
 
         # Generates ggplot aesthetics for histogram plots
@@ -407,10 +349,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param color Color variable as passed into plot function call
         #
         # @return List of style information
-        get_geom_histogram_styles = function(color, key=NULL) {
+        get_geom_histogram_styles = function(key, color_var, color_key) {
             # list to store style properties
             res <- list(aes = aes(), labels = list())
-            private$add_color_styles(res, color, key)
+            private$add_color_styles(key, res, color_var, color_key)
         },
 
         # Generates ggplot aesthetics for a geom_point plot
@@ -419,16 +361,16 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param shape Shape variable as passed into plot function call
         #
         # @return List of geom_point style information
-        get_geom_point_styles = function(color, shape,
-                                         color_key=NULL,
-                                         shape_key=NULL) {
+        get_geom_point_styles = function(key, 
+                                         color_var, color_key,
+                                         shape_var, shape_key) {
             # list to store style properties
             res <- list(
                 aes = aes(),
                 labels = list()
             )
-            res <- private$add_color_styles(res, color, color_key)
-            res <- private$add_shape_styles(res, shape, shape_key)
+            res <- private$add_color_styles(key, res, color_var, color_key)
+            res <- private$add_shape_styles(key, res, shape_var, shape_key)
             res
         },
 
@@ -436,16 +378,31 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param styles List of color-related style info
         # @param color Color variable passed into plot function call
-        add_color_styles = function(styles, color, key=NULL) {
-            color_info <- private$get_color_styles(color, key)
+        add_color_styles = function(key, styles, color_var, color_key) {
+            # determine color variable and data source to use
+            if (is.null(color_var)) {
+                color_var <- self$edat[[key]]$row_color
+            }
+            if (is.null(color_key)) {
+                color_key <- self$edat[[key]]$row_edat
+            }
 
-            styles[['color']] <- color_info[['color']]
+            # if no color variable specified, or disabled, return styles as-is
+            if (is.null(color_var) || color_var == FALSE) {
+                return(styles)
+            }
+
+            # otherwise, retrieve 1d vector to use for color assignment
+            matched_axis <- self$edat[[key]]$xid
+
+            styles[['color']] <- self$edat[[color_key]]$get(matched_axis,
+                                                            color_var,
+                                                            other_axis=TRUE)
 
             # update styles with color info
-            if (length(color_info[['aes']]) > 0) {
-                styles[['aes']] <- modifyList(color_info[['aes']], styles[['aes']])
-                styles[['labels']] <- modifyList(color_info[['labels']], styles[['labels']])
-            }
+            styles[['aes']]    <- modifyList(aes(color = color_var),  styles[['aes']])
+            styles[['labels']] <- modifyList(labs(color = color_var), styles[['labels']])
+
             styles
         },
 
@@ -453,83 +410,31 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param styles List of shape-related style info
         # @param shape shape variable passed into plot function call
-        add_shape_styles = function(styles, shape, key=NULL) {
-            shape_info <- private$get_shape_styles(shape, key)
+        add_shape_styles = function(key, styles, shape_var, shape_key) {
+            if (is.null(shape_var)) {
+                shape_var <- self$edat[[key]]$row_shape
+            }
+            if (is.null(shape_key)) {
+                shape_key <- self$edat[[key]]$row_edat
+            }
 
-            styles[['shape']] <- shape_info[['shape']]
+            # if no shape variable specified, or disabled, return styles as-is
+            if (is.null(shape_var) || shape_var == FALSE) {
+                return(styles)
+            }
+
+            # otherwise, retrieve 1d vector to use for shape assignment
+            matched_axis <- self$edat[[key]]$xid
+
+            styles[['shape']] <- self$edat[[shape_key]]$get(matched_axis,
+                                                            shape_var,
+                                                            other_axis=TRUE)
 
             # update styles with shape info
-            if (length(shape_info[['aes']]) > 0) {
-                styles[['aes']] <- modifyList(shape_info[['aes']], styles[['aes']])
-                styles[['labels']] <- modifyList(styles[['labels']], shape_info[['labels']])
-            }
+            styles[['aes']]    <- modifyList(aes(shape = shape_var),  styles[['aes']])
+            styles[['labels']] <- modifyList(labs(shape = shape_var), styles[['labels']])
+
             styles
-        },
-
-        # Returns a list of color-related style information
-        #
-        # @param key Name of dataset containing field to use for color
-        # @param color Color variable as passed into plot function call
-        #
-        # @return list List of color-related properties
-        get_color_styles = function(color, key) {
-            res <- list(
-                color  = NULL,
-                aes    = aes(),
-                labels = list()
-            )
-
-            # dataset containing color field
-            if (is.null(key)) {
-                key <- private$row_color_ds
-            }
-
-            # if specified as a function argument, override default color
-            if (!is.null(color) && (color != FALSE)) {
-                # color variable can either correspond to a column in the
-                # dataset itself, or in the
-                res[['color']]  <- self$edat[[key]]$dat[, color]
-                res[['aes']]    <- aes(color = color)
-                res[['labels']] <- labs(color = color)
-            } else if (is.null(color) && !is.null(private$row_color)) {
-                # otherwise, use object-level default value
-                res[['color']]  <- self$edat[[key]]$dat[, private$row_color]
-                res[['aes']]    <- aes(color = color)
-                res[['labels']] <- labs(color = private$row_color)
-            }
-            res
-        },
-
-        # Returns a list of shape-related style information
-        #
-        # @param shape Shape variable as passed into plot function call
-        #
-        # @return list List of shape-related properties
-        get_shape_styles = function(shape, key=NULL) {
-            res <- list(
-                shape  = NULL,
-                aes    = aes(),
-                labels = list()
-            )
-
-            # dataset containing color field
-            if (is.null(key)) {
-                key <- private$row_shape_ds
-            }
-
-            # if specified as a function argument, override default shape
-            if (!is.null(shape) && (shape != FALSE)) {
-                res[['shape']]  <- self$edat[[key]]$dat[, shape]
-                res[['aes']]    <- aes(shape = shape)
-                res[['labels']] <- labs(shape = shape)
-            } else if (is.null(shape) && !is.null(private$shape)) {
-                # otherwise, use object-level default value
-                res[['shape']]  <- self$edat[[key]]$dat[, private$shape]
-                res[['aes']]    <- aes(shape = shape)
-                res[['labels']] <- labs(shape = private$shape)
-            }
-
-            res
         },
 
         # Returns a vector of color codes associated with the specified
@@ -540,26 +445,21 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Vector of colors with length equal to the number of columns
         #            in the data.
-        get_var_colors = function(color, key, color_pal) {
+        get_var_colors = function(key, color_var, color_key) {
+            # determine color dataset and variable name
+            color_var <- ifelse(is.null(color_var), self$edat[[key]]$row_color, color_var)
+            color_key <- ifelse(is.null(color_key), self$edat[[key]]$row_edat, color_key)
+
             # if no variable is specified, use default black for plots
-            if (is.null(color)) {
-                if (is.null(private$col_color)) {
-                    return('black')
-                }
-                color <- private$col_color
-            } else if (color == FALSE) {
+            if (is.null(color_var) || color == FALSE) {
                 return('black')
             }
 
-            # dataset containing color field
-            if (is.null(key)) {
-                key <- private$row_color_ds
-            }
-
             # otherwise, assign colors based on the variable specified
-            column_var <- as.numeric(factor(self$edat[[key]]$dat[, color]))
+            color_vector <- self$edat[[color_key]]$get(self$edat[[key]]$xid, color_var)
+            column_var <- as.numeric(factor(color_vector))
 
-            pal <- RColorBrewer::brewer.pal(9, color_pal)
+            pal <- RColorBrewer::brewer.pal(9, private$color_pal)
             colors <- colorRampPalette(pal)(min(1E4, length(unique(column_var))))
 
             # return vector of column color assignments
@@ -572,17 +472,15 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Vector of labels with length equal to the number of columns
         #         in the data.
-        get_var_labels = function(label, key=NULL) {
-            if (is.null(label)) {
-                return(colnames(self$dat))
+        get_var_labels = function(key, label_var, label_key) {
+            label_var <- ifelse(is.null(label_var), self$edat[[key]]$row_label, label_var)
+            label_key <- ifelse(is.null(label_key), self$edat[[key]]$row_edat, label_key)
+
+            if (is.null(label_var) || label_var == FALSE) {
+                return(colnames(self$edat[[key]]$dat))
             }
 
-            # dataset containing color field
-            if (is.null(key)) {
-                key <- private$row_label_ds
-            }
-
-            self$edat[[key]]$dat[, label]
+            self$edat[[label_key]]$get(self$edat[[key]]$xid, label_var)
         },
 
         #
@@ -700,9 +598,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
         compute_cross_cor = function(key1='dat', key2=2, method='pearson', ...) {
-            # make sure both datasets are both row-oriented
-            if (self$edat[[key1]]$orientation != 'rows' || self$edat[[key2]]$orientation != 'rows') {
-                stop("Specified datasets should both be row-oriented")
+            # make sure datasets share the same column ids
+            if (self$edat[[key1]]$yid != self$edat[[key2]]$yid) {
+                stop("Specified datasets must share the same column ids.")
             }
 
             # TODO: make sure datasets are ordered similarly
@@ -717,8 +615,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
             #    dat2 <- dat2[!exclude, ]
 
-            # the similarity() method operates on columns so for datasets
-            # that share common row id's, we transpose the datasets first
+            # the similarity() method operates on columns, so we first transpose
+            # the two datasets so that features to compare appear along columns
             dat1 <- self$edat[[key1]]$tdat
             dat2 <- self$edat[[key2]]$tdat
 
@@ -728,8 +626,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat1 <- dat1[match(rownames(dat1), row_ind),, drop = FALSE]
             dat2 <- dat2[match(rownames(dat2), row_ind),, drop = FALSE]
 
-            # measure similarity between rows in datasets 1 and rows in
-            # dataset 2
+            # measure similarity between rows in datasets 1 and rows in dataset 2
             cor_mat <- private$similarity(dat1, dat2, method = method, ...)
 
             cor_mat

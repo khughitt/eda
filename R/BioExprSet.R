@@ -22,11 +22,11 @@
 #'      names of `dat`
 #' - `col_mdata`: A matrix or data frame with rows corresponding to the
 #'      column names of `dat`
-#' - `row_ids`: Column name or number containing row identifiers. If set to
+#' - `row_names`: Column name or number containing row identifiers. If set to
 #'      `rownames` (default), row names will be used as identifiers.
-#' - `col_ids`: Column name or number containing column identifiers. If set to
+#' - `col_names`: Column name or number containing column identifiers. If set to
 #'      `colnames` (default), column names will be used as identifiers.
-#' - `row_mdata_ids`: Column name or number containing row metadata row
+#' - `row_mdata_rownames`: Column name or number containing row metadata row
 #'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
 #' - `col_mdata_ids`: Column name or number containing col metadata row
@@ -158,8 +158,9 @@ BioExprSet <- R6::R6Class("BioExprSet",
         # BioExprSet constructor
         initialize = function(dat,
                               row_mdata=NULL, col_mdata=NULL,
-                              row_ids='rownames', col_ids='colnames',
-                              row_mdata_ids='rownames', col_mdata_ids='rownames',
+                              row_names='rownames', col_names='colnames',
+                              row_mdata_row_names='rownames', 
+                              col_mdata_row_names='rownames',
                               row_color=NULL, row_shape=NULL, row_label=NULL,
                               col_color=NULL, col_shape=NULL, col_label=NULL,
                               color_pal='Set1', title="", ggplot_theme=theme_bw) {
@@ -177,14 +178,29 @@ BioExprSet <- R6::R6Class("BioExprSet",
                 dat <- exprs(dat)
             }
 
-            super$initialize(list('dat' = dat, 'row_mdata' = row_mdata, 'col_mdata'=col_mdata),
-                             row_color=row_color, row_color_ds='row_mdata',
-                             row_shape=row_shape, row_shape_ds='row_mdata',
-                             row_label=row_label, row_label_ds='row_mdata',
-                             col_color=col_color, col_color_ds='col_mdata',
-                             col_shape=col_shape, col_shape_ds='col_mdata',
-                             col_label=col_label, col_label_ds='col_mdata',
-                             color_pal, title, ggplot_theme)
+            # create EDADat instances
+            edats <- list('dat' = EDADat$new(dat, 
+                                             xid = 'genes', yid = 'samples',
+                                             row_names = row_names, col_names = col_names, 
+                                             row_color = row_color, row_shape = row_shape,
+                                             row_label = row_label, row_edat = 'row_mdata',
+                                             col_color = col_color, col_shape = col_shape, 
+                                             col_label = col_label, col_edat = 'col_mdata'))
+
+            # add row and column metadata, if provided
+            if (!is.null(row_mdata)) {
+                edats[['row_mdata']] <- EDADat$new(row_mdata,
+                                                   xid = 'genes', yid = 'gene metadata',
+                                                   row_names = row_mdata_row_names)
+            }
+            if (!is.null(col_mdata)) {
+                edats[['col_mdata']] <- EDADat$new(col_mdata, 
+                                                   xid = 'samples', yid = 'sample metadata',
+                                                   row_names = col_mdata_row_names)
+            }
+
+            # call parent constructor
+            super$initialize(edats, color_pal, title, ggplot_theme)
         },
 
         # Performs a counts-per-million (CPM) transformation.
@@ -200,11 +216,24 @@ BioExprSet <- R6::R6Class("BioExprSet",
 
         },
 
-        # Log2 transforms data (adding 1 to ensure finite results).
-        #
-        # @return Log2-transformed version of the expression data.
+        log = function(base=exp(1), offset=0) {
+            super$log(key = 'dat', base = base, offset = offset)
+        },
+
+        log1p = function() {
+            self$log(base = 1, offset = 1)
+        },
+
         log2p = function() {
-            self$log(2, offset = 1)
+            self$log(base = 2, offset = 1)
+        },
+
+        plot_pca = function(pcx=1, pcy=2, scale=FALSE,
+                            color=NULL, shape=NULL, label=NULL, 
+                            title=NULL, text_labels=FALSE, ...) {
+            super$plot_pca(key='dat', pcx=pcx, pcy=pcy, scale=scale,
+                           color_var=color, shape_var=shape, label_var=label,
+                           title=title, text_labels=text_labels, ...)
         },
 
         # Prints an overview of the object instance
@@ -217,6 +246,15 @@ BioExprSet <- R6::R6Class("BioExprSet",
             cat(sprintf("=   columns: %d\n", ncol(self$dat)))
             cat("=\n")
             cat("=========================================\n")
+        },
+        transpose = function() {
+            # transpose datasets in-place
+            super$transpose()
+
+            # swap keys for row/column metadata
+            row_mdat <- self$edat[['row_mdata']] 
+            self$edat[['row_mdata']] <- self$edat[['col_mdata']]
+            self$edat[['col_mdata']] <- row_mdat
         }
     ),
     private = list(
@@ -231,14 +269,42 @@ BioExprSet <- R6::R6Class("BioExprSet",
     # active bindings
     # ------------------------------------------------------------------------
     active = list(
-        dat = function() {
-            self$edat[['dat']]$dat
+        dat = function(value) {
+            if (missing(value)) {
+                self$edat[['dat']]$dat
+            } else {
+                self$edat[['dat']]$dat <- value
+            }
         },
         row_mdata = function(value) {
-            self$edat[['row_mdata']]$dat
+            if (missing(value)) {
+                if ('row_mdata' %in% names(self$edat)) {
+                    self$edat[['row_mdata']]$dat
+                } else {
+                    NULL
+                }
+            } else {
+                if ('row_mdata' %in% names(self$edat)) {
+                    self$edat[['row_mdata']]$dat <- value
+                } else {
+                    self$edat[['row_mdata']] <- EDADat$new(value)
+                }
+            }
         },
         col_mdata = function(value) {
-            self$edat[['col_mdata']]$dat
+            if (missing(value)) {
+                if ('col_mdata' %in% names(self$edat)) {
+                    self$edat[['col_mdata']]$dat
+                } else {
+                    NULL
+                }
+            } else {
+                if ('col_mdata' %in% names(self$edat)) {
+                    self$edat[['col_mdata']]$dat <- value
+                } else {
+                    self$edat[['col_mdata']] <- EDADat$new(value)
+                }
+            }
         }
     )
 )

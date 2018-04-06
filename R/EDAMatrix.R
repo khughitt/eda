@@ -21,14 +21,14 @@
 #'      names of `dat`
 #' - `col_mdata`: A matrix or data frame with rows corresponding to the
 #'      column names of `dat`
-#' - `row_ids`: Column name or number containing row identifiers. If set to
+#' - `row_names`: Column name or number containing row identifiers. If set to
 #'      `rownames` (default), row names will be used as identifiers.
-#' - `col_ids`: Column name or number containing column identifiers. If set to
+#' - `col_names`: Column name or number containing column identifiers. If set to
 #'      `colnames` (default), column names will be used as identifiers.
-#' - `row_mdata_ids`: Column name or number containing row metadata row
+#' - `row_mdata_rownames`: Column name or number containing row metadata row
 #'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
-#' - `col_mdata_ids`: Column name or number containing col metadata row
+#' - `col_mdata_rownames`: Column name or number containing col metadata row
 #'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
 #' - `row_color`: Row metadata field to use for coloring rowwise plot elements.
@@ -152,31 +152,32 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         # EDAMatrix constructor
         initialize = function(dat,
                               row_mdata=NULL, col_mdata=NULL,
-                              row_ids='rownames', col_ids='colnames',
-                              row_mdata_ids='rownames', col_mdata_ids='rownames',
+                              row_names='rownames', col_names='colnames',
+                              row_mdata_row_names='rownames', 
+                              col_mdata_row_names='rownames',
                               row_color=NULL, row_shape=NULL, row_label=NULL,
                               col_color=NULL, col_shape=NULL, col_label=NULL,
                               color_pal='Set1', title='', ggplot_theme=theme_bw) {
             # verify input data type and call parent constructor
             private$check_input(dat)
 
-            inputs <- list('dat'=dat)
-            
-            if(!is.null(row_mdata)) {
-                inputs[['row_mdata']] <- row_mdata
+            # create EDADat instances
+            edats <- list('dat' = EDADat$new(dat, xid = 'x', yid = 'y',
+                                             row_names = row_names, col_names = col_names, 
+                                             row_color = row_color, row_shape = row_shape,
+                                             row_label = row_label, row_edat = 'row_mdata',
+                                             col_color = col_color, col_shape = col_shape, 
+                                             col_label = col_label, col_edat = 'col_mdata'))
+
+            # add row and column metadata, if provided
+            if (!is.null(row_mdata)) {
+                edats[['row_mdata']] <- EDADat$new(row_mdata, xid = 'x', yid = 'row metadata', row_names = row_mdata_row_names)
             }
-            if(!is.null(col_mdata)) {
-                inputs[['col_mdata']] <- col_mdata
+            if (!is.null(col_mdata)) {
+                edats[['col_mdata']] <- EDADat$new(col_mdata, xid = 'y', yid = 'column metadata', row_names = col_mdata_row_names)
             }
 
-            super$initialize(inputs,
-                             row_color=row_color, row_color_ds='metadata',
-                             row_shape=row_shape, row_shape_ds='metadata',
-                             row_label=row_label, row_label_ds='metadata',
-                             col_color=col_color, col_color_ds='metadata',
-                             col_shape=col_shape, col_shape_ds='metadata',
-                             col_label=col_label, col_label_ds='metadata',
-                             color_pal, title, ggplot_theme)
+            super$initialize(edats, color_pal, title, ggplot_theme)
         },
 
         cluster_tsne = function(k=10, ...) {
@@ -218,6 +219,18 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         impute = function(method='knn') {
             super$impute(key='dat', method=method)
+        },
+
+        log = function(base=exp(1), offset=0) {
+            super$log(key = 'dat', base = base, offset = offset)
+        },
+
+        log1p = function() {
+            self$log(base = 1, offset = 1)
+        },
+
+        log2p = function() {
+            self$log(base = 2, offset = 1)
         },
 
         pca = function(...) {
@@ -295,11 +308,11 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         },
 
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
-                            color=NULL, shape=NULL, title=NULL,
-                            text_labels=FALSE, ...) {
+                            color=NULL, shape=NULL, label=NULL, 
+                            title=NULL, text_labels=FALSE, ...) {
             super$plot_pca(key='dat', pcx=pcx, pcy=pcy, scale=scale,
-                            color=color, shape=shape, title=title,
-                            text_labels=text_labels, ...)
+                           color_var=color, shape_var=shape, label_var=label,
+                           title=title, text_labels=text_labels, ...)
         },
 
         plot_tsne = function(color=NULL, shape=NULL, title=NULL,
@@ -465,7 +478,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 if ('row_mdata' %in% names(self$edat)) {
                     self$edat[['row_mdata']]$dat <- value
                 } else {
-                    self$edat[['row_mdata']] <- EDADat$new(value)
+                    self$edat[['row_mdata']] <- EDADat$new(value, xid = 'x', yid = 'row metadata')
                 }
             }
         },
@@ -480,7 +493,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 if ('col_mdata' %in% names(self$edat)) {
                     self$edat[['col_mdata']]$dat <- value
                 } else {
-                    self$edat[['col_mdata']] <- EDADat$new(value)
+                    self$edat[['col_mdata']] <- EDADat$new(value, xid = 'y', yid = 'column metadata')
                 }
             }
         }

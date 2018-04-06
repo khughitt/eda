@@ -38,8 +38,14 @@ colnames(dat2) <- sprintf('var%02d', 1:5)
 # in order to test various inherited methods.
 dats <- rbind(dat1, dat2)
 
+# create a third dataset for evaluate behavior related to datasets that share
+# either row or column ids
+dat3 <- matrix(rnorm(15), nrow=5)
+rownames(dat3) <- letters[1:5]
+colnames(dat3) <- sprintf('col%02d', 1:3)
+
 sds <- EDAMatrix$new(dats)
-mds <- EDAMultiMatrix$new(list(dat1, dat2))
+mds <- EDAMultiMatrix$new(list(a=dat1, b=dat2, c=dat3))
 
 # expected correlation result (zero-variance middle rows removed)
 
@@ -95,6 +101,15 @@ test_that("Correlation measures work", {
     expect_equal(mds$cross_cor(method = 'pearson'), cor_mat[row_ind, col_ind])
     expect_equal(mds$cross_cor(method = 'mi'),      mut_mat[row_ind, col_ind])
     expect_equal(expect_warning(mds$cross_cor(method = 'lm')), lm_mat[row_ind, col_ind])
+})
+
+# Plot styles
+test_that("Handling of plot styles works", {
+    # EDADat$get()
+    expect_equal(mds$edat[['a']]$get('x', 'obs01'), as.vector(dat1[1, ]))
+    expect_equal(mds$edat[['a']]$get('y', 'var01'), as.vector(dat1[, 1]))
+    expect_equal(mds$edat[['a']]$get('x', 'var01', other_axis=TRUE), as.vector(dat1[, 1]))
+    expect_equal(mds$edat[['a']]$get('y', 'obs01', other_axis=TRUE), as.vector(dat1[1, ]))
 })
 
 # Sub-sampling

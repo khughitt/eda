@@ -128,19 +128,8 @@ BioDataSet <- R6Class("BioDataSet",
         annotations = list(),
 
         # EDADataSet constructor
-        initialize = function(datasets,
-                              row_color=NULL, row_color_ds='dat',
-                              row_shape=NULL, row_shape_ds='dat',
-                              row_label=NULL, row_label_ds='dat',
-                              col_color=NULL, col_color_ds='dat',
-                              col_shape=NULL, col_shape_ds='dat',
-                              col_label=NULL, col_label_ds='dat',
-                              color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(datasets,
-                             row_color, row_color_ds, row_shape, row_shape_ds,
-                             row_label, row_label_ds, col_color, col_color_ds,
-                             col_shape, col_shape_ds, col_label, col_label_ds,
-                             color_pal, title, ggplot_theme)
+        initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
+            super$initialize(datasets, color_pal, title, ggplot_theme)
         },
 
         # Computes pathway- or annotation-level statistics for a given dataset and
@@ -219,24 +208,24 @@ BioDataSet <- R6Class("BioDataSet",
             obj <- private$clone_()
             obj$edat[[key]] <- NULL
 
-            # if replacing the main dataset, also remove any additional datasets
-            # that may be linked by row ids (for now, it is assumed that
-            # function is passed expression, etc. data in the usual orientation)
-            if ((key == 1) || (!is.null(names(obj$edat)) && names(obj$edat)[1] == key)) {
-                for (i in seq_along(obj$edat)) {
-                    if (obj$edat[[i]]$orientation == 'rows') {
-                        obj$edat[[i]] <- NULL
-                    }    
-                }
+            # Remove any additional datasets which use the same identifiers as
+            # the target
+            orig_xid <- self$edat[[key]]$xid
+
+            for (i in seq_along(obj$edat)) {
+                if (obj$edat[[i]]$xid == orig_xid || obj$edat[[i]]$yid == orig_xid) {
+                    obj$edat[[i]] <- NULL
+                }    
             }
 
             # set annotation_stat result as main dataset and return
-            obj$edat[[1]] <- res
+            obj$edat[[key]] <- res
 
             # key form: <old key>_<annotation>_<stat>
             stat_name <- as.character(substitute(stat))
             res_key <- paste(c(key, annotation, stat_name), collapse='_')
-            names(obj$edat)[1] <- res_key
+
+            names(obj$edat)[key] <- res_key
 
             obj
         },
@@ -264,8 +253,8 @@ BioDataSet <- R6Class("BioDataSet",
         # Log2 transforms data (adding 1 to ensure finite results).
         #
         # @return Log2-transformed version of the expression data.
-        log2p = function() {
-            self$log(2, offset = 1)
+        log2p = function(key = 1) {
+            self$log(key = key, 2, offset = 1)
         },
 
         # Creates a histogram or bar plot of sample library sizes.
@@ -281,15 +270,15 @@ BioDataSet <- R6Class("BioDataSet",
         # @param geom ggplot geometry to use (bar|histogram)
         #
         # @return A ggplot instance.
-        plot_libsizes = function(color=NULL, title=NULL, geom='hist') {
+        plot_libsizes = function(key=1, color=NULL, title=NULL, geom='hist') {
             # create a data frame of library sizes
-            dat <- data.frame(libsize = colSums(self$edat[[1]]$dat))
+            dat <- data.frame(libsize = colSums(self$edat[[key]]$dat))
 
             # determine plot styles to use
             if (geom == 'hist') {
-                styles <- private$get_geom_histogram_styles(color)
+                styles <- private$get_geom_histogram_styles(key, color)
             } else {
-                styles <- private$get_geom_bar_styles(color)
+                styles <- private$get_geom_bar_styles(key, color)
             }
 
             # update styles and title

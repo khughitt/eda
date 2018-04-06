@@ -44,18 +44,51 @@ EDADat <- R6Class("EDADat",
         xlab = NULL,
         ylab = NULL,
 
+        # style properties
+        row_color    = NULL,
+        row_shape    = NULL,
+        row_label    = NULL,
+        row_edat     = NULL,
+        col_color    = NULL,
+        col_shape    = NULL,
+        col_label    = NULL,
+        col_edat     = NULL,
+        style_source = NULL,
+
         # EDADat constructor
         initialize = function(dat, xid='x', yid='y',
                               row_names='rownames', col_names='colnames',
-                              xlab=NULL, ylab=NULL) {
-            # properties
+                              row_color=NULL, row_shape=NULL, row_label=NULL, row_edat=NULL,
+                              col_color=NULL, col_shape=NULL, col_label=NULL, col_edat=NULL,
+                              style_source=NULL, xlab=NULL, ylab=NULL) {
+            # public properties
             self$xid  <- xid
             self$yid  <- yid
             self$xlab <- xlab
             self$ylab <- ylab
 
+            self$row_color  <- row_color   
+            self$row_shape  <- row_shape   
+            self$row_label  <- row_label   
+            self$row_edat   <- row_edat
+            self$col_color  <- col_color   
+            self$col_shape  <- col_shape   
+            self$col_label  <- col_label   
+            self$col_edat   <- col_edat
+
             # store data
             private$data <- private$format_data(dat, row_names, col_names)
+        },
+
+        # returns the vector for the specified axis and row/column name
+        get = function(axis, name, other_axis=FALSE) {
+            if ((axis == self$xid  && !other_axis) || (axis == self$yid && other_axis)) {
+                # unlist ensures that 1d data frames are converted to vectors;
+                # as.vector drops any associated names
+                as.vector(unlist(self$dat[name, ]))
+            } else {
+                as.vector(unlist(self$dat[, name]))
+            }
         },
 
         # subsamples dataset rows and/or columns in-place
@@ -120,6 +153,19 @@ EDADat <- R6Class("EDADat",
             xlab <- self$xlab
             self$xlab <- self$ylab
             self$ylab <- xlab
+            
+            # swap row and column style elements
+            row_color = self$row_color
+            row_shape = self$row_shape
+            row_label = self$row_label
+
+            self$row_color <- self$col_color
+            self$row_shape <- self$col_shape
+            self$row_label <- self$col_label
+
+            self$col_color <- row_color
+            self$col_shape <- row_shape
+            self$col_label <- row_label
         }
     ),
 
