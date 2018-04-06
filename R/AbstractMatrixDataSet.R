@@ -296,7 +296,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                               pc2 = prcomp_results$x[, pcy])
 
             # get color/shape styles
-            styles <- private$get_geom_point_styles(key, 
+            styles <- private$get_geom_point_styles(key,
                                                     color_var, color_key,
                                                     shape_var, shape_key)
 
@@ -362,7 +362,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             res <- cbind(res, id = rownames(dat))
 
             # get color/shape styles
-            styles <- private$get_geom_point_styles(key, 
+            styles <- private$get_geom_point_styles(key,
                                                     color_var, color_key,
                                                     shape_var, shape_key)
 
@@ -410,8 +410,8 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
         #
         # return None
-        plot_pairwise_column_cors = function(key=1, 
-                                             color_var=NULL, color_key=NULL, 
+        plot_pairwise_column_cors = function(key=1,
+                                             color_var=NULL, color_key=NULL,
                                              label_var=NULL, label_key=NULL,
                                              title="", method='pearson',
                                              mar=c(12, 6, 4, 6), ...) {

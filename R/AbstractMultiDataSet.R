@@ -392,6 +392,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 return(styles)
             }
 
+            # check to make sure valid key specified
+            if (!key %in% names(self$edat)) {
+                stop("Invalid style source key specified. Are you sure data is in correct orientation?")
+            }
+
             # otherwise, retrieve 1d vector to use for color assignment
             matched_axis <- self$edat[[key]]$xid
 
@@ -585,8 +590,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         # Computes cross-dataset correlation matrix
         #
-        # Measures similarity between rows in two datasets which share the
-        # same set of column ids.
+        # Measures similarity between rows or columns in two datasets which 
+        # share the same set of column or row ids.
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
@@ -598,12 +603,39 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
         compute_cross_cor = function(key1='dat', key2=2, method='pearson', ...) {
-            # make sure datasets share the same column ids
-            if (self$edat[[key1]]$yid != self$edat[[key2]]$yid) {
+            # make sure datasets share some common ids
+            if (length(unique(c(self$edat[[key1]]$xid, self$edat[[key2]]$xid,
+                                self$edat[[key1]]$yid, self$edat[[key2]]$yid))) == 4) {
                 stop("Specified datasets must share the same column ids.")
             }
 
-            # TODO: make sure datasets are ordered similarly
+            # determine orientation to use for comparison; similarity is 
+            # measured across columns, so we want to have shared ids along rows
+            dat1_shared_axis <- ifelse(self$edat[[key1]]$xid == self$edat[[key2]]$xid ||
+                                       self$edat[[key1]]$xid == self$edat[[key2]]$yid,
+                                       'rows', 'columns')
+            dat2_shared_axis <- ifelse(self$edat[[key2]]$xid == self$edat[[key1]]$xid ||
+                                       self$edat[[key2]]$xid == self$edat[[key1]]$yid,
+                                       'rows', 'columns')
+
+            # row-oriented datasets
+            if (dat1_shared_axis == 'rows') {
+                dat1 <- self$edat[[key1]]$dat
+            } else {
+                dat1 <- self$edat[[key1]]$tdat
+            }
+
+            if (dat2_shared_axis == 'rows') {
+                dat2 <- self$edat[[key2]]$dat
+            } else {
+                dat2 <- self$edat[[key2]]$tdat
+            }
+
+            # only operate on shared entries
+            row_ind <- intersect(rownames(dat1), rownames(dat2))
+
+            dat1 <- dat1[order(match(rownames(dat1), row_ind)),, drop = FALSE]
+            dat2 <- dat2[order(match(rownames(dat2), row_ind)),, drop = FALSE]
 
             # for metadata, we can also exclude factor fields with all
             # unique values (e.g. alternate identifiers)
@@ -614,17 +646,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #if (sum(exclude) > 0) {
             #    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
             #    dat2 <- dat2[!exclude, ]
-
-            # the similarity() method operates on columns, so we first transpose
-            # the two datasets so that features to compare appear along columns
-            dat1 <- self$edat[[key1]]$tdat
-            dat2 <- self$edat[[key2]]$tdat
-
-            # only operate on shared columns (rows after transposition)
-            row_ind <- intersect(rownames(dat1), rownames(dat2))
-
-            dat1 <- dat1[match(rownames(dat1), row_ind),, drop = FALSE]
-            dat2 <- dat2[match(rownames(dat2), row_ind),, drop = FALSE]
 
             # measure similarity between rows in datasets 1 and rows in dataset 2
             cor_mat <- private$similarity(dat1, dat2, method = method, ...)

@@ -203,6 +203,10 @@ BioExprSet <- R6::R6Class("BioExprSet",
             super$initialize(edats, color_pal, title, ggplot_theme)
         },
 
+        cluster_tsne = function(k=10, ...) {
+            super$cluster_tsne(key='dat', k=k, ...)
+        },
+
         # Performs a counts-per-million (CPM) transformation.
         #
         # @return A CPM-transformed version of the BioExprSet instance.
@@ -212,8 +216,32 @@ BioExprSet <- R6::R6Class("BioExprSet",
             obj
         },
 
-        diff_expr = function() {
+        #diff_expr = function() {
+        #},
 
+        # Detects dependencies between column metadata entries (features) and
+        # dataset rows.
+        feature_cor = function(method='pearson', ...) {
+            if (is.null(self$col_mdata)) {
+                stop("Error: missing column metadata.")
+            }
+            private$compute_cross_cor('dat', 'col_mdata', method, ...)
+        },
+
+        filter_rows = function(mask) {
+            super$filter_rows(key='dat', mask=mask)
+        },
+
+        filter_cols = function(mask) {
+            super$filter_cols(key='dat', mask=mask)
+        },
+
+        filter_row_outliers = function(num_sd=2, ctend=median, method='pearson') {
+            super$filter_row_outliers(key='dat', num_sd=num_sd, ctend=ctend, method=method)
+        },
+
+        filter_col_outliers = function(num_sd=2, ctend=median, method='pearson') {
+            super$filter_col_outliers(key='dat', num_sd=num_sd, ctend=ctend, method=method)
         },
 
         log = function(base=exp(1), offset=0) {
@@ -228,12 +256,46 @@ BioExprSet <- R6::R6Class("BioExprSet",
             self$log(base = 2, offset = 1)
         },
 
+        plot_feature_cor = function(method='pearson', color_scale=c('green', 'red'), ...) {
+            # compute feature correlations
+            dat <- melt(self$feature_cor(method = method, ...))
+            colnames(dat) <- c('dim', 'variable', 'value')
+
+            # Labels
+            #if (method == 'pca') {
+            #    xlab_text <- 'Principle Components'
+            #} else if (method == 't-sne') {
+            #    xlab_text <- "t-SNE dimension"
+            #}
+            xlab_text <- 'TODO...'
+
+            # create plot
+            ggplot(dat, aes(x = dim, y = variable)) +
+                geom_tile(aes(fill = value)) +
+                geom_text(aes(label = value), size = 2, show.legend = FALSE) +
+                scale_fill_gradient(low = color_scale[1], high = color_scale[2]) +
+                private$ggplot_theme() +
+                theme(axis.text.x = element_text(size = 8, angle = 45,
+                                                 vjust = 1, hjust = 1),
+                      axis.text.y = element_text(size = 8)) +
+                xlab(xlab_text) +
+                ylab("Features") +
+                guides(fill = guide_legend("R^2"))
+        },
+
         plot_pca = function(pcx=1, pcy=2, scale=FALSE,
                             color=NULL, shape=NULL, label=NULL, 
                             title=NULL, text_labels=FALSE, ...) {
             super$plot_pca(key='dat', pcx=pcx, pcy=pcy, scale=scale,
                            color_var=color, shape_var=shape, label_var=label,
                            title=title, text_labels=text_labels, ...)
+        },
+
+        plot_tsne = function(color=NULL, shape=NULL, label=NULL, title=NULL,
+                             text_labels=FALSE, ...) {
+            super$plot_tsne(key='dat', color_var=color, shape_var=NULL,
+                            label_var=label, title=NULL,
+                            text_labels=text_labels, ...)
         },
 
         # Prints an overview of the object instance

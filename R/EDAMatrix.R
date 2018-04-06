@@ -315,9 +315,10 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                            title=title, text_labels=text_labels, ...)
         },
 
-        plot_tsne = function(color=NULL, shape=NULL, title=NULL,
+        plot_tsne = function(color=NULL, shape=NULL, label=NULL, title=NULL,
                              text_labels=FALSE, ...) {
-            super$plot_tsne(key='dat', color=color, shape=NULL, title=NULL,
+            super$plot_tsne(key='dat', color_var=color, shape_var=NULL,
+                            label_var=label, title=NULL,
                             text_labels=text_labels, ...)
         },
 

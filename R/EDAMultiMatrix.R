@@ -51,8 +51,8 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
         # @param method Correlation method to use (passed to `cor` function)
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        cross_cor = function(key1=1, key2=2, method='pearson') {
-            super$compute_cross_cor(key1, key2, method)
+        cross_cor = function(key1=1, key2=2, method='pearson', ...) {
+            super$compute_cross_cor(key1, key2, method, ...)
         },
 
         # Plots multidataset correlation heatmap
