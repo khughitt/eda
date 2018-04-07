@@ -21,7 +21,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # drop any empty datasets
             datasets <- datasets[!sapply(datasets, is.null)]
-            
+
             # assign names to datasets if not provided
             if (is.null(names(datasets))) {
                 names(datasets) <- paste0('dat', seq_along(datasets))
@@ -33,7 +33,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # store datasets as a list of EDADat objects
             for (id in names(datasets)) {
                 if (!class(datasets[[id]])[1] == 'EDADat') {
-                    datasets[[id]] <- EDADat$new(datasets[[id]])
+                    # by default, do not assume that any datasets have
+                    # shared axes; this must be explicitly specified by the user
+                    datasets[[id]] <- EDADat$new(datasets[[id]], 
+                                                 xid=paste0(id, '_x'),
+                                                 yid=paste0(id, '_y'))
                 }
             }
             self$edat <- datasets
@@ -64,7 +68,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @return A filtered version of the original EDADataSet object.
         filter_rows = function(key=1, mask) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[mask,, drop = FALSE] 
+            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[mask,, drop = FALSE]
             obj
         },
 
@@ -76,7 +80,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @return A filtered version of the original EDADataSet object.
         filter_cols = function(key=1, mask) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, mask, drop = FALSE] 
+            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, mask, drop = FALSE]
             obj
         },
 
@@ -273,6 +277,35 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             cat("=========================================\n")
         },
 
+        # Removes any datasets which are not linked to the target dataset by
+        # either shared row or column ids
+        remove_unlinked = function(key) {
+            # iterate over datasets
+            edat_keys <- names(self$edat)
+            
+            if (is.numeric(key)) {
+                edat_keys <- edat_keys[-key]
+            } else {
+                edat_keys <- edat_keys[names(edat_keys) != key]
+            }
+
+            for (eid in edat_keys) {
+                # create a vector of axis ids for all other datasets
+                axis_ids <- c()
+
+                for (edat in self$edat[names(self$edat) != eid]) {
+                    axis_ids <- c(axis_ids, edat$xid, edat$yid)
+                }
+
+                # if a dataset does not overlap in ids with any of the other
+                # datasets (e.g. after a projection which replaces the original
+                # dataset), remove it.
+                if (length(intersect(axis_ids, c(self$edat[[eid]]$xid, self$edat[[eid]]$yid))) == 0) {
+                    self$edat[[eid]] <- NULL
+                }
+            }
+        },
+
         # transpose (out-of-place)
         t = function() {
             obj <- private$clone_()
@@ -361,7 +394,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param shape Shape variable as passed into plot function call
         #
         # @return List of geom_point style information
-        get_geom_point_styles = function(key, 
+        get_geom_point_styles = function(key,
                                          color_var, color_key,
                                          shape_var, shape_key) {
             # list to store style properties
@@ -590,7 +623,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         # Computes cross-dataset correlation matrix
         #
-        # Measures similarity between rows or columns in two datasets which 
+        # Measures similarity between rows or columns in two datasets which
         # share the same set of column or row ids.
         #
         # @param key1 Numeric or character index of first dataset to use
@@ -602,14 +635,14 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #   - mi       (Mututal information)
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        compute_cross_cor = function(key1='dat', key2=2, method='pearson', ...) {
+        compute_cross_cor = function(key1=1, key2=2, method='pearson', ...) {
             # make sure datasets share some common ids
             if (length(unique(c(self$edat[[key1]]$xid, self$edat[[key2]]$xid,
                                 self$edat[[key1]]$yid, self$edat[[key2]]$yid))) == 4) {
                 stop("Specified datasets must share the same column ids.")
             }
 
-            # determine orientation to use for comparison; similarity is 
+            # determine orientation to use for comparison; similarity is
             # measured across columns, so we want to have shared ids along rows
             dat1_shared_axis <- ifelse(self$edat[[key1]]$xid == self$edat[[key2]]$xid ||
                                        self$edat[[key1]]$xid == self$edat[[key2]]$yid,
@@ -659,7 +692,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param key2 Numeric or character index of second dataset to use
         # @param method Correlation method to use (passed to `cor` function)
         #
-        plot_cross_cor_heatmap = function(key1='dat', key2=2, method='pearson', interactive=TRUE) {
+        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
             # compute cross correlations
             cor_mat <- private$compute_cross_cor(key1, key2, method)
 
@@ -670,27 +703,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
             )
-
-            # if metadata is availble, display along side of heatmap
-            # TODO: Move this logic to subclass (parent shouldn't know about
-            # row / col mdat)
-            if ('row_mdata' %in% names(self$edat)) {
-                mdata1 <- self$edat[['row_mdata']]$dat
-                mask1  <- sapply(mdata1, function(x) max(table(x)) > 1 )
-                mdata1 <- mdata1[, mask1, drop = FALSE]
-
-                params[['row_side_colors']] <- mdata1
-                params[['subplot_widths']] <- c(0.15, 0.3, 0.55)
-            }
-
-            if ('col_mdata' %in% names(self$edat)) {
-                mdata1 <- self$edat[['col_mdata']]$dat
-                mask2  <- sapply(mdata2, function(x) max(table(x)) > 1 )
-                mdata2 <- mdata2[, mask2, drop = FALSE]
-
-                params[['col_side_colors']] <- mdata2
-                params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
-            }
 
             # add any additional function arguments
             private$construct_heatmap_plot(params, interactive)

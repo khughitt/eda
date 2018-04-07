@@ -164,20 +164,31 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
         # PCA
         #
-        pca = function(key=1, ...) {
+        pca = function(key=1, num_dims=NULL, ...) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- prcomp(obj$edat[[key]]$dat, ...)$x
-            obj$col_mdata <- NULL
+            obj$edat[[key]]$dat <- prcomp(self$edat[[key]]$dat, ...)$x
+            obj$edat[[key]]$ylab <- 'Priniple Components' 
+
+            if (!is.null(num_dims)) {
+                obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, 1:num_dims]
+            }
+            obj$remove_unlinked(key)
             obj
         },
 
         #
         # t-SNE
         #
-        tsne = function(key=1, ...) {
+        tsne = function(key=1, num_dims=NULL, ...) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- Rtsne::Rtsne(obj$edat[[key]]$dat, ...)
-            obj$col_mdata <- NULL
+            obj$edat[[key]]$dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)
+            obj$edat[[key]]$ylab <- 't-SNE dimensions' 
+
+            if (!is.null(num_dims)) {
+                obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, 1:num_dims]
+            }
+
+            obj$remove_unlinked(key)
             obj
         },
 
@@ -199,7 +210,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             # generate correlation matrix
             cor_mat <- private$similarity(self$edat[[key]]$dat, method=method, ...)
 
-
             # list of parameters to pass to heatmaply
             params <- list(
                 x               = cor_mat,
@@ -207,28 +217,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
             )
-
-            # if metadata is availble, display along side of heatmap
-            if (!is.null(self$col_mdata)) {
-                # for heatmaps, show binary/logical variables on one side of the heatmap and
-                # other variables on the other side
-                lens <- apply(self$col_mdata, 2, function(x) {
-                    length(unique(x))
-                })
-                binary_vars <- lens == 2
-
-                # column colors (binary variables)
-                if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$col_mdata[, binary_vars, drop = FALSE]
-                    params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
-                }
-
-                # column colors (everything else)
-                if (sum(!binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$col_mdata[, !binary_vars, drop = FALSE]
-                    params[['subplot_widths']]  <- c(0.55, 0.3, 0.15)
-                }
-            }
 
             # add any additional function arguments
             params <- c(params, ...)
@@ -247,17 +235,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
             )
-
-            # if metadata is availble, display along side of heatmap
-            if (!is.null(self$row_mdata)) {
-                params[['row_side_colors']] <- self$row_mdata
-                params[['subplot_widths']]  <- c(0.15, 0.3, 0.55)
-            }
-
-            if (!is.null(self$col_mdata)) {
-                params[['col_side_colors']] <- self$col_mdata
-                params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
-            }
 
             # add any additional function arguments
             params <- c(params, ...)

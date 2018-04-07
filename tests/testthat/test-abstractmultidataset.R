@@ -45,7 +45,7 @@ rownames(dat3) <- letters[1:5]
 colnames(dat3) <- sprintf('col%02d', 1:3)
 
 sds <- EDAMatrix$new(dats)
-mds <- EDAMultiMatrix$new(list(a=dat1, b=dat2, c=dat3))
+mds <- EDAMultiMatrix$new(list(a=dat1, b=EDADat$new(dat2, yid='a_y'), c=dat3))
 
 # expected correlation result (zero-variance middle rows removed)
 

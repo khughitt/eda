@@ -193,8 +193,11 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         },
 
         # Detects dependencies between column metadata entries (features) and
-        # dataset rows.
-        feature_cor = function(method='pearson') {
+        # dataset rows
+        #
+        # Note: If metedata is not all-numeric, than a similarity method which
+        # supports categorical data (currently only 'lm') must be chosen.
+        feature_cor = function(method='lm') {
             if (is.null(self$col_mdata)) {
                 stop("Error: missing column metadata.")
             }
@@ -233,24 +236,20 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             self$log(base = 2, offset = 1)
         },
 
-        pca = function(...) {
-            super$pca(key='dat', ...)
+        pca = function(num_dims=NULL, ...) {
+            super$pca(key='dat', num_dims = num_dims, ...)
         },
 
-        tsne = function(...) {
-            super$tsne(key='dat', ...)
+        tsne = function(num_dims=NULL, ...) {
+            super$tsne(key='dat', num_dims = num_dims, ...)
         },
 
-        pca_feature_cor = function(method='pearson', ...) {
-            self$t$pca(...)$t$feature_cor(method)
+        pca_feature_cor = function(num_dims=10, method='pearson', ...) {
+            self$t()$pca(num_dims = num_dims, ...)$t()$feature_cor(method)
         },
 
-        tsne_feature_cor = function(method='pearson', ...) {
-            self$t$tsne(...)$t$feature_cor(method)
-        },
-
-        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
-            plot_cor_heatmap(key='dat', method=method, interactive=interactive, ...)
+        tsne_feature_cor = function(num_dims=10, method='pearson', ...) {
+            self$t()$tsne(num_dims = num_dims, ...)$t()$feature_cor(method)
         },
 
         plot_pairwise_column_cors = function(color=NULL, label=NULL, title="", 
@@ -283,7 +282,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             #} else if (method == 't-sne') {
             #    xlab_text <- "t-SNE dimension"
             #}
-            xlab_text <- 'TODO...'
+            xlab_text <- ''
 
             # create plot
             ggplot(dat, aes(x = dim, y = variable)) +
@@ -299,8 +298,83 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 guides(fill = guide_legend("R^2"))
         },
 
+        # Correlation heatmap.
+        #
+        # Generates a correlation heatmap depicting the pairwise column
+        # correlations in the data.
+        #
+        # method String name of correlation method to use.
+        # ... Additional arguments
+        #
+        # @seealso \code{cor} for more information about supported correlation
+        #      methods.
+        plot_cor_heatmap = function(method='pearson', interactive=TRUE, ...) {
+            # generate correlation matrix
+            cor_mat <- private$similarity(self$edat[['dat']]$dat, method=method, ...)
+
+            # list of parameters to pass to heatmaply
+            params <- list(
+                x               = cor_mat,
+                showticklabels  = c(FALSE, FALSE),
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
+            )
+
+            # if metadata is availble, display along side of heatmap
+            if (!is.null(self$col_mdata)) {
+                # for heatmaps, show binary/logical variables on one side of the heatmap and
+                # other variables on the other side
+                lens <- apply(self$col_mdata, 2, function(x) {
+                    length(unique(x))
+                })
+                binary_vars <- lens == 2
+
+                # column colors (binary variables)
+                if (sum(binary_vars) >= 1) {
+                    params[['col_side_colors']] <- self$col_mdata[, binary_vars, drop = FALSE]
+                    params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
+                }
+
+                # column colors (everything else)
+                if (sum(!binary_vars) >= 1) {
+                    params[['col_side_colors']] <- self$col_mdata[, !binary_vars, drop = FALSE]
+                    params[['subplot_widths']]  <- c(0.55, 0.3, 0.15)
+                }
+            }
+
+            # add any additional function arguments
+            params <- c(params, ...)
+
+            private$construct_heatmap_plot(params, interactive)
+        },
+
+        # Generates a heatmap plot of the dataset
+        #
+        # ... Additional arguments
         plot_heatmap = function(interactive=TRUE, ...) {
-            plot_heatmap(key='dat', interactive=interactive, ...)
+            # list of parameters to pass to heatmaply
+            params <- list(
+                x               = self$edat[['dat']]$dat,
+                showticklabels  = c(FALSE, FALSE),
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
+            )
+
+            # if metadata is availble, display along side of heatmap
+            if (!is.null(self$row_mdata)) {
+                params[['row_side_colors']] <- self$row_mdata
+                params[['subplot_widths']]  <- c(0.15, 0.3, 0.55)
+            }
+
+            if (!is.null(self$col_mdata)) {
+                params[['col_side_colors']] <- self$col_mdata
+                params[['subplot_heights']] <- c(0.55, 0.3, 0.15)
+            }
+
+            # add any additional function arguments
+            params <- c(params, ...)
+
+            private$construct_heatmap_plot(params, interactive)
         },
 
         plot_densities = function(color=NULL, title="", ...) {

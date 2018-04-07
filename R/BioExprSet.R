@@ -220,12 +220,23 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #},
 
         # Detects dependencies between column metadata entries (features) and
-        # dataset rows.
-        feature_cor = function(method='pearson', ...) {
+        # dataset rows
+        #
+        # Note: If metedata is not all-numeric, than a similarity method which
+        # supports categorical data (currently only 'lm') must be chosen.
+        feature_cor = function(method='lm', ...) {
             if (is.null(self$col_mdata)) {
                 stop("Error: missing column metadata.")
             }
-            private$compute_cross_cor('dat', 'col_mdata', method, ...)
+            self$cross_cor('dat', 'col_mdata', method, ...)
+        },
+
+        pca_feature_cor = function(num_dims=10, method='pearson', ...) {
+            self$t()$pca(num_dims = num_dims, ...)$t()$feature_cor(method)
+        },
+
+        tsne_feature_cor = function(num_dims=10, method='pearson', ...) {
+            self$t()$tsne(num_dims = num_dims, ...)$t()$feature_cor(method)
         },
 
         filter_rows = function(mask) {
@@ -254,6 +265,14 @@ BioExprSet <- R6::R6Class("BioExprSet",
 
         log2p = function() {
             self$log(base = 2, offset = 1)
+        },
+
+        pca = function(num_dims=NULL, ...) {
+            super$pca(key='dat', num_dims = num_dims, ...)
+        },
+
+        tsne = function(num_dims=NULL, ...) {
+            super$tsne(key='dat', num_dims = num_dims, ...)
         },
 
         plot_feature_cor = function(method='pearson', color_scale=c('green', 'red'), ...) {

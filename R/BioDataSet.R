@@ -364,7 +364,7 @@ BioDataSet <- R6Class("BioDataSet",
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
         cross_cor = function(key1=1, key2=2, method='pearson', ...) {
-            super$cross_cor(key1, key2, method, ...)
+            private$compute_cross_cor(key1, key2, method, ...)
         },
 
         # Plots multidataset correlation heatmap
