@@ -670,16 +670,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat1 <- dat1[order(match(rownames(dat1), row_ind)),, drop = FALSE]
             dat2 <- dat2[order(match(rownames(dat2), row_ind)),, drop = FALSE]
 
-            # for metadata, we can also exclude factor fields with all
-            # unique values (e.g. alternate identifiers)
-            #exclude <- apply(dat2, 1, function(x) {
-            #    is.factor(x) && length(unique(x)) == length(x)
-            #})
-
-            #if (sum(exclude) > 0) {
-            #    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
-            #    dat2 <- dat2[!exclude, ]
-
             # measure similarity between rows in datasets 1 and rows in dataset 2
             cor_mat <- private$similarity(dat1, dat2, method = method, ...)
 

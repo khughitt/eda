@@ -224,19 +224,52 @@ BioExprSet <- R6::R6Class("BioExprSet",
         #
         # Note: If metedata is not all-numeric, than a similarity method which
         # supports categorical data (currently only 'lm') must be chosen.
-        feature_cor = function(method='lm', ...) {
+        feature_cor = function(method='lm', include=NULL, exclude=NULL, ...) {
             if (is.null(self$col_mdata)) {
                 stop("Error: missing column metadata.")
             }
-            self$cross_cor('dat', 'col_mdata', method, ...)
+
+            # determine which features to include
+            features <- colnames(self$col_mdata)
+
+            if (!is.null(include)) {
+                features <- include
+            }
+            if (!is.null(exclude)) {
+                features <- features[!features %in% exclude]
+            }
+            mask <- colnames(self$col_mdata) %in% features
+
+            # for metadata, we can also exclude factor fields with all
+            # unique values (e.g. alternate identifiers)
+            #exclude <- apply(dat2, 1, function(x) {
+            #    is.factor(x) && length(unique(x)) == length(x)
+            #})
+
+            #if (sum(exclude) > 0) {
+            #    message(sprintf("Excluding %d unique factor fields", sum(exclude)))
+            #    dat2 <- dat2[!exclude, ]
+            if (sum(!mask) > 0) {
+                super$filter_cols(key='col_mdata', mask)$cross_cor('dat', 'col_mdata', method, ...)
+            } else {
+                self$cross_cor('dat', 'col_mdata', method, ...)
+            }
         },
 
-        pca_feature_cor = function(num_dims=10, method='pearson', ...) {
-            self$t()$pca(num_dims = num_dims, ...)$t()$feature_cor(method)
+        pca_feature_cor = function(num_dims=10, method='lm', include=NULL, exclude=NULL, ...) {
+            self$t()$pca(num_dims = num_dims, ...)$t()$feature_cor(method, include, exclude)
         },
 
-        tsne_feature_cor = function(num_dims=10, method='pearson', ...) {
-            self$t()$tsne(num_dims = num_dims, ...)$t()$feature_cor(method)
+        plot_pca_feature_cor = function(num_dims=10, method='lm', include=NULL, exclude=NULL, top_n=NULL, ...) {
+            self$t()$pca(num_dims = num_dims, ...)$t()$plot_feature_cor(method, include, exclude, top_n = top_n)
+        },
+
+        tsne_feature_cor = function(num_dims=10, method='lm', include=NULL, exclude=NULL, ...) {
+            self$t()$tsne(num_dims = num_dims, ...)$t()$feature_cor(method, include, exclude)
+        },
+
+        plot_tsne_feature_cor = function(num_dims=10, method='lm', include=NULL, exclude=NULL, top_n=NULL, ...) {
+            self$t()$tsne(num_dims = num_dims, ...)$t()$plot_feature_cor(method, include, exclude, top_n = top_n)
         },
 
         filter_rows = function(mask) {
@@ -275,9 +308,18 @@ BioExprSet <- R6::R6Class("BioExprSet",
             super$tsne(key='dat', num_dims = num_dims, ...)
         },
 
-        plot_feature_cor = function(method='pearson', color_scale=c('green', 'red'), ...) {
+        plot_feature_cor = function(method='pearson', include=NULL, exclude=NULL, top_n=NULL, color_scale=c('green', 'red'), ...) {
             # compute feature correlations
-            dat <- melt(self$feature_cor(method = method, ...))
+            cor_mat <- self$feature_cor(method = method, include = include,
+                                        exclude = exclude, ...)
+
+            # if requested, limit to top N features with the highest average correlation
+            # to data rows
+            if (!is.null(top_n)) {
+                top_features <- names(head(sort(colSums(cor_mat), decreasing=TRUE), top_n))
+                cor_mat <- cor_mat[, colnames(cor_mat) %in% top_features]
+            }
+            dat <- melt(cor_mat)
             colnames(dat) <- c('dim', 'variable', 'value')
 
             # Labels
