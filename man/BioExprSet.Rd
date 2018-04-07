@@ -2,162 +2,46 @@
 % Please edit documentation in R/BioExprSet.R
 \name{BioExprSet}
 \alias{BioExprSet}
-\title{An S6 class representing an Expression dataset}
+\title{An R6 class representing a high-throughput expression dataset along with
+associated gene and sample metadata.}
 \description{
-BioExprSet is a simple class for interacting with biological expression
-data (e.g. from microarray or RNA-Seq experiments.) It can accept either
-a matrix and optional column/row metadata dataframes, or a Bioconductor
-ExpressionSet instance. Methods are provided for common transformations
-and visualizations.
+An R6 class representing a high-throughput expression dataset along with
+associated gene and sample metadata.
 }
 \section{Usage}{
-\preformatted{bset <- BioExprSet$new(count_matrix, row_mdata=gene_annotations,
-                       col_mdata=sample_annotations, row_color='some_var')
-bset$summary()
-
-bset$cpm()$plot_pca()
-bset$t$subsample(1500)$plot_cor_heatmap()
+\preformatted{# TODO
 }
 }
 
 \section{Arguments}{
 
 \itemize{
-\item \code{dat}: An m x n dataset.
-\item \code{row_mdata}: A matrix or data frame with rows corresponding to the row
-names of \code{dat}
-\item \code{col_mdata}: A matrix or data frame with rows corresponding to the
-column names of \code{dat}
-\item \code{row_ids}: Column name or number containing row identifiers. If set to
-\code{rownames} (default), row names will be used as identifiers.
-\item \code{col_ids}: Column name or number containing column identifiers. If set to
-\code{colnames} (default), column names will be used as identifiers.
-\item \code{row_mdata_ids}: Column name or number containing row metadata row
-identifiers. If set to \code{rownames} (default), row names will be used
-as identifiers.
-\item \code{col_mdata_ids}: Column name or number containing col metadata row
-identifiers. If set to \code{rownames} (default), row names will be used
-as identifiers.
-\item \code{row_color}: Row metadata field to use for coloring rowwise plot elements.
-\item \code{row_shape}: Row metadata field to use for determine rowwise plot
-element shape.
-\item \code{row_label}: Row metadata field to use when labeling plot points or
-other elements.
-\item \code{col_color}: Column metadata field to use for coloring columnwise plot elements.
-\item \code{col_shape}: Column metadata field to use for determine columnwise plot
-element shape.
-\item \code{col_label}: Column metadata field to use when labeling plot points or
-other elements.
-\item \code{color_pal}: Color palette to use for relevant plotting methods
-(default: \code{Set1}).
-\item \code{title}: Text to use as a title or subtitle for plots.
-\item \code{ggplot_theme}: Default theme to use for ggplot2 plots
-(default: \code{theme_bw}).
+\item \code{datasets}: A list of datasets (matrices, data frames, etc.), each of
+which shared some column / row identifiers with the first entry in
+the list.
 }
 }
 
 \section{Fields}{
 
 \itemize{
-\item \code{dat}: Underlying data matrix
-\item \code{row_mdata}: Dataframe containing row metadata
-\item \code{col_mdata}: Dataframe containing column metadata
+\item \code{datasets}: List of datasets
 }
 }
 
 \section{Methods}{
 
 \itemize{
-\item \code{clear_cache()}: Clears BioExprSet cache.
-\item \code{clone()}: Creates a copy of the BioExprSet instance.
-\item \code{cluster_tsne(k=10, ...)}: Clusters rows in dataset using a combination
-of t-SNE and k-means clustering.
-\item \code{cpm()}: Performs counts-per-million (CPM) transformation.
-\item \code{detect_col_outliers(num_sd=2, avg='median', method='pearson')}:
-Measures average pairwise similarities between all columns in the dataset.
-Outliers are considered to be those columns who mean similarity to
-all other columns is greater than \code{num_sd} standard deviations from the
-average of averages.
-\item \code{detect_row_outliers(num_sd=2, avg='median', method='pearson')}:
-Measures average pairwise similarities between all rows in the dataset.
-Outliers are considered to be those rows who mean similarity to
-all other rows is greater than \code{num_sd} standard deviations from the
-average of averages.
-\item \code{feature_cor()}: Detects dependencies between column metadata entries
-(features) and dataset rows.
-\item \code{filter_col_outliers(num_sd=2, avg='median', method='pearson')}:
-Removes column outliers from the dataset. See \code{detect_col_outliers()}
-for details of outlier detection approach.
-\item \code{filter_row_outliers(num_sd=2, avg='median', method='pearson')}:
-Removes row outliers from the dataset. See \code{detect_row_outliers()}
-for details of outlier detection approach.
-\item \code{filter_cols(mask)}: Accepts a logical vector of length \code{ncol(obj$dat)}
-and returns a new BioExprSet instance with only the columns associated
-with \code{TRUE} values in the mask.
-\item \code{filter_rows(mask)}: Accepts a logical vector of length \code{nrow(obj$dat)}
-and returns a new BioExprSet instance with only the rowsumns associated
-with \code{TRUE} values in the mask.
-\item \code{impute(method='knn')}: Imputes missing values in the dataset and stores
-the result \emph{in-place}. Currently only k-Nearest Neighbors (kNN)
-imputation is supported.
-\item \code{log(base=exp(1), offset=0)}: Log-transforms data.
-\item \code{log1p()}: Logn(x + 1)-transforms data.
-\item \code{log2p()}: Log2(x + 1)-transforms data.
-\item \code{pca(...)}: Performs principle component analysis (PCA) on the dataset
-and returns a new BioExprSet instance of the projected data points.
-Any additional arguements specified are passed to the \code{prcomp()} function.
-\item \code{pca_feature_cor(method='pearson', ...)}: Measures correlation between
-dataset features (column metadata fields) and dataset principle
-components.
-\item \code{plot_cor_heatmap(method='pearson', interactive=TRUE, ...)}: Plots a
-correlation heatmap of the dataset.
-\item \code{plot_densities(color=NULL, title="", ...)}: Plots densities for each
-column in the dataset. (For histogram and bar plots, see the
-\code{plot_libsizes} method.)
-\item \code{plot_feature_cor(method='pearson', color_scale=c('green', 'red')}:
-Creates a tile plot of projected data / feature correlations. See
-\code{feature_cor()} function.
-\item \code{plot_heatmap(interactive=TRUE, ...)}: Generates a heatmap plot of the
-dataset
-\item \code{plot_libsizes(color=NULL, title=NULL, geom='bar')}: Creates a histogram
-or bar plot of sample library sizes.
-\item \code{plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))}:
-Plot median pairwise column correlations for each variable (column)
-in the dataset.
-\item \code{plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)}:
-Generates a two-dimensional PCA plot from the dataset.
-\item \code{plot_tsne(color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)}:
-Generates a two-dimensional t-SNE plot from the dataset.
+\item \code{cross_cor(key1=1, key2=2, method='pearson')}: Computes cross-dataset
+correlation matrix between rows in two specified datasets.
+\item \code{plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)}:
+Plots multidataset correlation heatmap.
 \item \code{print()}: Prints an overview of the object instance.
-\item \code{subsample(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL)}:
-Subsamples dataset rows and/or columns.
-\item \code{summary(markdown=FALSE, num_digits=2)}: Summarizes overall
-characteristics of a dataset.
-\item \code{t()}: Transposes dataset rows and columns.
-\item \code{tsne(...)}: Performs T-distributed stochastic neighbor embedding (t-SNE)
-on the dataset and returns a new BioExprSet instance of the projected
-data points. Any additional arguements specified are passed to the
-\code{Rtsne()} function.
-\item \code{tsne_feature_cor(method='pearson', ...)}: Measures correlation between
-dataset features (column metadata fields) and dataset t-SNE projected
-axes.
 }
 }
 
 \section{Examples}{
-\preformatted{library('eda')
-
-dat <- as.matrix(iris[,1:4])
-row_mdata <- iris[,5,drop=FALSE]
-
-bset <- BioExprSet$new(dat, row_mdata=row_mdata, row_color='Species')
-
-bset
-bset$summary()
-
-bset$plot_pca()
-bset$log1p()$plot_cor_heatmap()
-bset$subsample(100)$plot_tsne()
+\preformatted{TODO
 }
 }
 

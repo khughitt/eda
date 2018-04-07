@@ -36,8 +36,7 @@ should be set to TRUE to indicate such.
 \section{Fields}{
 
 \itemize{
-\item \code{dat}: Original dataset
-\item \code{fdat}: Dataset formatted in the manner expected by \code{eda} classes.
+\item \code{dat}: Formatted data frame or matrix
 }
 }
 

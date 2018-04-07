@@ -2,7 +2,7 @@
 % Please edit documentation in R/EDAMatrix.R
 \name{EDAMatrix}
 \alias{EDAMatrix}
-\title{An S6 class representing a matrix dataset.}
+\title{An R6 class representing a matrix dataset.}
 \description{
 EDAMatrix is a helper class for wrapping data matrices, with optional
 support for row and column datadata. Methods are provided for common
@@ -27,14 +27,14 @@ edm$t$subsample(100)$plot_heatmap()
 names of \code{dat}
 \item \code{col_mdata}: A matrix or data frame with rows corresponding to the
 column names of \code{dat}
-\item \code{row_ids}: Column name or number containing row identifiers. If set to
+\item \code{row_names}: Column name or number containing row identifiers. If set to
 \code{rownames} (default), row names will be used as identifiers.
-\item \code{col_ids}: Column name or number containing column identifiers. If set to
+\item \code{col_names}: Column name or number containing column identifiers. If set to
 \code{colnames} (default), column names will be used as identifiers.
-\item \code{row_mdata_ids}: Column name or number containing row metadata row
+\item \code{row_mdata_rownames}: Column name or number containing row metadata row
 identifiers. If set to \code{rownames} (default), row names will be used
 as identifiers.
-\item \code{col_mdata_ids}: Column name or number containing col metadata row
+\item \code{col_mdata_rownames}: Column name or number containing col metadata row
 identifiers. If set to \code{rownames} (default), row names will be used
 as identifiers.
 \item \code{row_color}: Row metadata field to use for coloring rowwise plot elements.

@@ -2,9 +2,9 @@
 % Please edit documentation in R/AbstractMatrixDataSet.R
 \name{AbstractMatrixDataSet}
 \alias{AbstractMatrixDataSet}
-\title{An S6 class representing collection of related datasets}
+\title{An R6 class representing collection of related datasets}
 \description{
-An S6 class representing collection of related datasets
+An R6 class representing collection of related datasets
 }
 \section{Usage}{
 \preformatted{# TODO
@@ -34,8 +34,6 @@ the list.
 \itemize{
 \item \code{cross_cor(key1=1, key2=2, method='pearson')}: Computes cross-dataset
 correlation matrix between rows in two specified datasets.
-\item \code{plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)}:
-Plots multidataset correlation heatmap.
 \item \code{print()}: Prints an overview of the object instance.
 }
 }

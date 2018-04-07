@@ -2,7 +2,7 @@
 % Please edit documentation in R/BioDataSet.R
 \name{BioDataSet}
 \alias{BioDataSet}
-\title{An S6 class representing collection of related biological datasets}
+\title{An R6 class representing collection of related biological datasets}
 \description{
 BioEDADataSet is a class for interacting with one or more biological
 datasets, typically those collected from high-throughput experiments.
@@ -34,7 +34,7 @@ other elements.
 \section{Fields}{
 
 \itemize{
-\item \code{datasets}: List of datasets
+\item \code{edat}: List of EDADat dataset instances
 \item \code{annotations}: A list of gene, etc. annotations from external sources.
 }
 }

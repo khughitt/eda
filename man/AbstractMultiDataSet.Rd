@@ -2,7 +2,7 @@
 % Please edit documentation in R/AbstractMultiDataSet.R
 \name{AbstractMultiDataSet}
 \alias{AbstractMultiDataSet}
-\title{An S6 class representing a generic collection of datasets linked by
+\title{An R6 class representing a generic collection of datasets linked by
 either column or row identifiers.}
 \description{
 Includes fucntionality and methods that are relevant to all EDA child

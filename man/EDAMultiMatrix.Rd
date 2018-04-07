@@ -2,10 +2,10 @@
 % Please edit documentation in R/EDAMultiMatrix.R
 \name{EDAMultiMatrix}
 \alias{EDAMultiMatrix}
-\title{An S6 class representing collection of related datasets with a matrix
+\title{An R6 class representing collection of related datasets with a matrix
 for the primary dataset.}
 \description{
-An S6 class representing collection of related datasets with a matrix
+An R6 class representing collection of related datasets with a matrix
 for the primary dataset.
 }
 \section{Usage}{

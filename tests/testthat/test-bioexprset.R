@@ -29,7 +29,7 @@ col_mdat <- as.data.frame(t(data.frame(var_prop1 = sample(5, num_cols, replace =
 colnames(col_mdat) <- colnames(mat)
 
 # create EDAMatrix
-bset <- BioExprSet$new(mat, row_mdata = row_mdat, col_mdata = col_mdat)
+bset <- BioExprSet$new(list(dat = mat, row_mdata = row_mdat, col_mdata = col_mdat))
 
 ##############################
 # Tests

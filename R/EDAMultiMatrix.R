@@ -76,13 +76,8 @@ EDAMultiMatrix <- R6Class("EDAMultiMatrix",
     # ------------------------------------------------------------------------
     active = list(
         # Make datasets publically visible for EDAMultiMatrix instances
-        datasets = function(value) {
-            if (missing(value)) {
-                lapply(self$edat, function(x) { x$dat })
-            } else {
-                # TO TEST (may need to make datasets read-only...)
-                lapply(self$edat, function(x) { x$dat }) <- value
-            }
+        datasets = function() {
+            lapply(self$edat, function(x) { x$dat })
         }
     )
 )
