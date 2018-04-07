@@ -82,6 +82,9 @@ EDADat <- R6Class("EDADat",
 
         # returns the vector for the specified axis and row/column name
         get = function(axis, name, other_axis=FALSE) {
+            if (!axis %in% c(self$xid, self$yid)) {
+                stop("Invalid axis ID specified.")
+            }
             if ((axis == self$xid  && !other_axis) || (axis == self$yid && other_axis)) {
                 # for row requests on transposed data frames, retrieve column
                 # from original data to preserve type

@@ -106,10 +106,10 @@ test_that("Correlation measures work", {
 # Plot styles
 test_that("Handling of plot styles works", {
     # EDADat$get()
-    expect_equal(mds$edat[['a']]$get('x', 'obs01'), as.vector(dat1[1, ]))
-    expect_equal(mds$edat[['a']]$get('y', 'var01'), as.vector(dat1[, 1]))
-    expect_equal(mds$edat[['a']]$get('x', 'var01', other_axis=TRUE), as.vector(dat1[, 1]))
-    expect_equal(mds$edat[['a']]$get('y', 'obs01', other_axis=TRUE), as.vector(dat1[1, ]))
+    expect_equal(mds$edat[['a']]$get('a_x', 'obs01'), as.vector(dat1[1, ]))
+    expect_equal(mds$edat[['a']]$get('a_y', 'var01'), as.vector(dat1[, 1]))
+    expect_equal(mds$edat[['a']]$get('a_x', 'var01', other_axis=TRUE), as.vector(dat1[, 1]))
+    expect_equal(mds$edat[['a']]$get('a_y', 'obs01', other_axis=TRUE), as.vector(dat1[1, ]))
 })
 
 # Sub-sampling
