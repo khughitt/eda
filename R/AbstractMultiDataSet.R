@@ -264,6 +264,37 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             obj
         },
 
+        # filters dataset to include both the rows and columns associated with
+        # each of the top and/or bottom N values in the dataset
+        extreme_n = function(key=1, top=NULL, bottom=NULL) {
+            # TODO: add "unique" option to specify that N unique rows/columns
+            # should be returned (this way if many extreme values are all in the 
+            # same row/col, won't end up returning only that entry..)
+            dat <- self$edat[[key]]$dat
+
+            # vector of rows / columns to keep
+            row_ind <- c()
+            col_ind <- c()
+
+            # indices of top N values
+            if (!is.null(top)) {
+                ind <- which(dat >= sort(dat, decreasing=TRUE)[top], arr.ind=TRUE)
+                row_ind <- ind[, 'row']
+                col_ind <- ind[, 'col']
+            }
+
+            # indices of bottom N values
+            if (!is.null(bottom)) {
+                ind <- which(dat <= sort(dat, decreasing=FALSE)[bottom], arr.ind=TRUE)
+                row_ind <- unique(c(row_ind, ind[, 'row']))
+                col_ind <- unique(c(col_ind, ind[, 'col']))
+            }
+
+            obj <- private$clone_()
+            obj$edat[[key]]$dat <- dat[row_ind, col_ind]
+            obj
+        },
+
         ######################################################################
         # plotting methods
         ######################################################################
