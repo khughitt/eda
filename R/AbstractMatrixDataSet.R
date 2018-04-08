@@ -227,7 +227,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # Generates a heatmap plot of the dataset
         #
         # ... Additional arguments
-        plot_heatmap = function(key, interactive=TRUE, ...) {
+        plot_heatmap = function(key=1, interactive=TRUE, ...) {
             # list of parameters to pass to heatmaply
             params <- list(
                 x               = self$edat[[key]]$dat,

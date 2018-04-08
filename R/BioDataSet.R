@@ -77,7 +77,7 @@
 #'  - `plot_feature_cor(method='pearson', color_scale=c('green', 'red')`:
 #'		Creates a tile plot of projected data / feature correlations. See
 #'		`feature_cor()` function.
-#'  - `plot_heatmap(interactive=TRUE, ...)`: Generates a heatmap plot of the
+#'  - `plot_heatmap(x=1, interactive=TRUE, ...)`: Generates a heatmap plot of the
 #'		dataset
 #'  - `plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))`:
 #'		Plot median pairwise column correlations for each variable (column)
@@ -204,36 +204,22 @@ BioDataSet <- R6Class("BioDataSet",
             rownames(res) <- unique(mapping[, ANNOT_IND])
             colnames(res) <- colnames(dat)
 
-            # clone BioDataSet instance and replace main dataset with 
-            obj <- private$clone_()
-
-            # Remove any additional datasets which use the same identifiers as
-            # the target
-            orig_xid <- self$edat[[key]]$xid
-            orig_yid <- self$edat[[key]]$yid
-
-            for (ds in names(obj$edat)) {
-                if (obj$edat[[ds]]$xid == orig_xid || obj$edat[[ds]]$yid == orig_xid) {
-                    obj$edat[[ds]] <- NULL
-                }    
-            }
-
             # key form: <old key>_<annotation>_<stat>
             stat_name <- as.character(substitute(stat))
             res_key <- paste(c(key, annotation, stat_name), collapse='_')
 
-            # replace original dataset with annotation stat result matrix
-            obj$edat[[key]]     <- NULL
-            obj$edat[[res_key]] <- EDADat$new(res, xid=annotation, yid=orig_yid)
+            # clone BioDataSet instance and add new edat
+            obj <- private$clone_()
+            obj$edat[[res_key]] <- EDADat$new(res, xid=annotation, yid=self$edat[[key]]$yid)
 
             obj
         },
-        
+
         # load annotations from a supported source
         load_annotations = function(source='cpdb', keytype='ensembl') {
             # check to make sure annotation type is valid
             if (!source %in% c('cpdb')) {
-                stop("Unsupported annotation source specified.") 
+                stop("Unsupported annotation source specified.")
             }
 
             # If annotations have already been retrieved, simply return them
@@ -336,7 +322,7 @@ BioDataSet <- R6Class("BioDataSet",
             cat("=\n")
             for (i in seq_along(self$edat)) {
                 ds <- self$edat[[i]]$dat
-                
+
                 # print dataset entry
                 cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
             }
@@ -348,24 +334,13 @@ BioDataSet <- R6Class("BioDataSet",
                 cat("=\n")
                 for (source in names(self$annotations)) {
                     annot <- self$annotations[[source]]
-                    cat(sprintf("= - %s (%d annotations, %d genes)\n", source, 
-                                length(unique(annot[,1])),
-                                length(annot[,2])))
+                    cat(sprintf("= - %s (%d annotations, %d genes)\n", source,
+                                length(unique(annot[, 1])),
+                                length(annot[, 2])))
                 }
                 cat("=\n")
             }
             cat("=========================================\n")
-        },
-
-        # Computes cross-dataset correlation matrix
-        #
-        # @param key1 Numeric or character index of first dataset to use
-        # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
-        #
-        # @return Matrix of pairwise dataset1 - dataset2 correlations
-        cross_cor = function(key1=1, key2=2, method='pearson', ...) {
-            private$compute_cross_cor(key1, key2, method, ...)
         },
 
         # Plots multidataset correlation heatmap
@@ -374,8 +349,8 @@ BioDataSet <- R6Class("BioDataSet",
         # @param key2 Numeric or character index of second dataset to use
         # @param method Correlation method to use (passed to `cor` function)
         #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
-            super$plot_cross_cor_heatmap(key1, key2, method, interactive)
+        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', new_key=NULL, interactive=TRUE) {
+            super$plot_cross_cor_heatmap(key1, key2, method, new_key, interactive)
         }
     ),
 

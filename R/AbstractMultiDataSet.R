@@ -53,6 +53,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             private$title        <- title
         },
 
+        # Adds a new dataset to front of datasets list, in-place
+        add = function (edat, key) {
+            edat_names <- c(key, names(self$edat))
+            self$edat <- c(edat, self$edat)
+            names(self$edat) <- edat_names
+        },
+
         # Clears any cached resuts and performs garbage collection to free
         # up memory.
         clear_cache = function() {
@@ -205,6 +212,58 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
         },
 
+        # returns a new object instance with only the top N rows / columns
+        # of specified dataset
+        bottom_n = function(key=1, num_rows=NULL, num_cols=NULL, fxn=sum) {
+            dat <- self$edat[[key]]$dat
+
+            # masks to keep track of which rows / columns to keep
+            row_mask <- rep(TRUE, nrow(dat))
+            col_mask <- rep(TRUE, ncol(dat))
+
+            # get top n rows
+            if (!is.null(num_rows)) {
+                row_scores <- apply(dat, 1, fxn) 
+                row_mask <- rank(row_scores) <= num_rows
+            }
+
+            # get top n columns
+            if (!is.null(num_cols)) {
+                col_scores <- apply(dat, 2, fxn) 
+                col_mask <- rank(col_scores) <= num_cols
+            }
+
+            obj <- private$clone_()
+            obj$edat[[key]]$dat <- dat[row_mask, col_mask]
+            obj
+        },
+
+        # returns a new object instance with only the top N rows / columns
+        # of specified dataset
+        top_n = function(key=1, num_rows=NULL, num_cols=NULL, fxn=sum) {
+            dat <- self$edat[[key]]$dat
+
+            # masks to keep track of which rows / columns to keep
+            row_mask <- rep(TRUE, nrow(dat))
+            col_mask <- rep(TRUE, ncol(dat))
+
+            # get top n rows
+            if (!is.null(num_rows)) {
+                row_scores <- apply(dat, 1, fxn) 
+                row_mask <- rank(-row_scores) <= num_rows
+            }
+
+            # get top n columns
+            if (!is.null(num_cols)) {
+                col_scores <- apply(dat, 2, fxn) 
+                col_mask <- rank(-col_scores) <= num_cols
+            }
+
+            obj <- private$clone_()
+            obj$edat[[key]]$dat <- dat[row_mask, col_mask]
+            obj
+        },
+
         ######################################################################
         # plotting methods
         ######################################################################
@@ -311,18 +370,46 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
         },
 
+        # replaces a dataset with a new one, in-place
+        replace = function(old_key, new_key, dat, xid=NULL, yid=NULL) {
+            # Assume original dataset row and column ids, unless specified
+            orig_xid <- self$edat[[old_key]]$xid
+            orig_yid <- self$edat[[old_key]]$yid
+
+            # Remove any additional datasets which use the same 
+            # identifiers as the target dataset
+            for (ds in names(self$edat)) {
+                if (self$edat[[ds]]$xid == orig_xid || self$edat[[ds]]$yid == orig_yid) {
+                    self$edat[[ds]] <- NULL
+                }
+            }
+
+            # determine new row and column ids
+            xid <- ifelse(is.null(xid), orig_xid, xid)
+            yid <- ifelse(is.null(yid), orig_yid, yid)
+
+            # replace original dataset with annotation stat result matrix
+            self$edat[[old_key]] <- NULL
+            self$edat[[new_key]] <- EDADat$new(dat, xid=xid, yid=yid)
+        },
+
         # transpose (out-of-place)
-        t = function() {
+        t = function(key=NULL) {
             obj <- private$clone_()
-            obj$transpose()
+            obj$transpose(key)
             obj
         },
 
         # transpose (in-place)
-        transpose = function() {
-            # transpose data
-            for (id in names(self$edat)) {
-               self$edat[[id]]$transpose()
+        transpose = function(key=NULL) {
+            # if key provided, transpose specific dataset
+            if (!is.null(key)) {
+                self$edat[[key]]$transpose()
+            } else {
+                # otherwise, transpose all datasets
+                for (id in names(self$edat)) {
+                self$edat[[id]]$transpose()
+                }
             }
         }
     ),
@@ -640,7 +727,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #   - mi       (Mututal information)
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        compute_cross_cor = function(key1=1, key2=2, method='pearson', ...) {
+        compute_cross_cor = function(key1=1, key2=2, method='pearson', new_key=NULL, ...) {
             # make sure datasets share some common ids
             if (length(unique(c(self$edat[[key1]]$xid, self$edat[[key2]]$xid,
                                 self$edat[[key1]]$yid, self$edat[[key2]]$yid))) == 4) {
@@ -659,14 +746,18 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # row-oriented datasets
             if (dat1_shared_axis == 'rows') {
                 dat1 <- self$edat[[key1]]$dat
+                xid <- self$edat[[key1]]$yid
             } else {
                 dat1 <- self$edat[[key1]]$tdat
+                xid <- self$edat[[key1]]$xid
             }
 
             if (dat2_shared_axis == 'rows') {
                 dat2 <- self$edat[[key2]]$dat
+                yid <- self$edat[[key1]]$yid
             } else {
                 dat2 <- self$edat[[key2]]$tdat
+                yid <- self$edat[[key2]]$xid
             }
 
             # only operate on shared entries
@@ -678,7 +769,20 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # measure similarity between rows in datasets 1 and rows in dataset 2
             cor_mat <- private$similarity(dat1, dat2, method = method, ...)
 
-            cor_mat
+            # clone object and add new dataset
+            obj <- private$clone_()
+
+            # map numeric keys to string names
+            key1 <- ifelse(is.numeric(key1), names(self$edat)[key1], key1)
+            key2 <- ifelse(is.numeric(key2), names(self$edat)[key2], key2)
+
+            # determine key to use for storing result
+            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_cor', key1, key2), new_key)
+
+            # add new matrix to front of edat list and return
+            obj$add(EDADat$new(cor_mat, xid = xid, yid = yid), new_key)
+
+            obj
         },
 
         # Plots multidataset correlation heatmap

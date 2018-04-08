@@ -45,7 +45,7 @@ rownames(dat3) <- letters[1:5]
 colnames(dat3) <- sprintf('col%02d', 1:3)
 
 sds <- EDAMatrix$new(dats)
-mds <- EDAMultiMatrix$new(list(a=dat1, b=EDADat$new(dat2, yid='a_y'), c=dat3))
+mds <- EDAMultiMatrix$new(list(a=dat1, b=EDADat$new(dat2, xid = 'b_x', yid='a_y'), c=dat3))
 
 # expected correlation result (zero-variance middle rows removed)
 
@@ -79,6 +79,10 @@ test_that("Correlation measures work", {
     # combined dataset
     combined_dat <- t(rbind(d1, d2))
 
+    #
+    # Similarity matrices
+    #
+
     # Pearson correlation matrix
     cor_mat <- cor(combined_dat)
 
@@ -87,7 +91,7 @@ test_that("Correlation measures work", {
     rownames(mut_mat) <- colnames(combined_dat)
     colnames(mut_mat) <- colnames(combined_dat)
 
-    # Linear model (perfect fits, so r^2 are all 100's)
+    # Linear model matrix (perfect fits, so r^2 are all 100's)
     lm_mat <- matrix(100, 4, 4)
     rownames(lm_mat) <- colnames(combined_dat)
     colnames(lm_mat) <- colnames(combined_dat)
@@ -97,10 +101,36 @@ test_that("Correlation measures work", {
     expect_equal(sds$t()$cor(method = 'mi'),      mut_mat)
     expect_equal(expect_warning(sds$t()$cor(method = 'lm')), lm_mat)
 
-    # cross_cor() compares rows from two datasets
-    expect_equal(mds$cross_cor(method = 'pearson'), cor_mat[row_ind, col_ind])
-    expect_equal(mds$cross_cor(method = 'mi'),      mut_mat[row_ind, col_ind])
-    expect_equal(expect_warning(mds$cross_cor(method = 'lm')), lm_mat[row_ind, col_ind])
+    #
+    # Cross correlation
+    #
+
+    # Pearson correlation
+    res <- mds$cross_cor(method = 'pearson')
+    expect_equal(res$edat[['a_b_cor']]$dat, cor_mat[row_ind, col_ind])
+
+    # Mutual information
+    res <- mds$cross_cor(method = 'mi')
+    expect_equal(res$edat[['a_b_cor']]$dat, mut_mat[row_ind, col_ind])
+
+    # Linear model
+    # Gives an expected warning because of the perfect fit in fake data
+    res <- expect_warning(mds$cross_cor(method = 'lm'))
+    expect_equal(res$edat[['a_b_cor']]$dat, lm_mat[row_ind, col_ind])
+
+    # Check handling of axes and transposed data
+
+    # check axis ids for cross cor matrix; should have axes corresponding
+    # to the non-shared axes in original two datasets
+    expect_equal(res$edat[['a_b_cor']]$xid, 'a_x')
+    expect_equal(res$edat[['a_b_cor']]$yid, 'b_x')
+
+    # should get the same result, even if relative dataset orientation differs
+    res <- mds$t('a')$cross_cor(method = 'pearson')
+
+    expect_equal(res$edat[['a_b_cor']]$dat, cor_mat[row_ind, col_ind])
+    expect_equal(res$edat[['a_b_cor']]$xid, 'a_x')
+    expect_equal(res$edat[['a_b_cor']]$yid, 'b_x')
 })
 
 # Plot styles
