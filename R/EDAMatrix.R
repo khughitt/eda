@@ -431,6 +431,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             row_mdat <- self$edat[['row_mdata']] 
             self$edat[['row_mdata']] <- self$edat[['col_mdata']]
             self$edat[['col_mdata']] <- row_mdat
+        },
+
+        # transpose (out-of-place)
+        t = function() {
+            obj <- private$clone_()
+            obj$transpose()
+            obj
         }
     ),
     private = list(
