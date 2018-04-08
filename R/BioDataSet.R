@@ -206,26 +206,25 @@ BioDataSet <- R6Class("BioDataSet",
 
             # clone BioDataSet instance and replace main dataset with 
             obj <- private$clone_()
-            obj$edat[[key]] <- NULL
 
             # Remove any additional datasets which use the same identifiers as
             # the target
             orig_xid <- self$edat[[key]]$xid
+            orig_yid <- self$edat[[key]]$yid
 
-            for (i in seq_along(obj$edat)) {
-                if (obj$edat[[i]]$xid == orig_xid || obj$edat[[i]]$yid == orig_xid) {
-                    obj$edat[[i]] <- NULL
+            for (ds in names(obj$edat)) {
+                if (obj$edat[[ds]]$xid == orig_xid || obj$edat[[ds]]$yid == orig_xid) {
+                    obj$edat[[ds]] <- NULL
                 }    
             }
-
-            # set annotation_stat result as main dataset and return
-            obj$edat[[key]] <- res
 
             # key form: <old key>_<annotation>_<stat>
             stat_name <- as.character(substitute(stat))
             res_key <- paste(c(key, annotation, stat_name), collapse='_')
 
-            names(obj$edat)[key] <- res_key
+            # replace original dataset with annotation stat result matrix
+            obj$edat[[key]]     <- NULL
+            obj$edat[[res_key]] <- EDADat$new(res, xid=annotation, yid=orig_yid)
 
             obj
         },
@@ -341,7 +340,9 @@ BioDataSet <- R6Class("BioDataSet",
                 # print dataset entry
                 cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
             }
+
             cat("=\n")
+
             if (length(self$annotations) > 0) {
                 cat("= Annotations:\n")
                 cat("=\n")

@@ -19,6 +19,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # AbstractMultiDataSet constructor
         initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
 
+            # if a single dataset was provided, wrap as a list for consistency
+            if (class(datasets) != 'list') {
+                datasets <- list(dat = datasets)
+            }
+
             # drop any empty datasets
             datasets <- datasets[!sapply(datasets, is.null)]
 
