@@ -409,6 +409,28 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                  labels = var_labels, las = 2)
             abline(h = cutoff, lty = 2)
             abline(v = 1:length(var_labels), lty = 3, col = "black")
+        },
+
+        # computes matrix of row z-scores
+        zscores = function(key=1) {
+            # compute z-scores
+            dat <- t(scale(t(self$edat[[key]]$dat)))
+            attr(dat, 'scaled:scale') <- NULL
+            attr(dat, 'scaled:center') <- NULL
+
+            # clone object and add new dataset
+            obj <- private$clone_()
+
+            # map numeric keys to string names
+            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+
+            # determine key to use for storing result
+            new_key <- sprintf('%s_zscores', key)
+
+            # add new matrix to front of edat list and return
+            obj$add(EDADat$new(dat, xid = self$edat[[key]]$xid, yid = self$edat[[key]]$yid), new_key)
+
+            obj
         }
-    )
+    ),
 )
