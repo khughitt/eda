@@ -43,24 +43,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             super$initialize(datasets, color_pal, title, ggplot_theme)
         },
 
-        # Clusters dataset rows using k-means clustering in a t-SNE projected
-        # space.
-        #
-        # k     Number of clusters to detect (default: 10)
-        # ...   Additional arguments passed to Rtsne function
-        #
-        # return Vector of cluster assignments with length equal to the
-        #     number of rows in the dataset.
-        cluster_tsne = function(key=1, k=10, ...) {
-            tsne <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)
-            dat <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
-
-            # Cluster patients from t-sne results
-            kmeans_clusters <- kmeans(dat, k)$cluster
-
-            factor(paste0('cluster_', kmeans_clusters))
-        },
-
         # Detects column outliers in the dataset
         #
         # Computes pairwise correlations between all columns in the dataset.

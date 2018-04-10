@@ -67,6 +67,114 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             invisible(gc())
         },
 
+        # cluster dataset and return new object instance which including the results
+        cluster = function(key=1, method='kmeans', ...) {
+            # check to make sure specified clustering method is valid
+            if (!method %in% names(private$cluster_methods)) {
+                stop('Unsupported clustering method specified.')
+            }
+
+            # list of function arguments, excluding function name and key
+            args <- as.list(match.call())
+            args <- args[3:length(args)]
+
+            # generate hash string of form: <param1>.<val1>.<param2>.<val2>.etc;
+            # this will become the column name in a key-specific cluster result
+            # table
+            hash <- paste0(as.character(names(args)), '.', as.character(args), collapse='.')
+
+            # convert key to string name, if not already provided as such
+            if (is.numeric(key)) {
+                key <- names(self$edat)[key]
+            }
+
+            # key for cluster result dataset
+            cluster_key <- sprintf("clusters-%s", key)
+
+            # if clustering has already been performed, retrieve result
+            if (cluster_key %in% names(self$edat)) {
+                if (hash %in% colnames(self$edat[[cluster_key]]$dat)) {
+                    return(self$edat[[cluster_key]]$dat[, hash])
+                }
+            }
+
+            # otherwise, perform clustering
+            clusters <- private$cluster_methods[[method]](self$edat[[key]]$dat, ...)
+
+            # convert result to an n x 1 mapping matrix
+            mat <- as.matrix(clusters)
+            rownames(mat) <- rownames(self$edat[[key]])
+            colnames(mat) <- hash
+
+            # if cluster table doesn't exist, create it
+            if (!cluster_key %in% names(self$edat)) {
+                # crate a new EDADat instance
+                self$edat[[cluster_key]] <- EDADat$new(
+                    mat,
+                    xid = self$edat[[key]]$xid,
+                    yid = cluster_key
+                )
+            } else {
+                # otherwise, add new column to clusters table 
+                self$edat[[cluster_key]]$dat <- cbind(self$edat[[cluster_key]]$dat, mat)
+            }
+
+            clusters
+        },
+
+        # clusters dataset rows and computes a statistic for each cluster
+        cluster_stats = function(key, method='kmeans', stat=median, ...) {
+            # check for valid dataset key
+            private$check_key(key)
+
+            # determine statistic to use
+            if (!is.function(stat)) {
+                if (stat %in% names(private$stat_fxns)) {
+                    stat <- private$stat_fxns[[stat]]
+                } else {
+                    stop("Invalid statistic specified.")
+                }
+            }
+
+            # output data frame
+            res <- data.frame()
+
+            # check to see if clustering has been performed, and if not,
+            # compute clustering
+            clusters <- self$cluster(key = key, method = method, ...)
+
+            # dataset to compute statistics on
+            dat <- self$edat[[key]]$dat
+
+            message("Computing cluster statistics...")
+
+            # iterate over clusters
+            for (cluster in unique(clusters)) {
+                # data for cluster members
+                dat_subset <- dat[clusters == cluster,, drop = FALSE]
+
+                # compute statistic for each column and append to result
+                res <- rbind(res, apply(dat_subset, 2, stat, ...))
+            }
+
+            # fix column and row names and return result
+            rownames(res) <- unique(clusters)
+            colnames(res) <- colnames(dat)
+
+            # convert numeric keys
+            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+
+            # key form: <old key>_<cluster_method>_<stat>
+            stat_name <- as.character(substitute(stat))
+            res_key <- paste(c(key, method, stat_name), collapse='_')
+
+            # clone dataset instance and add new edat
+            obj <- private$clone_()
+            obj$edat[[res_key]] <- EDADat$new(res, xid=method, yid=self$edat[[key]]$yid)
+
+            obj
+        },
+
         # Measure similarity between columns
         cor = function(key=1, method='pearson', ...) {
             private$similarity(self$edat[[key]]$dat, method=method, ...)
@@ -486,6 +594,44 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         cache        = list(),
 
+        # Helper functions for computing various statistics; used by the
+        # `AbstractMultiDataSet$cluster_stats` and `BioDataSet$annotation_stats` 
+        # method.
+        stat_fxns = list(
+            'num_nonzero' = function(x) {
+                sum(x != 0)
+            },
+            'num_zero' = function(x) {
+                sum(x == 0)
+            },
+            'num_above_cutoff' = function(x, cutoff=0) {
+                sum(x > cutoff)
+            },
+            'num_below_cutoff' = function(x, cutoff=Inf) {
+                sum(x < cutoff)
+            },
+            'ratio_nonzero' = function(x) {
+                sum(x != 0) / length(x)
+            },
+            'ratio_zero' = function(x) {
+                sum(x == 0) / length(x)
+            },
+            'ratio_above_cutoff' = function(x, cutoff=0) {
+                sum(x > cutoff) / length(x)
+            },
+            'ratio_below_cutoff' = function(x, cutoff=Inf) {
+                sum(x < cutoff) / length(x)
+            }
+        ),
+
+        # check for valid dataset key
+        check_key = function(key) {
+            # check for valid dataset key
+            if (!key %in% c(1:length(self$edat), names(self$edat))) {
+                stop(sprintf("Invalid dataset specified: %s", key))
+            }
+        },
+
         # clone object
         clone_ = function() {
             obj <- self$clone(deep = TRUE)
@@ -673,6 +819,28 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             self$edat[[label_key]]$get(self$edat[[key]]$xid, label_var)
         },
+
+        #
+        # Supported cluster methods
+        #
+        cluster_methods = list(
+            kmeans = function(dat, k, ...) {
+                kmeans(dat, k, ...)$cluster
+            },
+    
+            # k-means clustering of t-SNE projected data
+            #
+            # k     Number of clusters to detect (default: 10)
+            # ...   Additional arguments passed to Rtsne function
+            #
+            # return Vector of cluster assignments with length equal to the
+            #     number of rows in the dataset.
+            'tsne-kmeans' = function(dat, k=10, ...) {
+                tsne <- Rtsne::Rtsne(dat, ...)
+                res <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
+                kmeans(res, k)$cluster
+            }
+        ),
 
         #
         # Supported similarity measures

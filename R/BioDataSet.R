@@ -155,21 +155,16 @@ BioDataSet <- R6Class("BioDataSet",
         #
         annotation_stats = function(key, annotation, stat=median, ...) {
             # check for valid dataset key
-            if (!key %in% c(1:length(self$edat), names(self$edat))) {
-                stop(sprintf("Invalid dataset specified: %s", key))
-            }
+            private$check_key(key)
 
             # determine statistic to use
             if (!is.function(stat)) {
-                if (stat %in% names(private$annotation_stat_fxns)) {
-                    stat <- private$annotation_stat_fxns[[stat]]
+                if (stat %in% names(private$stat_fxns)) {
+                    stat <- private$stat_fxns[[stat]]
                 } else {
                     stop("Invalid statistic specified.")
                 }
             }
-
-            # check to see if already computed
-            stat_name <- as.character(substitute(stat))
 
             # output data frame
             res <- data.frame()
@@ -196,13 +191,17 @@ BioDataSet <- R6Class("BioDataSet",
                 # get data values for relevant genes
                 dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
 
-                # compute statistic for each column (cell line) and append to result
+                # compute statistic for each column (often, samples) and append 
+                # to result
                 res <- rbind(res, apply(dat_subset, 2, stat, ...))
             }
 
             # fix column and row names and return result
             rownames(res) <- unique(mapping[, ANNOT_IND])
             colnames(res) <- colnames(dat)
+
+            # convert numeric keys
+            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
             # key form: <old key>_<annotation>_<stat>
             stat_name <- as.character(substitute(stat))
@@ -358,35 +357,6 @@ BioDataSet <- R6Class("BioDataSet",
     # private
     # ------------------------------------------------------------------------
     private = list(
-        # Helper functions for pathway-level statistics; used by the
-        # `annotation_stats` method.
-        annotation_stat_fxns = list(
-            'num_nonzero' = function(x) {
-                sum(x != 0)
-            },
-            'num_zero' = function(x) {
-                sum(x == 0)
-            },
-            'num_above_cutoff' = function(x, cutoff=0) {
-                sum(x > cutoff)
-            },
-            'num_below_cutoff' = function(x, cutoff=Inf) {
-                sum(x < cutoff)
-            },
-            'ratio_nonzero' = function(x) {
-                sum(x != 0) / length(x)
-            },
-            'ratio_zero' = function(x) {
-                sum(x == 0) / length(x)
-            },
-            'ratio_above_cutoff' = function(x, cutoff=0) {
-                sum(x > cutoff) / length(x)
-            },
-            'ratio_below_cutoff' = function(x, cutoff=Inf) {
-                sum(x < cutoff) / length(x)
-            }
-        ),
-
         # Verifies that input data is an acceptable format.
         check_input = function(dat) {
             if (!is.matrix(dat) && (class(dat) != 'ExpressionSet')) {
