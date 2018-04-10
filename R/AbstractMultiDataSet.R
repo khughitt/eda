@@ -266,10 +266,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
         # filters dataset to include both the rows and columns associated with
         # each of the top and/or bottom N values in the dataset
-        extreme_n = function(key=1, top=NULL, bottom=NULL) {
-            # TODO: add "unique" option to specify that N unique rows/columns
-            # should be returned (this way if many extreme values are all in the 
-            # same row/col, won't end up returning only that entry..)
+        extreme_n = function(key=1, top=NULL, bottom=NULL, unique=FALSE) {
             dat <- self$edat[[key]]$dat
 
             # vector of rows / columns to keep
@@ -278,16 +275,49 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # indices of top N values
             if (!is.null(top)) {
-                ind <- which(dat >= sort(dat, decreasing=TRUE)[top], arr.ind=TRUE)
-                row_ind <- ind[, 'row']
-                col_ind <- ind[, 'col']
+                # require <top> unique rows/columns
+                if (unique) {
+                    # iterate over max values until <top> unique rows and columns
+                    # have been added
+                    while (length(row_ind) < top || length(col_ind) < top) {
+                        ind <- which(dat == max(dat), arr.ind=TRUE)
+                        dat[ind] <- 0
+
+                        if (!ind[, 1] %in% row_ind) {
+                            row_ind <- c(row_ind, ind[, 1])    
+                        }
+                        if (!ind[, 2] %in% col_ind) {
+                            col_ind <- c(col_ind, ind[, 2])    
+                        }
+                    }
+                } else {
+                    # non-unique rows / columns
+                    ind <- which(dat >= sort(dat, decreasing=TRUE)[top], arr.ind=TRUE)
+                    row_ind <- ind[, 'row']
+                    col_ind <- ind[, 'col']
+                }
             }
 
             # indices of bottom N values
             if (!is.null(bottom)) {
-                ind <- which(dat <= sort(dat, decreasing=FALSE)[bottom], arr.ind=TRUE)
-                row_ind <- unique(c(row_ind, ind[, 'row']))
-                col_ind <- unique(c(col_ind, ind[, 'col']))
+                if (unique) {
+                    while (length(row_ind) < (top + bottom) || length(col_ind) < (top + bottom)) {
+                        ind <- which(dat == min(dat), arr.ind=TRUE)
+                        dat[ind] <- 0
+
+                        if (!ind[, 1] %in% row_ind) {
+                            row_ind <- c(row_ind, ind[, 1])    
+                        }
+                        if (!ind[, 2] %in% col_ind) {
+                            col_ind <- c(col_ind, ind[, 2])    
+                        }
+                    }
+                } else {
+                    # non-unique rows / columns
+                    ind <- which(dat <= sort(dat, decreasing=FALSE)[bottom], arr.ind=TRUE)
+                    row_ind <- unique(c(row_ind, ind[, 'row']))
+                    col_ind <- unique(c(col_ind, ind[, 'col']))
+                }
             }
 
             obj <- private$clone_()
