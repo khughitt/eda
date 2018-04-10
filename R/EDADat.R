@@ -166,17 +166,20 @@ EDADat <- R6Class("EDADat",
             self$ylab <- xlab
             
             # swap row and column style elements
-            row_color = self$row_color
-            row_shape = self$row_shape
-            row_label = self$row_label
+            row_color <- self$row_color
+            row_shape <- self$row_shape
+            row_label <- self$row_label
+            row_edat  <- self$row_edat
 
             self$row_color <- self$col_color
             self$row_shape <- self$col_shape
             self$row_label <- self$col_label
+            self$row_edat  <- self$col_edat
 
             self$col_color <- row_color
             self$col_shape <- row_shape
             self$col_label <- row_label
+            self$col_edat  <- row_edat
         }
     ),
 

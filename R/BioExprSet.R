@@ -45,7 +45,7 @@ BioExprSet <- R6Class("BioExprSet",
             num_esets <- 0
 
             for (i in seq_along(datasets)) {
-                if (class(datasets[[i]]) == 'ExpressionSet') {
+                if (class(datasets[[i]])[1] == 'ExpressionSet') {
                     num_esets <- num_esets + 1
 
 					# get eset
@@ -101,7 +101,8 @@ BioExprSet <- R6Class("BioExprSet",
         # @return A CPM-transformed version of the BioExprSet instance.
         cpm = function(key=1) {
             obj <- private$clone_() 
-            obj$edat[[key]] <- sweep(obj$edat[[key]], 2, colSums(obj$edat[[key]]), '/') * 1E6
+            dat <- obj$edat[[key]]$dat 
+            obj$edat[[key]]$dat <- sweep(dat, 2, colSums(dat), '/') * 1E6
             obj
         },
 
