@@ -215,7 +215,7 @@ BioDataSet <- R6Class("BioDataSet",
         },
 
         # load annotations from a supported source
-        load_annotations = function(source='cpdb', keytype='ensembl') {
+        load_annotations = function(source, source_file=NULL, keytype='ensembl') {
             # check to make sure annotation type is valid
             if (!source %in% c('cpdb')) {
                 stop("Unsupported annotation source specified.")
@@ -226,11 +226,18 @@ BioDataSet <- R6Class("BioDataSet",
                 return(self$annotations[[source]])
             }
 
+            # If annotation specified, check that valid filepath provided
+            if (!is.null(source_file)) {
+                if (!file.exists(source_file)) {
+                    stop(sprintf("Invalid annotation filepath specified: %s", source_file))
+                }
+            }
+
             message(sprintf("Loading %s annotations...", source))
 
             # CPDB
             if (source == 'cpdb') {
-                private$get_cpdb_annotations(keytype)
+                private$get_cpdb_annotations(keytype, source_file)
             }
         },
 
@@ -365,15 +372,18 @@ BioDataSet <- R6Class("BioDataSet",
         },
 
         # load ConsensusPathDB annotations
-        get_cpdb_annotations = function(keytype) {
+        get_cpdb_annotations = function(keytype, source_file=NULL) {
             # Check to make sure key type is valid
             if (!keytype %in% c('ensembl', 'entrez-gene', 'hgnc-symbol')) {
                 stop("Invalid key type specified.")
             }
 
             # Load CPDB pathways
-            url <- sprintf('http://cpdb.molgen.mpg.de/CPDB/getPathwayGenes?idtype=%s', keytype)
-            cpdb <- read.delim(url, sep = '\t', header = TRUE, stringsAsFactors = FALSE)
+            if (is.null(source_file)) {
+                # Retrieve annotations from online, if needed
+                source_file <- sprintf('http://cpdb.molgen.mpg.de/CPDB/getPathwayGenes?idtype=%s', keytype)
+            }
+            cpdb <- read.delim(source_file, sep = '\t', header = TRUE, stringsAsFactors = FALSE)
 
             # There are a few pathways with multiple entries, each with a
             # different list of genes; for now, arbitrarily choose one of the
