@@ -201,7 +201,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             if (is.null(self$col_mdata)) {
                 stop("Error: missing column metadata.")
             }
-            private$cross_cor('dat', 'col_mdata', method)
+            private$compute_cross_cor('dat', 'col_mdata', method)
         },
 
         filter_col_outliers = function(num_sd=2, ctend=median, method='pearson') {
@@ -271,9 +271,10 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #     (default: c('green', 'red')).
         #
         # return ggplot plot instance
-        plot_feature_cor = function(method='pearson', color_scale=c('green', 'red')) {
+        plot_feature_cor = function(method='lm', color_scale=c('green', 'red')) {
             # compute feature correlations
-            dat <- melt(self$feature_cor(method = method))
+            cor_mat <- self$feature_cor(method = method)$edat[[1]]$dat
+            dat <- melt(cor_mat)
             colnames(dat) <- c('dim', 'variable', 'value')
 
             # Labels
