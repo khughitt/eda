@@ -22,8 +22,8 @@ set.seed(1)
 #
 dat <- data.frame(
     id=c('alt1', 'alt2', 'alt3'),
-    x=rnorm(3),
-    y=c('a', 'b', 'c')
+    var1=rnorm(3),
+    var2=c('a', 'b', 'c')
 )
 rownames(dat) <- paste0('id', 1:3)
 
@@ -32,11 +32,22 @@ tdat <- data.table::transpose(dat)
 rownames(tdat) <- colnames(dat)
 colnames(tdat) <- rownames(dat)
 
+# same as dat, but with stringasfactors set to FALSE
+good_dat <- data.frame(
+    id=c('alt1', 'alt2', 'alt3'),
+    var1=rnorm(3),
+    var2=c('a', 'b', 'c'),
+    stringsAsFactors=FALSE
+)
+rownames(good_dat) <- paste0('id', 1:3)
+
 # EDADat instances
 df_edat  <- EDADat$new(dat)
 
 tdf_edat <- EDADat$new(dat)
 tdf_edat$transpose()
+
+good_df_edat <- EDADat$new(good_dat)
 
 # Matrix input
 mat  <- matrix(rnorm(100), 10)
@@ -72,6 +83,23 @@ test_that("initialization works", {
 
     expect_equal(EDADat$new(dat, col_names=1)$dat, expected)
     expect_equal(EDADat$new(dat, col_names='id1')$dat, expected)
+})
+
+test_that("edat row/column retrieval works", {
+    # retrieve row
+    expect_equal(df_edat$get('x', 'id2'),                   as.vector(unlist(dat['id2', ])))
+    expect_equal(df_edat$get('y', 'id2', other_axis=TRUE),  as.vector(unlist(dat['id2', ])))
+    expect_equal(good_df_edat$get('x', 'id2'),              as.vector(unlist(good_dat['id2', ])))
+
+    # retrieve col
+    expect_equal(df_edat$get('y', 'var2'),                  as.vector(unlist(dat[, 'var2'])))
+    expect_equal(df_edat$get('x', 'var2', other_axis=TRUE), as.vector(unlist(dat[, 'var2'])))
+    expect_equal(good_df_edat$get('y', 'var2'),             as.vector(unlist(good_dat[, 'var2'])))
+
+    # same thing, but for transposed data
+    expect_equal(tmat_edat$get('y', 'col_3'), as.vector(unlist(tmat['col_3', ])))
+    expect_equal(tmat_edat$get('x', 'row_3'), as.vector(unlist(tmat[, 'row_3'])))
+    expect_equal(tdf_edat$get('y', 'var1'),   as.numeric(tdat['var1', ]))
 })
 
 test_that("transposition works", {

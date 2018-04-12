@@ -81,24 +81,31 @@ EDADat <- R6Class("EDADat",
         },
 
         # returns the vector for the specified axis and row/column name
+        # "other_axis" indicates that the row/column to be retrieved is
+        # on the opposite axis as to that which was specified by the "axis"
+        # parameter.
         get = function(axis, name, other_axis=FALSE) {
             if (!axis %in% c(self$xid, self$yid)) {
                 stop("Invalid axis ID specified.")
             }
-            if ((axis == self$xid  && !other_axis) || (axis == self$yid && other_axis)) {
+            # matching axis is x (rows)
+            if ((axis == self$xid  && !other_axis) || 
+                (axis == self$yid && other_axis) || 
+                (is.data.frame(private$data) && private$transposed)) {
+
                 # for row requests on transposed data frames, retrieve column
                 # from original data to preserve type
-                if (is.data.frame(private$data) && private$transposed) {
+                if (is.data.frame(private$data) && private$transposed && (axis != self$yid)) {
                     private$data[, name] 
                 } else {
                     # otherwise return row
                     # unlist ensures that 1d data frames are converted to vectors;
                     # as.vector drops any associated names
-                    as.vector(unlist(self$dat[name, ]))
+                    as.vector(unlist(private$data[name, ]))
                 }
             } else {
                 # return column in matrix / data frame
-                as.vector(unlist(self$dat[, name]))
+                as.vector(unlist(private$data[, name]))
             }
         },
 
