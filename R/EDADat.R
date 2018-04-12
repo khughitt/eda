@@ -224,15 +224,26 @@ EDADat <- R6Class("EDADat",
 
         # returns data with row / column names formatted as expected
         format_data = function(dat, row_names, col_names) {
+            # convert tibbles to normal data frames
+            if (class(dat)[1] == 'tbl_df') {
+                dat <- as.data.frame(dat)
+            }
+
             # normalize rownames
             if (row_names != 'rownames') {
                 ind <- private$get_names_index(dat, row_names, colnames)
+                if (sum(duplicated(dat[, ind])) > 0) {
+                    stop("Row identifiers must be unique.") 
+                }
                 rownames(dat) <- dat[, ind]
                 dat <- dat[, -ind]
             }
             # normalize colnames
             if (col_names != 'colnames') {
                 ind <- private$get_names_index(dat, col_names, rownames)
+                if (sum(duplicated(dat[ind, ])) > 0) {
+                    stop("Column identifiers must be unique.")
+                }
                 colnames(dat) <- dat[ind, ]
                 dat <- dat[-ind, ]
             }
