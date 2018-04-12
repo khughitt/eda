@@ -380,6 +380,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         extreme_n = function(key=1, top=NULL, bottom=NULL, unique=FALSE) {
             dat <- self$edat[[key]]$dat
 
+            # check limits
+            if (top > min(dim(dat)) || bottom > min(dim(dat))) {
+                stop("Limits must be at least as small as the smallest data dimension.")
+            }
+
             # vector of rows / columns to keep
             row_ind <- c()
             col_ind <- c()
@@ -391,7 +396,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     # iterate over max values until <top> unique rows and columns
                     # have been added
                     while (length(row_ind) < top || length(col_ind) < top) {
-                        ind <- which(dat == max(dat), arr.ind=TRUE)
+                        # get row and column indices for next highest value;
+                        # in cases of ties, just use the first match
+                        ind <- head(which(dat == max(dat), arr.ind=TRUE), 1)
                         dat[ind] <- 0
 
                         if (!ind[, 1] %in% row_ind) {
@@ -413,7 +420,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             if (!is.null(bottom)) {
                 if (unique) {
                     while (length(row_ind) < (top + bottom) || length(col_ind) < (top + bottom)) {
-                        ind <- which(dat == min(dat), arr.ind=TRUE)
+                        ind <- head(which(dat == min(dat), arr.ind=TRUE), 1)
                         dat[ind] <- 0
 
                         if (!ind[, 1] %in% row_ind) {
@@ -1075,36 +1082,69 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
         compute_cross_cor = function(key1=1, key2=2, method='pearson', new_key=NULL, ...) {
+            # shortcuts to edats
+            e1 <- self$edat[[key1]]
+            e2 <- self$edat[[key2]]
+
             # make sure datasets share some common ids
-            if (length(unique(c(self$edat[[key1]]$xid, self$edat[[key2]]$xid,
-                                self$edat[[key1]]$yid, self$edat[[key2]]$yid))) == 4) {
+            if (length(unique(c(e1$xid, e2$xid, e1$yid, e2$yid))) == 4) {
                 stop("Specified datasets must share the same column ids.")
             }
 
             # determine orientation to use for comparison; similarity is
             # measured across columns, so we want to have shared ids along rows
-            dat1_shared_axis <- ifelse(self$edat[[key1]]$xid == self$edat[[key2]]$xid ||
-                                       self$edat[[key1]]$xid == self$edat[[key2]]$yid,
-                                       'rows', 'columns')
-            dat2_shared_axis <- ifelse(self$edat[[key2]]$xid == self$edat[[key1]]$xid ||
-                                       self$edat[[key2]]$xid == self$edat[[key1]]$yid,
-                                       'rows', 'columns')
+            dat1_shared_axis <- ifelse(e1$xid == e2$xid || e1$xid == e2$yid, 'rows', 'columns')
+            dat2_shared_axis <- ifelse(e2$xid == e1$xid || e2$xid == e1$yid, 'rows', 'columns')
 
-            # row-oriented datasets
+            # get row-oriented datasets and associated style information
             if (dat1_shared_axis == 'rows') {
-                dat1 <- self$edat[[key1]]$dat
-                xid <- self$edat[[key1]]$yid
+                # if dat1 is already oriented with shared row ids, then it
+                # is in the expected orientation
+                dat1 <- e1$dat
+
+                # each row in the resulting correlation matrix will correspond
+                # to a column in dat1
+                xid <- e1$yid
+
+                # similarly, the styles and labels for the rows in the cor
+                # matrix correspond to that for the columns in dat1
+                xcolor <- e1$col_color
+                xshape <- e1$col_shape
+                xlabel <- e1$col_label
+                xedat  <- e1$col_edat 
             } else {
-                dat1 <- self$edat[[key1]]$tdat
-                xid <- self$edat[[key1]]$xid
+                # if dat1 shared its column names with dat2, transpose to
+                # match expected orientation
+                dat1 <- e1$tdat
+
+                # in this case, each row in the resulting dataset will correspond
+                # to a single row in dat1
+                xid <- e1$xid
+
+                xcolor <- e1$row_color
+                xshape <- e1$row_shape
+                xlabel <- e1$row_label
+                xedat  <- e1$row_edat 
             }
 
+            # similar logic to above, but for dat2 which will appear as column
+            # entries in the resulting correlation matrix
             if (dat2_shared_axis == 'rows') {
-                dat2 <- self$edat[[key2]]$dat
-                yid <- self$edat[[key1]]$yid
+                dat2 <- e2$dat
+                yid <- e1$yid
+
+                ycolor <- e2$col_color
+                yshape <- e2$col_shape
+                ylabel <- e2$col_label
+                yedat  <- e2$col_edat 
             } else {
-                dat2 <- self$edat[[key2]]$tdat
-                yid <- self$edat[[key2]]$xid
+                dat2 <- e2$tdat
+                yid <- e2$xid
+
+                ycolor <- e2$row_color
+                yshape <- e2$row_shape
+                ylabel <- e2$row_label
+                yedat  <- e2$row_edat 
             }
 
             # only operate on shared entries
@@ -1127,7 +1167,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             new_key <- ifelse(is.null(new_key), sprintf('%s_%s_cor', key1, key2), new_key)
 
             # add new matrix to front of edat list and return
-            obj$add(EDADat$new(cor_mat, xid = xid, yid = yid), new_key)
+            obj$add(EDADat$new(cor_mat, xid = xid, yid = yid, 
+                               row_color = xcolor, row_shape = xshape, 
+                               row_label = xlabel, row_edat  = xedat,
+                               col_color = ycolor, col_shape = yshape, 
+                               col_label = ylabel, col_edat  = yedat), new_key)
 
             obj
         },
