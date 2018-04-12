@@ -153,7 +153,7 @@ BioDataSet <- R6Class("BioDataSet",
         #   - `ratio_nonzero`       ratio of genes with values not equal to zero
         #   - `ratio_zero`          ratio of genes with values equal to zero
         #
-        annotation_stats = function(key, annotation, stat=median, ...) {
+        annotation_stats = function(key, annotation, stat=median, edat_suffix='auto', ...) {
             # check for valid dataset key
             private$check_key(key)
 
@@ -164,6 +164,21 @@ BioDataSet <- R6Class("BioDataSet",
                 } else {
                     stop("Invalid statistic specified.")
                 }
+            }
+
+            # convert numeric keys
+            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+
+            # key form: <old key>_<annotation_name>_<edat_suffix>
+            if (edat_suffix == 'auto') {
+                edat_suffix <- stringi::stri_rand_strings(n=1, length=6, pattern="[A-Za-z0-9]")
+            }
+            res_key <- paste(c(key, annotation, edat_suffix), collapse='_')
+
+            # check to see if result has already been computed, and if so,
+            # simply return a reference to self
+            if (res_key %in% names(self$edat)) {
+                return(self)
             }
 
             # output data frame
@@ -181,6 +196,21 @@ BioDataSet <- R6Class("BioDataSet",
             # dataset to compute statistics on
             dat <- self$edat[[key]]$dat
 
+            # exclude any annotations with less than two entries in the
+            # target dataset
+            mapping <- mapping %>% 
+                filter(gene %in% rownames(dat))
+                
+            # TODO: generalize handling of mapping name
+            to_exclude <- mapping %>% 
+                group_by(pathway) %>% 
+                summarize(n=n()) %>%
+                filter(n == 1) %>%
+                pull(pathway)
+
+            mapping <- mapping %>%
+                filter(!pathway %in% to_exclude)
+
             message("Computing annotation statistics...")
 
             # iterate over annotations
@@ -191,7 +221,7 @@ BioDataSet <- R6Class("BioDataSet",
                 # get data values for relevant genes
                 dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
 
-                # compute statistic for each column (often, samples) and append 
+                # compute statistic for each column (often, samples) and append
                 # to result
                 res <- rbind(res, apply(dat_subset, 2, stat, ...))
             }
@@ -199,13 +229,6 @@ BioDataSet <- R6Class("BioDataSet",
             # fix column and row names and return result
             rownames(res) <- unique(mapping[, ANNOT_IND])
             colnames(res) <- colnames(dat)
-
-            # convert numeric keys
-            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
-
-            # key form: <old key>_<annotation>_<stat>
-            stat_name <- as.character(substitute(stat))
-            res_key <- paste(c(key, annotation, stat_name), collapse='_')
 
             # clone BioDataSet instance and add new edat
             obj <- private$clone_()

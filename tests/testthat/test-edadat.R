@@ -91,6 +91,13 @@ test_that("edat row/column retrieval works", {
     expect_equal(df_edat$get('y', 'id2', other_axis=TRUE),  as.vector(unlist(dat['id2', ])))
     expect_equal(good_df_edat$get('x', 'id2'),              as.vector(unlist(good_dat['id2', ])))
 
+    # if no specific row/column name is specified, get should return the
+    # column or row names, respectively
+    expect_equal(df_edat$get('x'), colnames(dat))
+    expect_equal(df_edat$get('y'), rownames(dat))
+    expect_equal(df_edat$get('x', other_axis=TRUE), rownames(dat))
+    expect_equal(df_edat$get('y', other_axis=TRUE), colnames(dat))
+
     # retrieve col
     expect_equal(df_edat$get('y', 'var2'),                  as.vector(unlist(dat[, 'var2'])))
     expect_equal(df_edat$get('x', 'var2', other_axis=TRUE), as.vector(unlist(dat[, 'var2'])))

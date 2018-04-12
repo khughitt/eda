@@ -209,11 +209,23 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # Generates a heatmap plot of the dataset
         #
         # ... Additional arguments
-        plot_heatmap = function(key=1, interactive=TRUE, ...) {
+        plot_heatmap = function(key=1, 
+                                row_label=NULL, row_edat=NULL,
+                                col_label=NULL, col_edat=NULL,
+                                interactive=TRUE, ...) {
+
+            # determine row and column labels to use
+            row_labels <- private$get_row_labels(key, label_var = row_label, label_key = row_edat)
+            col_labels <- private$get_col_labels(key, label_var = col_label, label_key = col_edat)
+
+            dat <- self$edat[[key]]$dat
+
+            rownames(dat) <- row_labels
+            colnames(dat) <- col_labels
+                                
             # list of parameters to pass to heatmaply
             params <- list(
-                x               = self$edat[[key]]$dat,
-                showticklabels  = c(FALSE, FALSE),
+                x               = dat,
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
             )
@@ -389,9 +401,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             ylimit <- c(pmin(min(median_pairwise_cor), cutoff),
                         max(median_pairwise_cor))
 
-            # get color properties
-            color_vector <- private$get_var_colors(key, color_var, color_key)
-            label_vector <- private$get_var_labels(key, label_var, label_key)
+            # determine colors and labels to use
+            color_vector <- private$get_row_colors(key, color_var, color_key)
+            label_vector <- private$get_row_labels(key, label_var, label_key)
 
             # variable labels
             if (!all(colnames(dat) == label_vector)) {

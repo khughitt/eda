@@ -22,30 +22,73 @@ set.seed(1)
 #
 num_cols <- 5
 
+
+# |      | var01| var02| var03| var04| var05|
+# |:-----|-----:|-----:|-----:|-----:|-----:|
+# |obs01 |     1|     2|     3|     4|     5|
+# |obs02 |     1|     1|     1|     1|     1|
+# |obs03 |     5|     4|     3|     2|     1|
 dat1 <- rbind(
     1:num_cols,
     rep(1, num_cols),
     num_cols:1
 )
-dat2 <- dat1
-
 rownames(dat1) <- sprintf('obs%02d', 1:3)
-rownames(dat2) <- sprintf('obs%02d', 4:6)
 colnames(dat1) <- sprintf('var%02d', 1:5)
+
+# |      | var01| var02| var03| var04| var05|                                                               
+# |:-----|-----:|-----:|-----:|-----:|-----:|                                                               
+# |obs04 |     1|     2|     3|     4|     5|                                                               
+# |obs05 |     1|     1|     1|     1|     1|                                                               
+# |obs06 |     5|     4|     3|     2|     1| 
+dat2 <- dat1
+rownames(dat2) <- sprintf('obs%02d', 4:6)
 colnames(dat2) <- sprintf('var%02d', 1:5)
+
+
+
+# dat3 includes column labels for dat1/2
+#
+# |      |      col01|      col02|      col03|var_labels  |
+# |:-----|----------:|----------:|----------:|:-----------|
+# |var02 |  1.2724293| -0.0057672| -0.2894616|var_label02 |
+# |var05 |  0.4146414|  2.4046534| -0.2992151|var_label05 |
+# |var04 | -1.5399500|  0.7635935| -0.4115108|var_label04 |
+# |var03 | -0.9285670| -0.7990092|  0.2522234|var_label03 |
+# |var01 | -0.2947204| -1.1476570| -0.8919211|var_label01 |
+dat3 <- data.frame(
+    col01=rnorm(5),
+    col02=rnorm(5),
+    col03=rnorm(5),
+    row.names=sample(colnames(dat1))
+)
+dat3 <- cbind(dat3, var_labels=sub('var', 'var_label', rownames(dat3)))
+
+# dat4 includes row labels for dat2
+#
+# |      |obs_var1 | obs_var2|obs_labels |
+# |:-----|:--------|--------:|:----------|
+# |obs05 |a        |        3|obs05_lab  |
+# |obs06 |b        |        1|obs06_lab  |
+# |obs04 |c        |        2|obs04_lab  |
+dat4 <- data.frame(
+    obs_var1   = letters[1:3],
+    obs_var2   = sample(3),
+    obs_labels = c('obs05_lab', 'obs06_lab', 'obs04_lab'),
+    row.names  = c('obs05', 'obs06', 'obs04')
+)
 
 # next, we will create instances of two subclasses of AbstractMultiDataset,
 # in order to test various inherited methods.
 dats <- rbind(dat1, dat2)
 
-# create a third dataset for evaluate behavior related to datasets that share
-# either row or column ids
-dat3 <- matrix(rnorm(15), nrow=5)
-rownames(dat3) <- letters[1:5]
-colnames(dat3) <- sprintf('col%02d', 1:3)
-
 sds <- EDAMatrix$new(dats)
-mds <- EDAMultiMatrix$new(list(a=dat1, b=EDADat$new(dat2, xid = 'b_x', yid='a_y'), c=dat3))
+mds <- EDAMultiMatrix$new(list(a=dat1,
+                               b=EDADat$new(dat2, xid = 'b_x', yid='a_y',
+                                            row_label = 'obs_labels', row_edat = 'd',
+                                            col_label = 'var_labels', col_edat = 'c'),
+                               c=EDADat$new(dat3, xid = 'a_y'),
+                               d=EDADat$new(dat4, xid = 'b_x')))
 
 # expected correlation result (zero-variance middle rows removed)
 
@@ -135,11 +178,18 @@ test_that("Correlation measures work", {
 
 # Plot styles
 test_that("Handling of plot styles works", {
-    # EDADat$get()
     expect_equal(mds$edat[['a']]$get('a_x', 'obs01'), as.vector(dat1[1, ]))
     expect_equal(mds$edat[['a']]$get('a_y', 'var01'), as.vector(dat1[, 1]))
     expect_equal(mds$edat[['a']]$get('a_x', 'var01', other_axis=TRUE), as.vector(dat1[, 1]))
     expect_equal(mds$edat[['a']]$get('a_y', 'obs01', other_axis=TRUE), as.vector(dat1[1, ]))
+
+    # Row / Column labels (have to check private methods)
+    private <- mds$.__enclos_env__$private
+
+    expect_equal(private$get_row_labels('b', label_var=FALSE),    rownames(dat2))
+    expect_equal(private$get_row_labels('b', label_var='obs_labels'), sort(dat4$obs_labels))
+    expect_equal(private$get_col_labels('b', label_var=FALSE),    colnames(dat2))
+    expect_equal(private$get_col_labels('b', label_var='var_labels'), sort(dat3$var_labels))
 })
 
 # Sub-sampling

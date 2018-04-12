@@ -40,7 +40,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 if (!class(datasets[[id]])[1] == 'EDADat') {
                     # by default, do not assume that any datasets have
                     # shared axes; this must be explicitly specified by the user
-                    datasets[[id]] <- EDADat$new(datasets[[id]], 
+                    datasets[[id]] <- EDADat$new(datasets[[id]],
                                                  xid=paste0(id, '_x'),
                                                  yid=paste0(id, '_y'))
                 }
@@ -115,7 +115,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     yid = cluster_key
                 )
             } else {
-                # otherwise, add new column to clusters table 
+                # otherwise, add new column to clusters table
                 self$edat[[cluster_key]]$dat <- cbind(self$edat[[cluster_key]]$dat, mat)
             }
 
@@ -123,7 +123,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # clusters dataset rows and computes a statistic for each cluster
-        cluster_stats = function(key, method='kmeans', stat=median, ...) {
+        cluster_stats = function(key, method='kmeans', stat=median, edat_suffix='auto', ...) {
             # check for valid dataset key
             private$check_key(key)
 
@@ -164,9 +164,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # convert numeric keys
             key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
-            # key form: <old key>_<cluster_method>_<stat>
-            stat_name <- as.character(substitute(stat))
-            res_key <- paste(c(key, method, stat_name), collapse='_')
+            # key form: <old key>_<cluster_method>_<edat_suffix>
+            if (edat_suffix == 'auto') {
+                edat_suffix <- stringi::stri_rand_strings(n=1, length=6, pattern="[A-Za-z0-9]")
+            }
+            res_key <- paste(c(key, method, edat_suffix), collapse='_')
 
             # clone dataset instance and add new edat
             obj <- private$clone_()
@@ -245,16 +247,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # For removing specific rows and columns, see the `filter_rows` and
         # `filter_cols` functions.
         #
+        # @param key    Dataset key
         # @param row_n  Number of rows to randomly select
         # @param col_n  Number of columns to randomly select
         # @param row_ratio Ratio of rows to randomly select
         # @param col_ratio Ratio of columns to randomly select
         #
         # @return An EDADataSet instance
-        subsample = function(row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
+        subsample = function(key=1, row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
             # clone and subsample dataset
             obj <- private$clone_()
-            obj$edat[[1]]$subsample(row_n, col_n, row_ratio, col_ratio)
+            obj$edat[[key]]$subsample(row_n, col_n, row_ratio, col_ratio)
             obj
         },
 
@@ -331,13 +334,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # get top n rows
             if (!is.null(num_rows)) {
-                row_scores <- apply(dat, 1, fxn) 
+                row_scores <- apply(dat, 1, fxn)
                 row_mask <- rank(row_scores) <= num_rows
             }
 
             # get top n columns
             if (!is.null(num_cols)) {
-                col_scores <- apply(dat, 2, fxn) 
+                col_scores <- apply(dat, 2, fxn)
                 col_mask <- rank(col_scores) <= num_cols
             }
 
@@ -357,13 +360,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # get top n rows
             if (!is.null(num_rows)) {
-                row_scores <- apply(dat, 1, fxn) 
+                row_scores <- apply(dat, 1, fxn)
                 row_mask <- rank(-row_scores) <= num_rows
             }
 
             # get top n columns
             if (!is.null(num_cols)) {
-                col_scores <- apply(dat, 2, fxn) 
+                col_scores <- apply(dat, 2, fxn)
                 col_mask <- rank(-col_scores) <= num_cols
             }
 
@@ -392,10 +395,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                         dat[ind] <- 0
 
                         if (!ind[, 1] %in% row_ind) {
-                            row_ind <- c(row_ind, ind[, 1])    
+                            row_ind <- c(row_ind, ind[, 1])
                         }
                         if (!ind[, 2] %in% col_ind) {
-                            col_ind <- c(col_ind, ind[, 2])    
+                            col_ind <- c(col_ind, ind[, 2])
                         }
                     }
                 } else {
@@ -414,10 +417,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                         dat[ind] <- 0
 
                         if (!ind[, 1] %in% row_ind) {
-                            row_ind <- c(row_ind, ind[, 1])    
+                            row_ind <- c(row_ind, ind[, 1])
                         }
                         if (!ind[, 2] %in% col_ind) {
-                            col_ind <- c(col_ind, ind[, 2])    
+                            col_ind <- c(col_ind, ind[, 2])
                         }
                     }
                 } else {
@@ -515,7 +518,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         remove_unlinked = function(key) {
             # iterate over datasets
             edat_keys <- names(self$edat)
-            
+
             if (is.numeric(key)) {
                 edat_keys <- edat_keys[-key]
             } else {
@@ -545,7 +548,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             orig_xid <- self$edat[[old_key]]$xid
             orig_yid <- self$edat[[old_key]]$yid
 
-            # Remove any additional datasets which use the same 
+            # Remove any additional datasets which use the same
             # identifiers as the target dataset
             for (ds in names(self$edat)) {
                 if (self$edat[[ds]]$xid == orig_xid || self$edat[[ds]]$yid == orig_yid) {
@@ -595,7 +598,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         cache        = list(),
 
         # Helper functions for computing various statistics; used by the
-        # `AbstractMultiDataSet$cluster_stats` and `BioDataSet$annotation_stats` 
+        # `AbstractMultiDataSet$cluster_stats` and `BioDataSet$annotation_stats`
         # method.
         stat_fxns = list(
             'num_nonzero' = function(x) {
@@ -785,42 +788,154 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @return Vector of colors with length equal to the number of columns
         #            in the data.
-        get_var_colors = function(key, color_var, color_key) {
+        get_row_colors = function(key, color_var=NULL, color_key=NULL) {
             # determine color dataset and variable name
-            color_var <- ifelse(is.null(color_var), self$edat[[key]]$row_color, color_var)
-            color_key <- ifelse(is.null(color_key), self$edat[[key]]$row_edat, color_key)
+            if (is.null(color_var)) {
+                color_var <- self$edat[[key]]$row_color
+            }
+            if (is.null(color_key)) {
+                color_key <- self$edat[[key]]$row_edat
+            }
 
             # if no variable is specified, use default black for plots
             if (is.null(color_var) || color == FALSE) {
                 return('black')
             }
 
+            # if variable specified, but no edat, use self
+            if (is.null(color_key)) {
+                color_key <- key
+            }
+
             # otherwise, assign colors based on the variable specified
-            color_vector <- self$edat[[color_key]]$get(self$edat[[key]]$xid, color_var)
-            column_var <- as.numeric(factor(color_vector))
+            color_vector <- self$edat[[color_key]]$get(self$edat[[key]]$xid, color_var, other_axis=TRUE)
+            color_vector <- as.numeric(factor(color_vector))
 
             pal <- RColorBrewer::brewer.pal(9, private$color_pal)
-            colors <- colorRampPalette(pal)(min(1E4, length(unique(column_var))))
+            colors <- colorRampPalette(pal)(min(1E4, length(unique(color_vector))))
 
             # return vector of column color assignments
-            colors[as.integer(column_var)]
+            colors[as.integer(color_vector)]
         },
 
-        # Returns a vector of text labels to use for a plot
-        #
-        # @param shape Variable to use for assigning shapes.
+        # Returns a vector of text labels to use when plotting row elements of
+        # a dataset.
         #
         # @return Vector of labels with length equal to the number of columns
         #         in the data.
-        get_var_labels = function(key, label_var, label_key) {
-            label_var <- ifelse(is.null(label_var), self$edat[[key]]$row_label, label_var)
-            label_key <- ifelse(is.null(label_key), self$edat[[key]]$row_edat, label_key)
+        get_col_labels = function(key, label_var=NULL, label_key=NULL) {
+            # target dataset edat
+            edat <- self$edat[[key]]
 
-            if (is.null(label_var) || label_var == FALSE) {
-                return(colnames(self$edat[[key]]$dat))
+            # determine key and variable name associated with labels, if specified
+            if (is.null(label_var)) {
+                label_var <- edat$col_label 
+            }
+            if (is.null(label_key)) {
+                label_key <- edat$col_edat
             }
 
-            self$edat[[label_key]]$get(self$edat[[key]]$xid, label_var)
+            # colnames of target dataset
+            cnames <- colnames(edat$dat)
+
+            # if none provided, default to using colnames
+            if (is.null(label_var) || label_var == FALSE) {
+                return(cnames)
+            }
+
+            # if variable specified, but no edat, use self
+            if (is.null(label_key)) {
+                label_key <- key
+            }
+
+            # otherwise, generate a label mapping and determine labels to use
+            mapping <- data.frame(
+                id    = self$edat[[label_key]]$get(edat$yid, other_axis = TRUE),
+                label = self$edat[[label_key]]$get(edat$yid, label_var, other_axis = TRUE)
+            )
+
+            # return labels in proper order
+            mapping$label[match(cnames, mapping$id)]
+        },
+
+
+        # Returns a vector of color codes associated with the specified
+        # variable.
+        #
+        # @param color Variable to use for assigning colors.
+        # @param color_pal Color palette to use
+        #
+        # @return Vector of colors with length equal to the number of columns
+        #            in the data.
+        get_col_colors = function(key, color_var=NULL, color_key=NULL) {
+            # determine color dataset and variable name
+            if (is.null(color_var)) {
+                color_var <- self$edat[[key]]$col_color
+            }
+            if (is.null(color_key)) {
+                color_key <- self$edat[[key]]$col_edat
+            }
+
+            # if no variable is specified, use default black for plots
+            if (is.null(color_var) || color == FALSE) {
+                return('black')
+            }
+
+            # if variable specified, but no edat, use self
+            if (is.null(color_key)) {
+                color_key <- key
+            }
+
+            # otherwise, assign colors based on the variable specified
+            color_vector <- self$edat[[color_key]]$get(self$edat[[key]]$yid, color_var, other_axis=TRUE)
+            color_vector <- as.numeric(factor(color_vector))
+
+            pal <- RColorBrewer::brewer.pal(9, private$color_pal)
+            colors <- colorRampPalette(pal)(min(1E4, length(unique(color_vector))))
+
+            # return vector of column color assignments
+            colors[as.integer(color_vector)]
+        },
+
+        # Returns a vector of text labels to use when plotting row elements of
+        # a dataset.
+        #
+        # @return Vector of labels with length equal to the number of columns
+        #         in the data.
+        get_row_labels = function(key, label_var=NULL, label_key=NULL) {
+            # target dataset edat
+            edat <- self$edat[[key]]
+
+            # determine key and variable name associated with labels, if specified
+            if (is.null(label_var)) {
+                label_var <- edat$row_label 
+            }
+            if (is.null(label_key)) {
+                label_key <- edat$row_edat
+            }
+
+            # rownames of target dataset
+            rnames <- rownames(edat$dat)
+
+
+            # if none provided, default to using rownames
+            if (is.null(label_var) || label_var == FALSE) {
+                return(rnames)
+            }
+
+            # if variable specified, but no edat, use self
+            if (is.null(label_key)) {
+                label_key <- key
+            }
+
+            # otherwise, generate a label mapping and determine labels to use
+            mapping <- data.frame(
+                id    = self$edat[[label_key]]$get(edat$xid, other_axis = TRUE),
+                label = self$edat[[label_key]]$get(edat$xid, label_var, other_axis = TRUE)
+            )
+
+            # return labels in proper order
+            mapping$label[match(rnames, mapping$id)]
         },
 
         #
@@ -830,7 +945,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             kmeans = function(dat, k, ...) {
                 kmeans(dat, k, ...)$cluster
             },
-    
+
             # k-means clustering of t-SNE projected data
             #
             # k     Number of clusters to detect (default: 10)

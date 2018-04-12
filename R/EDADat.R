@@ -53,14 +53,13 @@ EDADat <- R6Class("EDADat",
         col_shape    = NULL,
         col_label    = NULL,
         col_edat     = NULL,
-        style_source = NULL,
 
         # EDADat constructor
         initialize = function(dat, xid='x', yid='y',
                               row_names='rownames', col_names='colnames',
                               row_color=NULL, row_shape=NULL, row_label=NULL, row_edat=NULL,
                               col_color=NULL, col_shape=NULL, col_label=NULL, col_edat=NULL,
-                              style_source=NULL, xlab=NULL, ylab=NULL) {
+                              xlab=NULL, ylab=NULL) {
             # public properties
             self$xid  <- xid
             self$yid  <- yid
@@ -84,7 +83,8 @@ EDADat <- R6Class("EDADat",
         # "other_axis" indicates that the row/column to be retrieved is
         # on the opposite axis as to that which was specified by the "axis"
         # parameter.
-        get = function(axis, name, other_axis=FALSE) {
+        # If not axis name is specified, row or column names are returned
+        get = function(axis, name=NULL, other_axis=FALSE) {
             if (!axis %in% c(self$xid, self$yid)) {
                 stop("Invalid axis ID specified.")
             }
@@ -94,18 +94,30 @@ EDADat <- R6Class("EDADat",
                 (is.data.frame(private$data) && private$transposed)) {
 
                 # for row requests on transposed data frames, retrieve column
-                # from original data to preserve type
+                # or rownames from original data to preserve type
                 if (is.data.frame(private$data) && private$transposed && (axis != self$yid)) {
-                    private$data[, name] 
+                    if (is.null(name)) {
+                        rownames(private$data)
+                    } else {
+                        private$data[, name] 
+                    }
                 } else {
-                    # otherwise return row
+                    # otherwise return row or column names
                     # unlist ensures that 1d data frames are converted to vectors;
                     # as.vector drops any associated names
-                    as.vector(unlist(private$data[name, ]))
+                    if (is.null(name)) {
+                        colnames(private$data)
+                    } else {
+                        as.vector(unlist(private$data[name, ]))
+                    }
                 }
             } else {
-                # return column in matrix / data frame
-                as.vector(unlist(private$data[, name]))
+                # return rownames or a column in matrix / data frame
+                if (is.null(name)) {
+                    rownames(private$data)
+                } else {
+                    as.vector(unlist(private$data[, name]))
+                }
             }
         },
 
