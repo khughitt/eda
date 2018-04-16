@@ -55,11 +55,20 @@ EDADat <- R6Class("EDADat",
         col_edat     = NULL,
 
         # EDADat constructor
-        initialize = function(dat, xid='x', yid='y',
+        initialize = function(dat, xid=NULL, yid=NULL,
                               row_names='rownames', col_names='colnames',
                               row_color=NULL, row_shape=NULL, row_label=NULL, row_edat=NULL,
                               col_color=NULL, col_shape=NULL, col_label=NULL, col_edat=NULL,
                               xlab=NULL, ylab=NULL) {
+
+            # assign random axis identifiers if none specified
+            if (is.null(xid)) {
+                xid <- private$get_hash()
+            }
+            if (is.null(yid)) {
+                yid <- private$get_hash()
+            }
+
             # public properties
             self$xid  <- xid
             self$yid  <- yid
@@ -261,6 +270,10 @@ EDADat <- R6Class("EDADat",
                 colnames(dat) <- paste0('col_', 1:ncol(dat))
             }
             dat
+        },
+
+        get_hash = function(len=6) {
+            paste0(sample(c(0:9, letters, toupper(letters)), len), collapse='')
         }
     ),
 

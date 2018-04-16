@@ -44,7 +44,7 @@ rownames(good_dat) <- paste0('id', 1:3)
 # EDADat instances
 df_edat  <- EDADat$new(dat)
 
-tdf_edat <- EDADat$new(dat)
+tdf_edat <- EDADat$new(dat, xid=df_edat$xid, yid=df_edat$yid)
 tdf_edat$transpose()
 
 good_df_edat <- EDADat$new(good_dat)
@@ -87,26 +87,26 @@ test_that("initialization works", {
 
 test_that("edat row/column retrieval works", {
     # retrieve row
-    expect_equal(df_edat$get('x', 'id2'),                   as.vector(unlist(dat['id2', ])))
-    expect_equal(df_edat$get('y', 'id2', other_axis=TRUE),  as.vector(unlist(dat['id2', ])))
-    expect_equal(good_df_edat$get('x', 'id2'),              as.vector(unlist(good_dat['id2', ])))
+    expect_equal(df_edat$get(df_edat$xid, 'id2'),                   as.vector(unlist(dat['id2', ])))
+    expect_equal(df_edat$get(df_edat$yid, 'id2', other_axis=TRUE),  as.vector(unlist(dat['id2', ])))
+    expect_equal(good_df_edat$get(good_df_edat$xid, 'id2'),         as.vector(unlist(good_dat['id2', ])))
 
     # if no specific row/column name is specified, get should return the
     # column or row names, respectively
-    expect_equal(df_edat$get('x'), colnames(dat))
-    expect_equal(df_edat$get('y'), rownames(dat))
-    expect_equal(df_edat$get('x', other_axis=TRUE), rownames(dat))
-    expect_equal(df_edat$get('y', other_axis=TRUE), colnames(dat))
+    expect_equal(df_edat$get(df_edat$xid), colnames(dat))
+    expect_equal(df_edat$get(df_edat$yid), rownames(dat))
+    expect_equal(df_edat$get(df_edat$xid, other_axis=TRUE), rownames(dat))
+    expect_equal(df_edat$get(df_edat$yid, other_axis=TRUE), colnames(dat))
 
     # retrieve col
-    expect_equal(df_edat$get('y', 'var2'),                  as.vector(unlist(dat[, 'var2'])))
-    expect_equal(df_edat$get('x', 'var2', other_axis=TRUE), as.vector(unlist(dat[, 'var2'])))
-    expect_equal(good_df_edat$get('y', 'var2'),             as.vector(unlist(good_dat[, 'var2'])))
+    expect_equal(df_edat$get(df_edat$yid, 'var2'),                  as.vector(unlist(dat[, 'var2'])))
+    expect_equal(df_edat$get(df_edat$xid, 'var2', other_axis=TRUE), as.vector(unlist(dat[, 'var2'])))
+    expect_equal(good_df_edat$get(good_df_edat$yid, 'var2'),             as.vector(unlist(good_dat[, 'var2'])))
 
     # same thing, but for transposed data
-    expect_equal(tmat_edat$get('y', 'col_3'), as.vector(unlist(tmat['col_3', ])))
-    expect_equal(tmat_edat$get('x', 'row_3'), as.vector(unlist(tmat[, 'row_3'])))
-    expect_equal(tdf_edat$get('y', 'var1'),   as.numeric(tdat['var1', ]))
+    expect_equal(tmat_edat$get(tmat_edat$xid, 'col_3'), as.vector(unlist(tmat['col_3', ])))
+    expect_equal(tmat_edat$get(tmat_edat$yid, 'row_3'), as.vector(unlist(tmat[, 'row_3'])))
+    expect_equal(tdf_edat$get(tdf_edat$xid, 'var1'),   as.numeric(tdat['var1', ]))
 })
 
 test_that("transposition works", {
