@@ -298,7 +298,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             # text labels
             if (text_labels) {
                 plt <- plt + geom_text(aes(label = id), angle = 45,
-                                       size = 0.5, vjust = 2)
+                                       vjust = 2)
             }
 
             # legend labels

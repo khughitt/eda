@@ -381,7 +381,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat <- self$edat[[key]]$dat
 
             # check limits
-            if (top > min(dim(dat)) || bottom > min(dim(dat))) {
+            min_dim <- min(dim(dat))
+
+            if (top > min_dim || bottom > min_dim) {
                 stop("Limits must be at least as small as the smallest data dimension.")
             }
 
@@ -398,13 +400,14 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     while (length(row_ind) < top || length(col_ind) < top) {
                         # get row and column indices for next highest value;
                         # in cases of ties, just use the first match
-                        ind <- head(which(dat == max(dat), arr.ind=TRUE), 1)
-                        dat[ind] <- 0
+                        ind <- head(which(dat == max(dat, na.rm=TRUE), arr.ind=TRUE), 1)
 
-                        if (!ind[, 1] %in% row_ind) {
+                        dat[ind] <- NA
+
+                        if (!ind[, 1] %in% row_ind && length(row_ind) < top) {
                             row_ind <- c(row_ind, ind[, 1])
                         }
-                        if (!ind[, 2] %in% col_ind) {
+                        if (!ind[, 2] %in% col_ind && length(col_ind) < top) {
                             col_ind <- c(col_ind, ind[, 2])
                         }
                     }
@@ -419,14 +422,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # indices of bottom N values
             if (!is.null(bottom)) {
                 if (unique) {
-                    while (length(row_ind) < (top + bottom) || length(col_ind) < (top + bottom)) {
-                        ind <- head(which(dat == min(dat), arr.ind=TRUE), 1)
-                        dat[ind] <- 0
+                    # iterate until either all rows/cols have been added, or
+                    # the requested number of bottom hits have been included
+                    while (length(row_ind) < min(nrow(dat), (top + bottom)) || 
+                           length(col_ind) < min(ncol(dat), (top + bottom))) {
+                        ind <- head(which(dat == min(dat, na.rm=TRUE), arr.ind=TRUE), 1)
+                        dat[ind] <- NA
 
-                        if (!ind[, 1] %in% row_ind) {
+                        if (!ind[, 1] %in% row_ind && length(row_ind) < (top + bottom)) {
                             row_ind <- c(row_ind, ind[, 1])
                         }
-                        if (!ind[, 2] %in% col_ind) {
+                        if (!ind[, 2] %in% col_ind && length(col_ind) < (top + bottom)) {
                             col_ind <- c(col_ind, ind[, 2])
                         }
                     }
