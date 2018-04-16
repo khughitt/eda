@@ -146,7 +146,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
         # PCA
         #
-        pca = function(key=1, num_dims=NULL, ...) {
+        # Methods:
+        #
+        # 1. pca - regular PCA
+        #
+        pca = function(key=1, method='pca', num_dims=NULL, ...) {
             obj <- private$clone_()
             obj$edat[[key]]$dat <- prcomp(self$edat[[key]]$dat, ...)$x
             obj$edat[[key]]$ylab <- 'Priniple Components' 

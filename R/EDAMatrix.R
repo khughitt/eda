@@ -417,6 +417,17 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # clone and subsample dataset
             obj <- private$clone_()
             obj$edat[['dat']]$subsample(row_n, col_n, row_ratio, col_ratio)
+
+            # update metadata
+            if ('row_mdata' %in% names(obj$edat)) {
+                row_ind <- rownames(obj$row_mdata) %in% rownames(obj$dat)
+                obj$row_mdata <- obj$row_mdata[row_ind, ]
+            }
+            if ('col_mdata' %in% names(obj$edat)) {
+                col_ind <- colnames(obj$col_mdata) %in% colnames(obj$dat)
+                obj$col_mdata <- obj$col_mdata[, col_ind]
+            }
+            
             obj
         },
 
