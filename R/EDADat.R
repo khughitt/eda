@@ -151,6 +151,10 @@ EDADat <- R6Class("EDADat",
                 col_ind <- sample(col_ind, round(col_ratio * length(col_ind)))
             }
 
+            # preserve row and column order
+            row_ind <- sort(row_ind)
+            col_ind <- sort(col_ind)
+
             # update data
             if (is.data.frame(private$data) && private$transposed) {
                 # transposed data frames
