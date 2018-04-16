@@ -1209,31 +1209,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 return(do.call(heatmaply::heatmaply, params))
             }
 
-            # convert colside and rowside colors to explicit color values,
-            # if present
+            # rename column and row annotation matrix parameters, if present
             if ('col_side_colors' %in% names(params)) {
-                params$ColSideColors <- params$col_side_colors
-
-                colors <- c('blue', 'yellow')
-
-                for (col_name in colnames(params$ColSideColors)) {
-                    col <- params$ColSideColors[, col_name]
-                    params$ColSideColors[, col_name] <- colors[as.numeric(factor(col))]
-                }
-                params$ColSideColors <- as.matrix(params$ColSideColors)
+                params$annCol <- params$col_side_colors
             }
 
             if ('row_side_colors' %in% names(params)) {
-                params$RowSideColors <- params$row_side_colors
-
-                pal <- RColorBrewer::brewer.pal(8, 'Set1')
-
-                for (col_name in colnames(params$RowSideColors)) {
-                    col <- params$RowSideColors[, col_name]
-                    colors <- colorRampPalette(pal)(min(1E4, length(unique(col))))
-                    params$RowSideColors[, col_name] <- colors[as.numeric(factor(col))]
-                }
-                params$RowSideColors <- as.matrix(params$RowSideColors)
+                params$annRow <- params$row_side_colors
             }
 
             # remove irrelevant function arguments
@@ -1241,7 +1223,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                                 'col_side_colors', 'row_side_colors')
             params <- params[!names(params) %in% heatmaply_args]
 
-            do.call(heatmap.plus::heatmap.plus, params)
+            # set additional parameters
+            #params$color  <- 'viridis'
+            params$border <- list(matrix = TRUE)
+
+            do.call(NMF::aheatmap, params)
         },
         #
         # Measures similarity between columns within or across datasets

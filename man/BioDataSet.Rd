@@ -90,7 +90,7 @@ column in the dataset.
 \item \code{plot_feature_cor(method='pearson', color_scale=c('green', 'red')}:
 Creates a tile plot of projected data / feature correlations. See
 \code{feature_cor()} function.
-\item \code{plot_heatmap(interactive=TRUE, ...)}: Generates a heatmap plot of the
+\item \code{plot_heatmap(x=1, interactive=TRUE, ...)}: Generates a heatmap plot of the
 dataset
 \item \code{plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))}:
 Plot median pairwise column correlations for each variable (column)

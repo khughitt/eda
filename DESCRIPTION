@@ -9,7 +9,7 @@ Depends:
     R (>= 3.4.3),
     R6,
     ggplot2,
-    heatmap.plus,
+    NMF,
     reshape2
 Imports:
     corpcor,
