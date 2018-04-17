@@ -1230,8 +1230,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             params <- params[!names(params) %in% heatmaply_args]
 
             # set additional parameters
+            # waiting for viridis support to be added (PR submitted 2018/04/16)
             #params$color  <- 'viridis'
-            params$border <- list(matrix = TRUE)
+
+            # 2018/04/17 - adding border just around heatmap not working at
+            # this time and results in warnings being generated
+            #params$border <- list(matrix = TRUE)
 
             do.call(NMF::aheatmap, params)
         },

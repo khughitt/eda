@@ -156,24 +156,41 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             # compute PCA
             if (method == 'prcomp') {
                 # regular PCA
-                res <- prcomp(dat, ...)$x
+                res <- prcomp(dat, ...)
+                pca_dat <- res$x
+
+                # update colnames to include variance explained
+                var_explained <- round(summary(res)$importance[2, ] * 100, 2)
+
+                colnames(pca_dat) <- sprintf("PC%d (%.2f%% variance)", 
+                                             1:ncol(pca_dat),
+                                             var_explained[1:ncol(pca_dat)])
             } else if (method == 'kpca') {
                 # kernal PCA
-                res <- kernlab::pcv(kernlab::kpca(dat, ...))
+                pca_dat <- kernlab::pcv(kernlab::kpca(dat, ...))
             } else if (method == 'nsprcomp') {
                 # sparse PCA
-                res <- nsprcomp::nsprcomp(dat, ...)$x
+                res <- nsprcomp::nsprcomp(dat, ...)
+
+                pca_dat <- res$x
+
+                # update colnames to include variance explained
+                var_explained <- round(summary(res)$importance[2, ] * 100, 2)
+
+                colnames(pca_dat) <- sprintf("PC%d (%.2f%% variance)", 
+                                             1:ncol(pca_dat),
+                                             var_explained[1:ncol(pca_dat)])
             } else if (method == 'robpca') {
                 # robust PCA
-                res <- rospca::robpca(t(dat), ...)$loadings
+                pca_dat <- rospca::robpca(t(dat), ...)$loadings
             } else if (method == 'rospca') {
                 # robust sparse PCA
-                res <- rospca::rospca(t(dat), ...)$loadings
+                pca_dat <- rospca::rospca(t(dat), ...)$loadings
             }
 
             # clone object and append result
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- res
+            obj$edat[[key]]$dat <- pca_dat
             obj$edat[[key]]$ylab <- 'Priniple Components'
 
             obj$remove_unlinked(key)
@@ -184,8 +201,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # t-SNE
         #
         tsne = function(key=1, ...) {
+            dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)$Y
+            colnames(dat) <- sprintf("t-SNE Dim %d", 1:ncol(dat))
+
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)
+            obj$edat[[key]]$dat <- dat
             obj$edat[[key]]$ylab <- 't-SNE dimensions'
 
             obj$remove_unlinked(key)
@@ -268,62 +288,28 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # ...
         #
         # return ggplot plot instance
-        plot_pca = function(key=1, pcx=1, pcy=2, scale=FALSE,
+        plot_pca = function(key=1, method='prcomp', pcx=1, pcy=2,
                             color_var=NULL, color_key=NULL,
                             shape_var=NULL, shape_key=NULL,
                             label_var=NULL, label_key=NULL,
                             title=NULL, text_labels=FALSE, ...) {
-            dat <- self$edat[[key]]$dat
-
-            # perform pca
-            prcomp_results <- prcomp(dat, scale = scale)
-            var_explained <- round(summary(prcomp_results)$importance[2, ] * 100, 2)
-
-            # create data frame for plotting
-            res <- data.frame(id = rownames(dat),
-                              pc1 = prcomp_results$x[, pcx],
-                              pc2 = prcomp_results$x[, pcy])
-
-            # get color/shape styles
-            styles <- private$get_geom_point_styles(key,
-                                                    color_var, color_key,
-                                                    shape_var, shape_key)
-
-            if (!is.null(styles$color)) {
-                res <- cbind(res, color_var = styles$color)
-            }
-            if (!is.null(styles$shape)) {
-                res <- cbind(res, shape_var = styles$shape)
-            }
-
-            xl <- sprintf("PC%d (%.2f%% variance)", pcx, var_explained[pcx])
-            yl <- sprintf("PC%d (%.2f%% variance)", pcy, var_explained[pcy])
-
             # plot title
             if (is.null(title)) {
-                title <- sprintf("PCA: %s", private$title)
+                key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+
+                if (private$title != '') {
+                    title <- sprintf("PCA: %s (%s)", key, private$title)
+                } else {
+                    title <- sprintf("PCA: %s", key)
+                }
             }
 
-            # PC1 vs PC2
-            plt <- ggplot(res, aes(pc1, pc2)) +
-                geom_point(stat = "identity", styles$aes, size = 0.5) +
-                xlab(xl) + ylab(yl) +
-                ggtitle(title) +
-                private$ggplot_theme() +
-                theme(axis.ticks = element_blank(),
-                      axis.text.x = element_text(angle = -90))
-
-            # text labels
-            if (text_labels) {
-                plt <- plt + geom_text(aes(label = id), angle = 45,
-                                       vjust = 2)
-            }
-
-            # legend labels
-            if (length(styles$labels) > 0) {
-                plt <- plt + styles$labels
-            }
-            plt
+            self$pca(key = key, method = method, ...)$scatter_plot(
+                key = 1, x = pcx, y = pcy,
+                color_var = color_var, color_key = color_key, 
+                shape_var = shape_var, shape_key = shape_key,
+                label_var = label_var, label_key = label_key, 
+                title = title, text_labels = text_labels)
         },
 
         # Generates a two-dimensional t-SNE plot from the dataset
@@ -336,19 +322,38 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # ...
         #
         # return ggplot plot instance
-        plot_tsne = function(key=1,
+        plot_tsne = function(key=1, dim1=1, dim2=2,
                              color_var=NULL, color_key=NULL,
                              shape_var=NULL, shape_key=NULL,
                              label_var=NULL, label_key=NULL,
                              title=NULL, text_labels=FALSE, ...) {
-            dat <- self$edat[[key]]$dat
+            # plot title
+            if (is.null(title)) {
+                key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
-            # compute t-SNE projection
-            tsne <- Rtsne::Rtsne(dat, ...)
-            res <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
+                if (private$title != '') {
+                    title <- sprintf("t-SNE: %s (%s)", key, private$title)
+                } else {
+                    title <- sprintf("t-SNE: %s", key)
+                }
+            }
 
-            # add column ids
-            res <- cbind(res, id = rownames(dat))
+            self$tsne(key = key, ...)$scatter_plot(
+                key = 1, x = dim1, y = dim2,
+                color_var = color_var, color_key = color_key, 
+                shape_var = shape_var, shape_key = shape_key,
+                label_var = label_var, label_key = label_key, 
+                title = title, text_labels = text_labels)
+        },
+
+        # creates a scatter plot of from two columns in a specified dataset
+        scatter_plot = function(key=1, x=1, y=2, 
+                                color_var=NULL, color_key=NULL,
+                                shape_var=NULL, shape_key=NULL, 
+                                label_var=NULL, label_key=NULL, 
+                                title=NULL, text_labels=FALSE) {
+
+            dat <- as.data.frame(self$edat[[key]]$dat[, c(x, y)])
 
             # get color/shape styles
             styles <- private$get_geom_point_styles(key,
@@ -356,39 +361,35 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                                                     shape_var, shape_key)
 
             if (!is.null(styles$color)) {
-                res <- cbind(res, color_var = styles$color)
+                dat <- cbind(dat, color_var = styles$color)
             }
             if (!is.null(styles$shape)) {
-                res <- cbind(res, shape_var = styles$shape)
+                dat <- cbind(dat, shape_var = styles$shape)
             }
 
-            # plot title
-            if (is.null(title)) {
-                title <- sprintf("t-SNE: %s", private$title)
-            }
+            # generate scatter plot
+            xid <- sprintf("`%s`", colnames(dat)[1])
+            yid <- sprintf("`%s`", colnames(dat)[2])
 
-            # treatment response
-            plt <- ggplot(res, aes(x, y)) +
-                   geom_point(styles$aes, stat = "identity", size = 0.5) +
-                   ggtitle(title) +
-                   private$ggplot_theme() +
-                   theme(axis.ticks = element_blank(),
-                         axis.text.x = element_text(angle = -90),
-                         legend.text = element_text(size = 7))
+            plt <- ggplot(dat, aes_string(xid, yid)) +
+                geom_point(stat = "identity", styles$aes, size = 0.5) +
+                ggtitle(title) +
+                private$ggplot_theme() +
+                theme(axis.ticks = element_blank(),
+                      axis.text.x = element_text(angle = -90))
 
             # text labels
             if (text_labels) {
-                plt <- plt + geom_text(aes(label = id), angle = 45, size = 0.5,
-                                       vjust = 2)
+                plt <- plt + geom_text(aes_q(label = rownames(dat)), angle = 45, vjust = 2)
             }
 
             # legend labels
             if (length(styles$labels) > 0) {
                 plt <- plt + styles$labels
             }
-
             plt
         },
+
 
         # Plot median pairwise column correlations
         #

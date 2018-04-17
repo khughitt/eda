@@ -153,7 +153,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         initialize = function(dat,
                               row_mdata=NULL, col_mdata=NULL,
                               row_names='rownames', col_names='colnames',
-                              row_mdata_row_names='rownames', 
+                              row_mdata_row_names='rownames',
                               col_mdata_row_names='rownames',
                               row_color=NULL, row_shape=NULL, row_label=NULL,
                               col_color=NULL, col_shape=NULL, col_label=NULL,
@@ -163,10 +163,10 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # create EDADat instances
             edats <- list('dat' = EDADat$new(dat, xid = 'x', yid = 'y',
-                                             row_names = row_names, col_names = col_names, 
+                                             row_names = row_names, col_names = col_names,
                                              row_color = row_color, row_shape = row_shape,
                                              row_label = row_label, row_edat = 'row_mdata',
-                                             col_color = col_color, col_shape = col_shape, 
+                                             col_color = col_color, col_shape = col_shape,
                                              col_label = col_label, col_edat = 'col_mdata'))
 
             # add row and column metadata, if provided
@@ -256,7 +256,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             x$t()$feature_cor(method)
         },
 
-        plot_pairwise_column_cors = function(color=NULL, label=NULL, title="", 
+        plot_pairwise_column_cors = function(color=NULL, label=NULL, title="",
                                              method='pearson',
                                              mar=c(12, 6, 4, 6), ...) {
             super$plot_pairwise_column_cors(key='dat', color=color,
@@ -386,18 +386,19 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             super$plot_densities(key='dat', color=color, title=title, ...)
         },
 
-        plot_pca = function(pcx=1, pcy=2, scale=FALSE,
-                            color=NULL, shape=NULL, label=NULL, 
+        plot_pca = function(method='prcomp', pcx=1, pcy=2,
+                            color=NULL, shape=NULL, label=NULL,
                             title=NULL, text_labels=FALSE, ...) {
-            super$plot_pca(key='dat', pcx=pcx, pcy=pcy, scale=scale,
+            super$plot_pca(key='dat', method=method, pcx=pcx, pcy=pcy,
                            color_var=color, shape_var=shape, label_var=label,
                            title=title, text_labels=text_labels, ...)
         },
 
-        plot_tsne = function(color=NULL, shape=NULL, label=NULL, title=NULL,
+        plot_tsne = function(dim1=1, dim2=2,
+                             color=NULL, shape=NULL, label=NULL, title=NULL,
                              text_labels=FALSE, ...) {
-            super$plot_tsne(key='dat', color_var=color, shape_var=NULL,
-                            label_var=label, title=NULL,
+            super$plot_tsne(key='dat', dim1=dim1, dim2=dim2, color_var=color,
+                            shape_var=NULL, label_var=label, title=NULL,
                             text_labels=text_labels, ...)
         },
 
@@ -431,7 +432,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
                 col_ind <- colnames(obj$col_mdata) %in% colnames(obj$dat)
                 obj$col_mdata <- obj$col_mdata[, col_ind]
             }
-            
+
             obj
         },
 
@@ -444,7 +445,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             super$transpose()
 
             # swap keys for row/column metadata
-            row_mdat <- self$edat[['row_mdata']] 
+            row_mdat <- self$edat[['row_mdata']]
             self$edat[['row_mdata']] <- self$edat[['col_mdata']]
             self$edat[['col_mdata']] <- row_mdat
         },
