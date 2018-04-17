@@ -445,7 +445,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- dat[row_ind, col_ind]
+            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[row_ind, col_ind]
             obj
         },
 
