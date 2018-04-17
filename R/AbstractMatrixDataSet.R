@@ -157,6 +157,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             if (method == 'prcomp') {
                 # regular PCA
                 res <- prcomp(dat, ...)$x
+            } else if (method == 'kpca') {
+                # kernal PCA
+                res <- kernlab::pcv(kernlab::kpca(dat, ...))
             } else if (method == 'nsprcomp') {
                 # sparse PCA
                 res <- nsprcomp::nsprcomp(dat, ...)$x
