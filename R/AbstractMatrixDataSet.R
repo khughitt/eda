@@ -380,7 +380,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
             # text labels
             if (text_labels) {
-                plt <- plt + geom_text(aes_q(label = rownames(dat)), angle = 45, vjust = 2)
+                plt <- plt + geom_text(aes_q(label = rownames(dat)), angle = 45, size = 1, vjust = 2)
             }
 
             # legend labels

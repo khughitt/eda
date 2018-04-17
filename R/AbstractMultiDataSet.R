@@ -1170,7 +1170,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             key2 <- ifelse(is.numeric(key2), names(self$edat)[key2], key2)
 
             # determine key to use for storing result
-            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_cor', key1, key2), new_key)
+            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, method), new_key)
 
             # add new matrix to front of edat list and return
             obj$add(EDADat$new(cor_mat, xid = xid, yid = yid, 
@@ -1224,7 +1224,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 params$annRow <- params$row_side_colors
             }
 
-            # remove irrelevant function arguments
+            # remove irrelevant heatmaply function arguments
             heatmaply_args <- c('showticklabels', 'subplot_widths', 'subplot_heights',
                                 'col_side_colors', 'row_side_colors')
             params <- params[!names(params) %in% heatmaply_args]
