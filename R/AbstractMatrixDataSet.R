@@ -148,16 +148,31 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # Methods:
         #
-        # 1. pca - regular PCA
+        # 1. prcomp - regular PCA
         #
-        pca = function(key=1, method='pca', num_dims=NULL, ...) {
-            obj <- private$clone_()
-            obj$edat[[key]]$dat <- prcomp(self$edat[[key]]$dat, ...)$x
-            obj$edat[[key]]$ylab <- 'Priniple Components' 
+        pca = function(key=1, method='prcomp', ...) {
+            dat <- self$edat[[key]]$dat
 
-            if (!is.null(num_dims)) {
-                obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, 1:num_dims]
+            # compute PCA
+            if (method == 'prcomp') {
+                # regular PCA
+                res <- prcomp(dat, ...)$x
+            } else if (method == 'nsprcomp') {
+                # sparse PCA
+                res <- nsprcomp::nsprcomp(dat, ...)$x
+            } else if (method == 'robpca') {
+                # robust PCA
+                res <- rospca::robpca(t(dat), ...)$loadings
+            } else if (method == 'rospca') {
+                # robust sparse PCA
+                res <- rospca::rospca(t(dat), ...)$loadings
             }
+
+            # clone object and append result
+            obj <- private$clone_()
+            obj$edat[[key]]$dat <- res
+            obj$edat[[key]]$ylab <- 'Priniple Components'
+
             obj$remove_unlinked(key)
             obj
         },
@@ -165,14 +180,10 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # t-SNE
         #
-        tsne = function(key=1, num_dims=NULL, ...) {
+        tsne = function(key=1, ...) {
             obj <- private$clone_()
             obj$edat[[key]]$dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)
-            obj$edat[[key]]$ylab <- 't-SNE dimensions' 
-
-            if (!is.null(num_dims)) {
-                obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, 1:num_dims]
-            }
+            obj$edat[[key]]$ylab <- 't-SNE dimensions'
 
             obj$remove_unlinked(key)
             obj
@@ -213,7 +224,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # Generates a heatmap plot of the dataset
         #
         # ... Additional arguments
-        plot_heatmap = function(key=1, 
+        plot_heatmap = function(key=1,
                                 row_label=NULL, row_edat=NULL,
                                 col_label=NULL, col_edat=NULL,
                                 interactive=TRUE, ...) {
@@ -226,7 +237,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
             rownames(dat) <- row_labels
             colnames(dat) <- col_labels
-                                
+
             # list of parameters to pass to heatmaply
             params <- list(
                 x               = dat,

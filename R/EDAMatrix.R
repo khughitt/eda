@@ -236,20 +236,24 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             self$log(base = 2, offset = 1)
         },
 
-        pca = function(num_dims=NULL, ...) {
-            super$pca(key='dat', num_dims = num_dims, ...)
+        pca = function(...) {
+            super$pca(key='dat', ...)
         },
 
-        tsne = function(num_dims=NULL, ...) {
-            super$tsne(key='dat', num_dims = num_dims, ...)
+        tsne = function(...) {
+            super$tsne(key='dat', ...)
         },
 
         pca_feature_cor = function(num_dims=10, method='pearson', ...) {
-            self$t()$pca(num_dims = num_dims, ...)$t()$feature_cor(method)
+            x <- self$t()$pca(...)
+            x$dat <- x$dat[, 1:min(ncol(x$dat), num_dims)]
+            x$t()$feature_cor(method)
         },
 
         tsne_feature_cor = function(num_dims=10, method='pearson', ...) {
-            self$t()$tsne(num_dims = num_dims, ...)$t()$feature_cor(method)
+            x <- self$t()$tsne(...)
+            x$dat <- x$dat[, 1:min(ncol(x$dat), num_dims)]
+            x$t()$feature_cor(method)
         },
 
         plot_pairwise_column_cors = function(color=NULL, label=NULL, title="", 
