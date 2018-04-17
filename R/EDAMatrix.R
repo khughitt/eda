@@ -236,14 +236,6 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             self$log(base = 2, offset = 1)
         },
 
-        pca = function(...) {
-            super$pca(key='dat', ...)
-        },
-
-        tsne = function(...) {
-            super$tsne(key='dat', ...)
-        },
-
         pca_feature_cor = function(num_dims=10, method='pearson', ...) {
             x <- self$t()$pca(...)
             x$dat <- x$dat[, 1:min(ncol(x$dat), num_dims)]
@@ -327,22 +319,29 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # if metadata is availble, display along side of heatmap
             if (!is.null(self$col_mdata)) {
+                # get metadata with variables stored as columns
+                if (self$edat[['dat']]$yid == self$edat[['col_mdata']]$yid) {
+                    mdata <- self$edat[['col_mdata']]$tdat
+                } else {
+                    mdata <- self$edat[['col_mdata']]$dat
+                }
+
                 # for heatmaps, show binary/logical variables on one side of the heatmap and
                 # other variables on the other side
-                lens <- apply(self$col_mdata, 2, function(x) {
+                lens <- apply(mdata, 2, function(x) {
                     length(unique(x))
                 })
                 binary_vars <- lens == 2
 
                 # column colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$col_mdata[, binary_vars, drop = FALSE]
+                    params[['col_side_colors']] <- mdata[, binary_vars, drop = FALSE]
                     params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
 
                 # column colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['col_side_colors']] <- self$col_mdata[, !binary_vars, drop = FALSE]
+                    params[['col_side_colors']] <- mdata[, !binary_vars, drop = FALSE]
                     params[['subplot_widths']]  <- c(0.55, 0.3, 0.15)
                 }
             }
