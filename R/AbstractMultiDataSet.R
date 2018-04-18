@@ -47,6 +47,18 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
             self$edat <- datasets
 
+            # check to make sure valid edat keys specified
+            keys <- names(self$edat)
+
+            for (key in keys) {
+                if (!is.null(self$edat[[key]]$row_edat) && (!self$edat[[key]]$row_edat %in% keys)) {
+                    stop(sprintf("Invalid row edat key specified for dataset: %s", key))
+                }
+                if (!is.null(self$edat[[key]]$col_edat) && (!self$edat[[key]]$col_edat %in% keys)) {
+                    stop(sprintf("Invalid column edat key specified for dataset: %s", key))
+                }
+            }
+
             # share styles
             private$color_pal    <- color_pal
             private$ggplot_theme <- ggplot_theme
