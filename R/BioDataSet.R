@@ -153,16 +153,16 @@ BioDataSet <- R6Class("BioDataSet",
         #   - `ratio_nonzero`       ratio of genes with values not equal to zero
         #   - `ratio_zero`          ratio of genes with values equal to zero
         #
-        annotation_stats = function(key, annotation, stat=median, edat_suffix='auto', ...) {
+        aapply = function(key, annotation, fun=median, edat_suffix='auto', ...) {
             # check for valid dataset key
             private$check_key(key)
 
-            # determine statistic to use
-            if (!is.function(stat)) {
-                if (stat %in% names(private$stat_fxns)) {
-                    stat <- private$stat_fxns[[stat]]
+            # determine function to use
+            if (!is.function(fun)) {
+                if (fun %in% names(private$stat_fxns)) {
+                    fun <- private$stat_fxns[[fun]]
                 } else {
-                    stop("Invalid statistic specified.")
+                    stop("Invalid function specified.")
                 }
             }
 

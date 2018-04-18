@@ -122,17 +122,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             clusters
         },
 
-        # clusters dataset rows and computes a statistic for each cluster
-        cluster_stats = function(key, method='kmeans', stat=median, edat_suffix='auto', ...) {
+        # cluster dataset and apply function to resulting clusters
+        capply = function(key, method='kmeans', fun=median, edat_suffix='auto', ...) {
             # check for valid dataset key
             private$check_key(key)
 
-            # determine statistic to use
-            if (!is.function(stat)) {
-                if (stat %in% names(private$stat_fxns)) {
-                    stat <- private$stat_fxns[[stat]]
+            # determine function to use
+            if (!is.function(fun)) {
+                if (fun %in% names(private$stat_fxns)) {
+                    fun <- private$stat_fxns[[fun]]
                 } else {
-                    stop("Invalid statistic specified.")
+                    stop("Invalid function specified.")
                 }
             }
 
@@ -611,7 +611,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         cache        = list(),
 
         # Helper functions for computing various statistics; used by the
-        # `AbstractMultiDataSet$cluster_stats` and `BioDataSet$annotation_stats`
+        # `AbstractMultiDataSet$capply` and `BioDataSet$aapply`
         # method.
         stat_fxns = list(
             'num_nonzero' = function(x) {
