@@ -15,6 +15,7 @@ Imports:
     corpcor,
     data.table,
     heatmaply,
+    infotheo,
     mpmi,
     RColorBrewer,
     Rtsne,

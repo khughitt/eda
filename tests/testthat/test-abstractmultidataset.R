@@ -141,7 +141,7 @@ test_that("Correlation measures work", {
 
     # cor() operates on columns, so we transpose before comparing
     expect_equal(sds$t()$cor(method = 'pearson'), cor_mat)
-    expect_equal(sds$t()$cor(method = 'mi'),      mut_mat)
+    expect_equal(sds$t()$cor(method = 'cmi'),     mut_mat)
     expect_equal(expect_warning(sds$t()$cor(method = 'lm')), lm_mat)
 
     #
@@ -153,8 +153,8 @@ test_that("Correlation measures work", {
     expect_equal(res$edat[['a_b_pearson']]$dat, cor_mat[row_ind, col_ind])
 
     # Mutual information
-    res <- mds$cross_cor(method = 'mi')
-    expect_equal(res$edat[['a_b_mi']]$dat, mut_mat[row_ind, col_ind])
+    res <- mds$cross_cor(method = 'cmi')
+    expect_equal(res$edat[['a_b_cmi']]$dat, mut_mat[row_ind, col_ind])
 
     # Linear model
     # Gives an expected warning because of the perfect fit in fake data

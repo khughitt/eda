@@ -1028,9 +1028,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 cor_mat
             },
             #
-            # Mutual Information
+            # Mutual Information (jackknife bias-corrected)
             #
-            'mi' = function(dat1, dat2=NULL, ...) {
+            'cmi' = function(dat1, dat2=NULL, ...) {
                 if (!is.null(dat2)) {
                     # two datasets
                     cor_mat <- mpmi::cmi(cbind(dat1, dat2), ...)$bcmi
@@ -1041,6 +1041,49 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 }
             },
             #
+            # Mutual Information (infotheo)
+            #
+            'mutinformation' = function(dat1, dat2=NULL, ent_method="emp", ...) {
+                # discretize continuous data
+                if (!is.integer(dat1)) {
+                    dat1 <- infotheo::discretize(dat1, ...)
+                }
+
+                # two datasets
+                if (!is.null(dat2)) {
+                    # result matrix
+                    mi_mat <- matrix(nrow=ncol(dat1), ncol=ncol(dat2))
+
+                    if (!is.integer(dat2)) {
+                        dat2 <- infotheo::discretize(dat2, ...)
+                    }
+
+                    # iterate over pairs of columns and compute mutual information
+                    # for each pair
+                    for (i in 1:ncol(dat1)) {
+                        for (j in 1:ncol(dat2)) {
+                            mi_mat[i, j] <- infotheo::mutinformation(dat1[, i], dat2[, j], method=ent_method)
+                        }
+                    }
+                } else {
+                    # single dataset
+
+                    # result matrix
+                    mi_mat <- matrix(nrow=ncol(dat1), ncol=ncol(dat1))
+
+                    # iterate over pairs of columns and compute mutual information
+                    # for each pair
+                    for (i in 1:ncol(dat1)) {
+                        for (j in 1:ncol(dat1)) {
+                            if (is.na(mi_mat[i, j])) {
+                                mi_mat[i, j] <- infotheo::mutinformation(dat1[, i], dat1[, j], method=ent_method)
+                                mi_mat[j, i] <- mi_mat[i, j]
+                            }
+                        }
+                    }
+                }
+                mi_mat
+            },
             # Pearson correlation
             #
             'pearson' = function(dat1, dat2=NULL, ...) {
