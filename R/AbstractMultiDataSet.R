@@ -1045,12 +1045,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #
             'pearson' = function(dat1, dat2=NULL, ...) {
                 if (!is.null(dat2)) {
-                    cor_mat <- cor(cbind(dat1, dat2), method = 'pearson', ...)
-
-                    # limit to cross-dataset correlations
-                    cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
+                    # data is passed in with shared rows, so columns can
+                    # be correlation directly
+                    cor(dat1, dat2, ...)
                 } else {
-                    cor(dat1, method = 'pearson')
+                    cor(dat1, method = 'pearson', ...)
                 }
             },
 
@@ -1059,12 +1058,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #
             'spearman' = function(dat1, dat2=NULL, ...) {
                 if (!is.null(dat2)) {
-                    cor_mat <- cor(cbind(dat1, dat2), method = 'spearman', ...)
-
-                    # limit to cross-dataset correlations
-                    cor_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(cor_mat)]
+                    cor(dat1, dat2, method = 'spearman', ...)
                 } else {
-                    cor(dat1, method = 'spearman')
+                    cor(dat1, method = 'spearman', ...)
                 }
             }
         ),
