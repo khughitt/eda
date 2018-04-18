@@ -150,30 +150,30 @@ test_that("Correlation measures work", {
 
     # Pearson correlation
     res <- mds$cross_cor(method = 'pearson')
-    expect_equal(res$edat[['a_b_cor']]$dat, cor_mat[row_ind, col_ind])
+    expect_equal(res$edat[['a_b_pearson']]$dat, cor_mat[row_ind, col_ind])
 
     # Mutual information
     res <- mds$cross_cor(method = 'mi')
-    expect_equal(res$edat[['a_b_cor']]$dat, mut_mat[row_ind, col_ind])
+    expect_equal(res$edat[['a_b_mi']]$dat, mut_mat[row_ind, col_ind])
 
     # Linear model
     # Gives an expected warning because of the perfect fit in fake data
     res <- expect_warning(mds$cross_cor(method = 'lm'))
-    expect_equal(res$edat[['a_b_cor']]$dat, lm_mat[row_ind, col_ind])
+    expect_equal(res$edat[['a_b_lm']]$dat, lm_mat[row_ind, col_ind])
 
     # Check handling of axes and transposed data
 
     # check axis ids for cross cor matrix; should have axes corresponding
     # to the non-shared axes in original two datasets
-    expect_equal(res$edat[['a_b_cor']]$xid, 'a_x')
-    expect_equal(res$edat[['a_b_cor']]$yid, 'b_x')
+    expect_equal(res$edat[['a_b_lm']]$xid, 'a_x')
+    expect_equal(res$edat[['a_b_lm']]$yid, 'b_x')
 
     # should get the same result, even if relative dataset orientation differs
     res <- mds$t('a')$cross_cor(method = 'pearson')
 
-    expect_equal(res$edat[['a_b_cor']]$dat, cor_mat[row_ind, col_ind])
-    expect_equal(res$edat[['a_b_cor']]$xid, 'a_x')
-    expect_equal(res$edat[['a_b_cor']]$yid, 'b_x')
+    expect_equal(res$edat[['a_b_pearson']]$dat, cor_mat[row_ind, col_ind])
+    expect_equal(res$edat[['a_b_pearson']]$xid, 'a_x')
+    expect_equal(res$edat[['a_b_pearson']]$yid, 'b_x')
 })
 
 # Plot styles
