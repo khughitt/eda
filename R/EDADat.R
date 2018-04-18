@@ -75,13 +75,13 @@ EDADat <- R6Class("EDADat",
             self$xlab <- xlab
             self$ylab <- ylab
 
-            self$row_color  <- row_color   
-            self$row_shape  <- row_shape   
-            self$row_label  <- row_label   
+            self$row_color  <- row_color
+            self$row_shape  <- row_shape
+            self$row_label  <- row_label
             self$row_edat   <- row_edat
-            self$col_color  <- col_color   
-            self$col_shape  <- col_shape   
-            self$col_label  <- col_label   
+            self$col_color  <- col_color
+            self$col_shape  <- col_shape
+            self$col_label  <- col_label
             self$col_edat   <- col_edat
 
             # store data
@@ -94,38 +94,38 @@ EDADat <- R6Class("EDADat",
         # parameter.
         # If not axis name is specified, row or column names are returned
         get = function(axis, name=NULL, other_axis=FALSE) {
+            # make sure valid axis identifier specified
             if (!axis %in% c(self$xid, self$yid)) {
                 stop("Invalid axis ID specified.")
             }
-            # matching axis is x (rows)
-            if ((axis == self$xid  && !other_axis) || 
-                (axis == self$yid && other_axis) || 
-                (is.data.frame(private$data) && private$transposed)) {
 
-                # for row requests on transposed data frames, retrieve column
-                # or rownames from original data to preserve type
-                if (is.data.frame(private$data) && private$transposed && (axis != self$yid)) {
-                    if (is.null(name)) {
-                        rownames(private$data)
-                    } else {
-                        private$data[, name] 
-                    }
+            # determine whether target entry is stored as a row or column
+            row_target <- axis == self$xid
+
+            if (other_axis) {
+                row_target <- !row_target
+            }
+
+            if (is.data.frame(private$data) && private$transposed) {
+                row_target <- !row_target
+            }
+
+            # return target row or column names
+            if (row_target) {
+                # if no variable name specified column ids
+                if (is.null(name)) {
+                    colnames(private$data)
                 } else {
-                    # otherwise return row or column names
-                    # unlist ensures that 1d data frames are converted to vectors;
-                    # as.vector drops any associated names
-                    if (is.null(name)) {
-                        colnames(private$data)
-                    } else {
-                        as.vector(unlist(private$data[name, ]))
-                    }
+                    # otherwise return requested row
+                    as.vector(unlist(private$data[name, ]))
                 }
             } else {
-                # return rownames or a column in matrix / data frame
+                # return target column or row names
                 if (is.null(name)) {
                     rownames(private$data)
                 } else {
-                    as.vector(unlist(private$data[, name]))
+                    # otherwise return requested column
+                    as.vector(private$data[, name])
                 }
             }
         },
@@ -196,7 +196,7 @@ EDADat <- R6Class("EDADat",
             xlab <- self$xlab
             self$xlab <- self$ylab
             self$ylab <- xlab
-            
+
             # swap row and column style elements
             row_color <- self$row_color
             row_shape <- self$row_shape
@@ -246,7 +246,7 @@ EDADat <- R6Class("EDADat",
             if (row_names != 'rownames') {
                 ind <- private$get_names_index(dat, row_names, colnames)
                 if (sum(duplicated(dat[, ind])) > 0) {
-                    stop("Row identifiers must be unique.") 
+                    stop("Row identifiers must be unique.")
                 }
                 rownames(dat) <- dat[, ind]
                 dat <- dat[, -ind]
@@ -285,7 +285,7 @@ EDADat <- R6Class("EDADat",
         dat = function(value) {
             # return data
             if (missing(value)) {
-                # for transposed data frames, transpose on the fly 
+                # for transposed data frames, transpose on the fly
                 if (is.data.frame(private$data) && private$transposed) {
                     rn <- rownames(private$data)
                     cn <- colnames(private$data)

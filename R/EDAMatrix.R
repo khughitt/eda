@@ -161,13 +161,24 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             # verify input data type and call parent constructor
             private$check_input(dat)
 
+            # associate styles with row / column metadata, if present
+            row_edat <- NULL
+            col_edat <- NULL
+
+            if (!is.null(row_mdata)) {
+                row_edat <- 'row_mdata'
+            }
+            if (!is.null(col_mdata)) {
+                col_edat <- 'col_mdata'
+            }
+
             # create EDADat instances
             edats <- list('dat' = EDADat$new(dat, xid = 'x', yid = 'y',
                                              row_names = row_names, col_names = col_names,
                                              row_color = row_color, row_shape = row_shape,
-                                             row_label = row_label, row_edat = 'row_mdata',
+                                             row_label = row_label, row_edat = row_edat,
                                              col_color = col_color, col_shape = col_shape,
-                                             col_label = col_label, col_edat = 'col_mdata'))
+                                             col_label = col_label, col_edat = col_edat))
 
             # add row and column metadata, if provided
             if (!is.null(row_mdata)) {

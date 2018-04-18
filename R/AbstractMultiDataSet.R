@@ -755,9 +755,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # convert numeric keys
             key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
-            # check to make sure valid key specified
-            if (!key %in% names(self$edat)) {
-                stop("Invalid style source key specified. Are you sure data is in correct orientation?")
+            # check to make sure valid style key specified
+            if (!color_key %in% names(self$edat)) {
+                stop(sprintf("Invalid style source key specified: %s", color_key))
             }
 
             # otherwise, retrieve 1d vector to use for color assignment
