@@ -16,6 +16,7 @@ Imports:
     data.table,
     heatmaply,
     infotheo,
+    minerva,
     mpmi,
     RColorBrewer,
     Rtsne,

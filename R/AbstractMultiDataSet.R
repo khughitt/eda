@@ -1040,8 +1040,23 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     mpmi::cmi(dat1, ...)$bcmi
                 }
             },
+
             #
-            # Mutual Information (infotheo)
+            # Maximal Information Coefficient (MIC)
+            #
+            'mic' = function(dat1, dat2=NULL, ...) {
+                if (!is.null(dat2)) {
+                    # two datasets
+                    mic_mat <- minerva::mine(cbind(dat1, dat2), ...)$MIC
+                    mic_mat[1:ncol(dat1), (ncol(dat1) + 1):nrow(mic_mat)]
+                } else {
+                    # single dataset
+                    minerva::mine(dat1, ...)$MIC
+                }
+            },
+
+            #
+            # Mutual Information (infotheo discretized estimate)
             #
             'mutinformation' = function(dat1, dat2=NULL, ent_method="emp", ...) {
                 # discretize continuous data
