@@ -144,6 +144,19 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             obj
         },
 
+        # NMF
+        nmf = function(key=1, rank, ...) {
+            res <- NMF::nmf(self$edat[[key]]$dat, rank = rank, ...)@fit@W
+
+            # clone object and append result
+            obj <- private$clone_()
+            obj$edat[[key]]$dat <- res
+            obj$edat[[key]]$ylab <- 'NMF factors'
+
+            obj$remove_unlinked(key)
+            obj
+        },
+
         # PCA
         #
         # Methods:
