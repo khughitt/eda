@@ -458,6 +458,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             row_mdat <- self$edat[['row_mdata']]
             self$edat[['row_mdata']] <- self$edat[['col_mdata']]
             self$edat[['col_mdata']] <- row_mdat
+
+            if (!is.null(self$edat[['dat']]$row_edat)) {
+            	self$edat[['dat']]$row_edat <- 'row_mdata'
+            }
+            if (!is.null(self$edat[['dat']]$col_edat)) {
+            	self$edat[['dat']]$col_edat <- 'col_mdata'
+            }
         },
 
         # transpose (out-of-place)
