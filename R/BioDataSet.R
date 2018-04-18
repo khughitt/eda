@@ -34,22 +34,22 @@
 #' - `cluster_tsne(k=10, ...)`: Clusters rows in dataset using a combination
 #'      of t-SNE and k-means clustering.
 #' - `cpm()`: Performs counts-per-million (CPM) transformation.
-#' - `detect_col_outliers(num_sd=2, avg='median', method='pearson')`:
+#' - `detect_col_outliers(num_sd=2, avg='median', meas='pearson')`:
 #'      Measures average pairwise similarities between all columns in the dataset.
 #'      Outliers are considered to be those columns who mean similarity to
 #'      all other columns is greater than `num_sd` standard deviations from the
 #'      average of averages.
-#' - `detect_row_outliers(num_sd=2, avg='median', method='pearson')`:
+#' - `detect_row_outliers(num_sd=2, avg='median', meas='pearson')`:
 #'      Measures average pairwise similarities between all rows in the dataset.
 #'      Outliers are considered to be those rows who mean similarity to
 #'      all other rows is greater than `num_sd` standard deviations from the
 #'      average of averages.
 #'  - `feature_cor()`: Detects dependencies between column metadata entries
 #'		(features) and dataset rows.
-#'  - `filter_col_outliers(num_sd=2, avg='median', method='pearson')`:
+#'  - `filter_col_outliers(num_sd=2, avg='median', meas='pearson')`:
 #'		Removes column outliers from the dataset. See `detect_col_outliers()`
 #'		for details of outlier detection approach.
-#'  - `filter_row_outliers(num_sd=2, avg='median', method='pearson')`:
+#'  - `filter_row_outliers(num_sd=2, avg='median', meas='pearson')`:
 #'		Removes row outliers from the dataset. See `detect_row_outliers()`
 #'		for details of outlier detection approach.
 #'  - `filter_cols(mask)`: Accepts a logical vector of length `ncol(obj$dat)`
@@ -67,19 +67,19 @@
 #'  - `pca(...)`: Performs principle component analysis (PCA) on the dataset
 #'		and returns a new BioEDADataSet instance of the projected data points.
 #'      Any additional arguements specified are passed to the `prcomp()` function.
-#'  - `pca_feature_cor(method='pearson', ...)`: Measures correlation between
+#'  - `pca_feature_cor(meas='pearson', ...)`: Measures correlation between
 #'		dataset features (column metadata fields) and dataset principle
 #'      components.
-#'  - `plot_cor_heatmap(method='pearson', interactive=TRUE, ...)`: Plots a
+#'  - `plot_cor_heatmap(meas='pearson', interactive=TRUE, ...)`: Plots a
 #'		correlation heatmap of the dataset.
 #'  - `plot_densities(color=NULL, title="", ...)`: Plots densities for each
 #'		column in the dataset.
-#'  - `plot_feature_cor(method='pearson', color_scale=c('green', 'red')`:
+#'  - `plot_feature_cor(meas='pearson', color_scale=c('green', 'red')`:
 #'		Creates a tile plot of projected data / feature correlations. See
 #'		`feature_cor()` function.
 #'  - `plot_heatmap(x=1, interactive=TRUE, ...)`: Generates a heatmap plot of the
 #'		dataset
-#'  - `plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))`:
+#'  - `plot_pairwise_column_cors(color=NULL, title="", meas='pearson', mar=c(12,6,4,6))`:
 #'		Plot median pairwise column correlations for each variable (column)
 #'		in the dataset.
 #'  - `plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL,
@@ -97,12 +97,12 @@
 #'		on the dataset and returns a new BioEDADataSet instance of the projected
 #' 		data points. Any additional arguements specified are passed to the
 #'		`Rtsne()` function.
-#'  - `tsne_feature_cor(method='pearson', ...)`: Measures correlation between
+#'  - `tsne_feature_cor(meas='pearson', ...)`: Measures correlation between
 #'		dataset features (column metadata fields) and dataset t-SNE projected
 #'      axes.
-#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
+#'  - `cross_cor(key1=1, key2=2, meas='pearson')`: Computes cross-dataset
 #'     correlation matrix between rows in two specified datasets.
-#'  - `plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)`:
+#'  - `plot_cross_cor_heatmap(key1=1, key2=2, meas='pearson', interactive=TRUE)`:
 #'      Plots multidataset correlation heatmap.
 #'  - `print()`: Prints an overview of the object instance.
 #'
@@ -376,10 +376,10 @@ BioDataSet <- R6Class("BioDataSet",
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
+        # @param meas Correlation meas to use
         #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', new_key=NULL, interactive=TRUE) {
-            super$plot_cross_cor_heatmap(key1, key2, method, new_key, interactive)
+        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', new_key=NULL, interactive=TRUE) {
+            super$plot_cross_cor_heatmap(key1, key2, meas, new_key, interactive)
         }
     ),
 

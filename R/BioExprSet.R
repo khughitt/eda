@@ -15,9 +15,9 @@
 #'  - `datasets`: List of datasets
 #'
 #' @section Methods:
-#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
+#'  - `cross_cor(key1=1, key2=2, meas='pearson')`: Computes cross-dataset
 #'     correlation matrix between rows in two specified datasets.
-#'  - `plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)`:
+#'  - `plot_cross_cor_heatmap(key1=1, key2=2, meas='pearson', interactive=TRUE)`:
 #'      Plots multidataset correlation heatmap.
 #'  - `print()`: Prints an overview of the object instance.
 #'
@@ -89,11 +89,11 @@ BioExprSet <- R6Class("BioExprSet",
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
+        # @param meas Correlation measure to use
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        cross_cor = function(key1=1, key2=2, method='pearson', new_key=NULL, ...) {
-            private$compute_cross_cor(key1, key2, method, new_key, ...)
+        cross_cor = function(key1=1, key2=2, meas='pearson', new_key=NULL, ...) {
+            private$compute_cross_cor(key1, key2, meas, new_key, ...)
         },
 
         # Performs a counts-per-million (CPM) transformation.
@@ -110,10 +110,10 @@ BioExprSet <- R6Class("BioExprSet",
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
+        # @param meas Correlation measure to use
         #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
-            super$plot_cross_cor_heatmap(key1, key2, method, interactive)
+        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', interactive=TRUE) {
+            super$plot_cross_cor_heatmap(key1, key2, meas, interactive)
         }
     ),
 

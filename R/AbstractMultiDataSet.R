@@ -178,8 +178,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # Measure similarity between columns
-        cor = function(key=1, method='pearson', ...) {
-            private$similarity(self$edat[[key]]$dat, method=method, ...)
+        cor = function(key=1, meas='pearson', ...) {
+            private$similarity(self$edat[[key]]$dat, meas=meas, ...)
         },
 
         # Applies a filter to rows of the dataset
@@ -1029,6 +1029,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             },
             #
             # Mutual Information (jackknife bias-corrected)
+            # https://cran.r-project.org/web/packages/mpmi/vignettes/Vignette.pdf
             #
             'cmi' = function(dat1, dat2=NULL, ...) {
                 if (!is.null(dat2)) {
@@ -1043,6 +1044,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             #
             # Maximal Information Coefficient (MIC)
+            # http://www.exploredata.net/
             #
             'mic' = function(dat1, dat2=NULL, ...) {
                 if (!is.null(dat2)) {
@@ -1057,8 +1059,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             #
             # Mutual Information (infotheo discretized estimate)
+            # https://cran.r-project.org/web/packages/infotheo/index.html
             #
-            'mutinformation' = function(dat1, dat2=NULL, ent_method="emp", ...) {
+            'mutinformation' = function(dat1, dat2=NULL, ...) {
                 # discretize continuous data
                 if (!is.integer(dat1)) {
                     dat1 <- infotheo::discretize(dat1, ...)
@@ -1077,7 +1080,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     # for each pair
                     for (i in 1:ncol(dat1)) {
                         for (j in 1:ncol(dat2)) {
-                            mi_mat[i, j] <- infotheo::mutinformation(dat1[, i], dat2[, j], method=ent_method)
+                            mi_mat[i, j] <- infotheo::mutinformation(dat1[, i], dat2[, j])
                         }
                     }
                 } else {
@@ -1091,7 +1094,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     for (i in 1:ncol(dat1)) {
                         for (j in 1:ncol(dat1)) {
                             if (is.na(mi_mat[i, j])) {
-                                mi_mat[i, j] <- infotheo::mutinformation(dat1[, i], dat1[, j], method=ent_method)
+                                mi_mat[i, j] <- infotheo::mutinformation(dat1[, i], dat1[, j])
                                 mi_mat[j, i] <- mi_mat[i, j]
                             }
                         }
@@ -1099,6 +1102,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 }
                 mi_mat
             },
+
+            # Kendall correlation
+            #
+            'kendall' = function(dat1, dat2=NULL, ...) {
+                if (!is.null(dat2)) {
+                    cor(dat1, dat2, method = 'kendall', ...)
+                } else {
+                    cor(dat1, method = 'kendall', ...)
+                }
+            },
+
             # Pearson correlation
             #
             'pearson' = function(dat1, dat2=NULL, ...) {
@@ -1107,7 +1121,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     # be correlation directly
                     cor(dat1, dat2, ...)
                 } else {
-                    cor(dat1, method = 'pearson', ...)
+                    cor(dat1, ...)
                 }
             },
 
@@ -1134,14 +1148,15 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use. Supported options:
+        # @param meas Correlation measure to use. Supported options:
+        #   - kendall  (Kendall correlation)
         #   - pearson  (Pearson correlation)
         #   - spearman (Spearman correlation)
         #   - lm       (Linear model)
-        #   - mi       (Mututal information)
+        #   - cmi      (Mututal information)
         #
         # @return Matrix of pairwise dataset1 - dataset2 correlations
-        compute_cross_cor = function(key1=1, key2=2, method='pearson', new_key=NULL, ...) {
+        compute_cross_cor = function(key1=1, key2=2, meas='pearson', new_key=NULL, ...) {
             # shortcuts to edats
             e1 <- self$edat[[key1]]
             e2 <- self$edat[[key2]]
@@ -1214,7 +1229,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             dat2 <- dat2[order(match(rownames(dat2), row_ind)),, drop = FALSE]
 
             # measure similarity between rows in datasets 1 and rows in dataset 2
-            cor_mat <- private$similarity(dat1, dat2, method = method, ...)
+            cor_mat <- private$similarity(dat1, dat2, meas = meas, ...)
 
             # clone object and add new dataset
             obj <- private$clone_()
@@ -1224,7 +1239,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             key2 <- ifelse(is.numeric(key2), names(self$edat)[key2], key2)
 
             # determine key to use for storing result
-            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, method), new_key)
+            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, meas), new_key)
 
             # add new matrix to front of edat list and return
             obj$add(EDADat$new(cor_mat, xid = xid, yid = yid, 
@@ -1240,11 +1255,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # @param key1 Numeric or character index of first dataset to use
         # @param key2 Numeric or character index of second dataset to use
-        # @param method Correlation method to use (passed to `cor` function)
+        # @param meas Correlation measure to use (passed to `cor` function)
         #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, method='pearson', interactive=TRUE) {
+        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', interactive=TRUE) {
             # compute cross correlations
-            cor_mat <- private$compute_cross_cor(key1, key2, method)
+            cor_mat <- private$compute_cross_cor(key1, key2, meas)
 
            # list of parameters to pass to heatmaply
             params <- list(
@@ -1296,10 +1311,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         # Measures similarity between columns within or across datasets
         #
-        similarity = function(dat1, dat2=NULL, method='pearson', ...) {
+        similarity = function(dat1, dat2=NULL, meas='pearson', ...) {
             # check to make sure specified similarity measure is valid
-            if (!method %in% names(private$similarity_measures)) {
-                stop('Unsupported similarity method specified.')
+            if (!meas %in% names(private$similarity_measures)) {
+                stop('Unsupported similarity measure specified.')
             }
 
             # drop any columns with zero variance
@@ -1319,7 +1334,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             # construct similarity matrix
-            cor_mat <- private$similarity_measures[[method]](dat1, dat2, ...)
+            cor_mat <- private$similarity_measures[[meas]](dat1, dat2, ...)
 
             # fix row and column names
             rownames(cor_mat) <- colnames(dat1)

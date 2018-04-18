@@ -140,25 +140,25 @@ test_that("Correlation measures work", {
     colnames(lm_mat) <- colnames(combined_dat)
 
     # cor() operates on columns, so we transpose before comparing
-    expect_equal(sds$t()$cor(method = 'pearson'), cor_mat)
-    expect_equal(sds$t()$cor(method = 'cmi'),     mut_mat)
-    expect_equal(expect_warning(sds$t()$cor(method = 'lm')), lm_mat)
+    expect_equal(sds$t()$cor(meas = 'pearson'), cor_mat)
+    expect_equal(sds$t()$cor(meas = 'cmi'),     mut_mat)
+    expect_equal(expect_warning(sds$t()$cor(meas = 'lm')), lm_mat)
 
     #
     # Cross correlation
     #
 
     # Pearson correlation
-    res <- mds$cross_cor(method = 'pearson')
+    res <- mds$cross_cor(meas = 'pearson')
     expect_equal(res$edat[['a_b_pearson']]$dat, cor_mat[row_ind, col_ind])
 
     # Mutual information
-    res <- mds$cross_cor(method = 'cmi')
+    res <- mds$cross_cor(meas = 'cmi')
     expect_equal(res$edat[['a_b_cmi']]$dat, mut_mat[row_ind, col_ind])
 
     # Linear model
     # Gives an expected warning because of the perfect fit in fake data
-    res <- expect_warning(mds$cross_cor(method = 'lm'))
+    res <- expect_warning(mds$cross_cor(meas = 'lm'))
     expect_equal(res$edat[['a_b_lm']]$dat, lm_mat[row_ind, col_ind])
 
     # Check handling of axes and transposed data
@@ -169,7 +169,7 @@ test_that("Correlation measures work", {
     expect_equal(res$edat[['a_b_lm']]$yid, 'b_x')
 
     # should get the same result, even if relative dataset orientation differs
-    res <- mds$t('a')$cross_cor(method = 'pearson')
+    res <- mds$t('a')$cross_cor(meas = 'pearson')
 
     expect_equal(res$edat[['a_b_pearson']]$dat, cor_mat[row_ind, col_ind])
     expect_equal(res$edat[['a_b_pearson']]$xid, 'a_x')

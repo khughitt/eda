@@ -16,7 +16,7 @@
 #'  - `col_data`: List of additional data keyed on column identifiers
 #'
 #' @section Methods:
-#'  - `cross_cor(key1=1, key2=2, method='pearson')`: Computes cross-dataset
+#'  - `cross_cor(key1=1, key2=2, meas='pearson')`: Computes cross-dataset
 #'     correlation matrix between rows in two specified datasets.
 #'  - `print()`: Prints an overview of the object instance.
 #'
@@ -56,11 +56,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # return Character vector or column ids for columns with low
         #     average pairwise correlations.
-        detect_col_outliers = function(key=1, num_sd=2, ctend=median, method='pearson', ...) {
+        detect_col_outliers = function(key=1, num_sd=2, ctend=median, meas='pearson', ...) {
             # TODO: include correlation in results?
             # TODO: Write alternative version for data frame datasets?
             dat <- self$edat[[key]]$dat
-            cor_mat <- private$similarity(dat, method=method, ...)
+            cor_mat <- private$similarity(dat, meas = meas, ...)
 
             avg_column_cors <- apply(cor_mat, 1, ctend)
             cutoff <- mean(avg_column_cors) - (num_sd * sd(avg_column_cors))
@@ -79,9 +79,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # return Character vector or row ids for rows with low
         #     average pairwise correlations.
-        detect_row_outliers = function(key=1, num_sd=2, ctend=median, method='pearson', ...) {
+        detect_row_outliers = function(key=1, num_sd=2, ctend=median, meas='pearson', ...) {
             dat <- self$edat[[key]]$dat
-            cor_mat <- private$similarity(t(dat), method=method, ...)
+            cor_mat <- private$similarity(t(dat), meas = meas, ...)
 
             avg_row_cors <- apply(cor_mat, 1, ctend)
             cutoff <- mean(avg_row_cors) - num_sd * sd(avg_row_cors)
@@ -99,9 +99,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #      outliers.
         #
         # return A filtered version of the original EDAMatrix object.
-        filter_col_outliers = function(key=1, num_sd=2, ctend=median, method='pearson') {
+        filter_col_outliers = function(key=1, num_sd=2, ctend=median, meas='pearson') {
             obj <- private$clone_()
-            outliers <- obj$detect_col_outliers(key, num_sd, avg, method)
+            outliers <- obj$detect_col_outliers(key, num_sd, avg, meas)
             obj$filter_cols(!colnames(obj$dat) %in% outliers)
         },
 
@@ -116,9 +116,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #      outliers.
         #
         # return A filtered version of the original EDAMatrix object.
-        filter_row_outliers = function(num_sd=2, ctend=median, method='pearson') {
+        filter_row_outliers = function(num_sd=2, ctend=median, meas='pearson') {
             obj <- private$clone_()
-            outliers <- obj$detect_row_outliers(num_sd, ctend, method)
+            outliers <- obj$detect_row_outliers(num_sd, ctend, meas)
             obj$filter_rows(!rownames(obj$dat) %in% outliers)
         },
 
@@ -239,9 +239,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # @seealso \code{cor} for more information about supported correlation
         #      methods.
-        plot_cor_heatmap = function(key=1, method='pearson', interactive=TRUE, ...) {
+        plot_cor_heatmap = function(key=1, meas='pearson', interactive=TRUE, ...) {
             # generate correlation matrix
-            cor_mat <- private$similarity(self$edat[[key]]$dat, method=method, ...)
+            cor_mat <- private$similarity(self$edat[[key]]$dat, meas=meas, ...)
 
             # list of parameters to pass to heatmaply
             params <- list(
@@ -416,12 +416,12 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         plot_pairwise_column_cors = function(key=1,
                                              color_var=NULL, color_key=NULL,
                                              label_var=NULL, label_key=NULL,
-                                             title="", method='pearson',
+                                             title="", meas='pearson',
                                              mar=c(12, 6, 4, 6), ...) {
             dat <- self$edat[[key]]$dat
 
             # compute pairwise variable correlations
-            cor_mat <- private$similarity(dat, method=method, ...)
+            cor_mat <- private$similarity(dat, meas = meas, ...)
             median_pairwise_cor <- apply(cor_mat, 1, median)
 
             quantiles <- quantile(median_pairwise_cor, probs = c(0.25, 0.75))
