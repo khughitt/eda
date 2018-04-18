@@ -223,7 +223,7 @@ BioDataSet <- R6Class("BioDataSet",
 
                 # compute statistic for each column (often, samples) and append
                 # to result
-                res <- rbind(res, apply(dat_subset, 2, stat, ...))
+                res <- rbind(res, apply(dat_subset, 2, fun, ...))
             }
 
             # fix column and row names and return result

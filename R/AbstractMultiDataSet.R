@@ -154,7 +154,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 dat_subset <- dat[clusters == cluster,, drop = FALSE]
 
                 # compute statistic for each column and append to result
-                res <- rbind(res, apply(dat_subset, 2, stat, ...))
+                res <- rbind(res, apply(dat_subset, 2, fun, ...))
             }
 
             # fix column and row names and return result
