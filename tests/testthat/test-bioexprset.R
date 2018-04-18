@@ -39,6 +39,6 @@ test_that("pathway statistics works", {
     expect_error(bset$aapply(key='foo', annotation=NULL), 
                  "Invalid dataset specified: foo", fixed = TRUE)
     expect_error(bset$aapply(key=1, annotation=NULL, fun='nonexistent_stat'), 
-                 "Invalid statistic specified.", fixed = TRUE)
+                 "Invalid function specified.", fixed = TRUE)
 })
 
