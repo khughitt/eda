@@ -232,7 +232,7 @@ BioDataSet <- R6Class("BioDataSet",
 
             # clone BioDataSet instance and add new edat
             obj <- private$clone_()
-            obj$edat[[res_key]] <- EDADat$new(res, xid=annotation, yid=self$edat[[key]]$yid)
+            obj$add(res_key, EDADat$new(res, xid=annotation, yid=self$edat[[key]]$yid))
 
             obj
         },

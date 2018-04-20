@@ -66,10 +66,26 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # Adds a new dataset to front of datasets list, in-place
-        add = function (edat, key) {
+        add = function (key, edat) {
             edat_names <- c(key, names(self$edat))
             self$edat <- c(edat, self$edat)
             names(self$edat) <- edat_names
+        },
+
+        # update edat data and move to front of the edat list
+        update = function (key, dat) {
+            edat <- self$edat[[key]]
+            edat$dat <- dat
+
+            # convert numeric key to string
+            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+
+            self$edat[[key]] <- NULL
+            self$edat <- c(edat, self$edat)
+            names(self$edat)[1] <- key
+
+            # remove any unlinked datasets
+            private$remove_unlinked(key)
         },
 
         # Clears any cached resuts and performs garbage collection to free
@@ -184,7 +200,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # clone dataset instance and add new edat
             obj <- private$clone_()
-            obj$edat[[res_key]] <- EDADat$new(res, xid=method, yid=self$edat[[key]]$yid)
+            obj$add(res_key, EDADat$new(res, xid=method, yid=self$edat[[key]]$yid))
 
             obj
         },
@@ -202,7 +218,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @return A filtered version of the original EDADataSet object.
         filter_rows = function(key=1, mask) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[mask,, drop = FALSE]
+            obj$update(key, obj$edat[[key]]$dat[mask,, drop = FALSE])
             obj
         },
 
@@ -214,7 +230,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @return A filtered version of the original EDADataSet object.
         filter_cols = function(key=1, mask) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[, mask, drop = FALSE]
+            obj$update(key, obj$edat[[key]]$dat[, mask, drop = FALSE])
             obj
         },
 
@@ -270,6 +286,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # clone and subsample dataset
             obj <- private$clone_()
             obj$edat[[key]]$subsample(row_n, col_n, row_ratio, col_ratio)
+
+            # move to front of edat list
+            edat <- obj$edat[[key]]
+            obj$edat[[key]] <- NULL
+            obj$edat <- c(edat, obj$edat)
+            names(obj$edat)[1] <- key
+
             obj
         },
 
@@ -357,7 +380,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- dat[row_mask, col_mask]
+            obj$update(key, dat[row_mask, col_mask])
             obj
         },
 
@@ -383,7 +406,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- dat[row_mask, col_mask]
+            obj$update(key, dat[row_mask, col_mask])
             obj
         },
 
@@ -467,8 +490,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 }
             }
 
+            # replace original dataset and move to front of edat list
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- obj$edat[[key]]$dat[row_ind, col_ind]
+            obj$update(key, edat$dat[row_ind, col_ind])
+
             obj
         },
 
@@ -547,35 +572,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
             cat("=\n")
             cat("=========================================\n")
-        },
-
-        # Removes any datasets which are not linked to the target dataset by
-        # either shared row or column ids
-        remove_unlinked = function(key) {
-            # iterate over datasets
-            edat_keys <- names(self$edat)
-
-            if (is.numeric(key)) {
-                edat_keys <- edat_keys[-key]
-            } else {
-                edat_keys <- edat_keys[names(edat_keys) != key]
-            }
-
-            for (eid in edat_keys) {
-                # create a vector of axis ids for all other datasets
-                axis_ids <- c()
-
-                for (edat in self$edat[names(self$edat) != eid]) {
-                    axis_ids <- c(axis_ids, edat$xid, edat$yid)
-                }
-
-                # if a dataset does not overlap in ids with any of the other
-                # datasets (e.g. after a projection which replaces the original
-                # dataset), remove it.
-                if (length(intersect(axis_ids, c(self$edat[[eid]]$xid, self$edat[[eid]]$yid))) == 0) {
-                    self$edat[[eid]] <- NULL
-                }
-            }
         },
 
         # replaces a dataset with a new one, in-place
@@ -1265,11 +1261,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, meas), new_key)
 
             # add new matrix to front of edat list and return
-            obj$add(EDADat$new(cor_mat, xid = xid, yid = yid, 
+            obj$add(new_key,
+                    EDADat$new(cor_mat, xid = xid, yid = yid, 
                                row_color = xcolor, row_shape = xshape, 
                                row_label = xlabel, row_edat  = xedat,
                                col_color = ycolor, col_shape = yshape, 
-                               col_label = ylabel, col_edat  = yedat), new_key)
+                               col_label = ylabel, col_edat  = yedat))
 
             obj
         },
@@ -1331,6 +1328,36 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             do.call(NMF::aheatmap, params)
         },
+
+        # Removes any datasets which are not linked to the target dataset by
+        # either shared row or column ids
+        remove_unlinked = function(key) {
+            # iterate over datasets
+            edat_keys <- names(self$edat)
+
+            if (is.numeric(key)) {
+                edat_keys <- edat_keys[-key]
+            } else {
+                edat_keys <- edat_keys[names(edat_keys) != key]
+            }
+
+            for (eid in edat_keys) {
+                # create a vector of axis ids for all other datasets
+                axis_ids <- c()
+
+                for (edat in self$edat[names(self$edat) != eid]) {
+                    axis_ids <- c(axis_ids, edat$xid, edat$yid)
+                }
+
+                # if a dataset does not overlap in ids with any of the other
+                # datasets (e.g. after a projection which replaces the original
+                # dataset), remove it.
+                if (length(intersect(axis_ids, c(self$edat[[eid]]$xid, self$edat[[eid]]$yid))) == 0) {
+                    self$edat[[eid]] <- NULL
+                }
+            }
+        },
+
         #
         # Measures similarity between columns within or across datasets
         #

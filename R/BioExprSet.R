@@ -102,7 +102,7 @@ BioExprSet <- R6Class("BioExprSet",
         cpm = function(key=1) {
             obj <- private$clone_() 
             dat <- obj$edat[[key]]$dat 
-            obj$edat[[key]]$dat <- sweep(dat, 2, colSums(dat), '/') * 1E6
+            obj$update(key, sweep(dat, 2, colSums(dat), '/') * 1E6)
             obj
         },
 

@@ -131,7 +131,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # return A log-transformed version of the object.
         log = function(key=1, base=exp(1), offset=0) {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- log(obj$edat[[key]]$dat + offset, base)
+            obj$update(key, log(obj$edat[[key]]$dat + offset, base))
             obj
         },
 
@@ -140,7 +140,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         # return A log(x + 1) transformed version of the object.
         log1p = function() {
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- log(obj$edat[[key]]$dat + 1)
+            obj$update(key, log(obj$edat[[key]]$dat + 1))
             obj
         },
 
@@ -148,12 +148,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         nmf = function(key=1, rank, ...) {
             res <- NMF::nmf(self$edat[[key]]$dat, rank = rank, ...)@fit@W
 
-            # clone object and append result
+            # clone object and replace original matrix
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- res
+            obj$update(key, res)
             obj$edat[[key]]$ylab <- 'NMF factors'
 
-            obj$remove_unlinked(key)
             obj
         },
 
@@ -203,10 +202,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
             # clone object and append result
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- pca_dat
+            obj$update(key, pca_dat)
             obj$edat[[key]]$ylab <- 'Priniple Components'
 
-            obj$remove_unlinked(key)
             obj
         },
 
@@ -218,10 +216,9 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             colnames(dat) <- sprintf("t-SNE Dim %d", 1:ncol(dat))
 
             obj <- private$clone_()
-            obj$edat[[key]]$dat <- dat
+            obj$update(key, dat)
             obj$edat[[key]]$ylab <- 't-SNE dimensions'
 
-            obj$remove_unlinked(key)
             obj
         },
 
@@ -472,7 +469,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             new_key <- sprintf('%s_zscores', key)
 
             # add new matrix to front of edat list and return
-            obj$add(EDADat$new(dat, xid = self$edat[[key]]$xid, yid = self$edat[[key]]$yid), new_key)
+            obj$add(new_key, EDADat$new(dat, xid = self$edat[[key]]$xid, yid = self$edat[[key]]$yid))
 
             obj
         }
