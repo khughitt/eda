@@ -414,13 +414,18 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                         # in cases of ties, just use the first match
                         ind <- head(which(dat == max(dat, na.rm=TRUE), arr.ind=TRUE), 1)
 
-                        dat[ind] <- NA
+                        rowi <- ind[, 1]
+                        coli <- ind[, 2]
 
-                        if (!ind[, 1] %in% row_ind && length(row_ind) < top) {
-                            row_ind <- c(row_ind, ind[, 1])
+                        # set column / row to NA
+                        dat[rowi, ] <- NA
+                        dat[, coli] <- NA
+
+                        if (length(row_ind) < top) {
+                            row_ind <- c(row_ind, rowi)
                         }
-                        if (!ind[, 2] %in% col_ind && length(col_ind) < top) {
-                            col_ind <- c(col_ind, ind[, 2])
+                        if (length(col_ind) < top) {
+                            col_ind <- c(col_ind, coli)
                         }
                     }
                 } else {
@@ -439,13 +444,19 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     while (length(row_ind) < min(nrow(dat), (top + bottom)) || 
                            length(col_ind) < min(ncol(dat), (top + bottom))) {
                         ind <- head(which(dat == min(dat, na.rm=TRUE), arr.ind=TRUE), 1)
-                        dat[ind] <- NA
 
-                        if (!ind[, 1] %in% row_ind && length(row_ind) < (top + bottom)) {
-                            row_ind <- c(row_ind, ind[, 1])
+                        rowi <- ind[, 1]
+                        coli <- ind[, 2]
+
+                        # set column / row to NA
+                        dat[rowi, ] <- NA
+                        dat[, coli] <- NA
+
+                        if (length(row_ind) < (top + bottom)) {
+                            row_ind <- c(row_ind, rowi)
                         }
-                        if (!ind[, 2] %in% col_ind && length(col_ind) < (top + bottom)) {
-                            col_ind <- c(col_ind, ind[, 2])
+                        if (length(col_ind) < (top + bottom)) {
+                            col_ind <- c(col_ind, coli)
                         }
                     }
                 } else {
