@@ -492,7 +492,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # replace original dataset and move to front of edat list
             obj <- private$clone_()
-            obj$update(key, edat$dat[row_ind, col_ind])
+            obj$update(key, self$edat[[key]]$dat[row_ind, col_ind])
 
             obj
         },

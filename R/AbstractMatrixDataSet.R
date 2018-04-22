@@ -302,7 +302,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                             color_var=NULL, color_key=NULL,
                             shape_var=NULL, shape_key=NULL,
                             label_var=NULL, label_key=NULL,
-                            title=NULL, text_labels=FALSE, ...) {
+                            title=NULL, text_labels=NULL, ...) {
             # plot title
             if (is.null(title)) {
                 key <- ifelse(is.numeric(key), names(self$edat)[key], key)
@@ -336,7 +336,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                              color_var=NULL, color_key=NULL,
                              shape_var=NULL, shape_key=NULL,
                              label_var=NULL, label_key=NULL,
-                             title=NULL, text_labels=FALSE, ...) {
+                             title=NULL, text_labels=NULL, ...) {
             # plot title
             if (is.null(title)) {
                 key <- ifelse(is.numeric(key), names(self$edat)[key], key)
@@ -361,7 +361,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                                 color_var=NULL, color_key=NULL,
                                 shape_var=NULL, shape_key=NULL, 
                                 label_var=NULL, label_key=NULL, 
-                                title=NULL, text_labels=FALSE) {
+                                title=NULL, text_labels=NULL) {
 
             dat <- as.data.frame(self$edat[[key]]$dat[, c(x, y)])
 
@@ -389,6 +389,10 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                       axis.text.x = element_text(angle = -90))
 
             # text labels
+            if (is.null(text_labels)) {
+                # be default, show text labels for plots with 50 or fewer points
+                text_labels <- nrow(dat) <= 50
+            }
             if (text_labels) {
                 plt <- plt + geom_text(aes_q(label = rownames(dat)), angle = 45, size = 1, vjust = 2)
             }

@@ -398,7 +398,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         plot_pca = function(method='prcomp', pcx=1, pcy=2,
                             color=NULL, shape=NULL, label=NULL,
-                            title=NULL, text_labels=FALSE, ...) {
+                            title=NULL, text_labels=NULL, ...) {
             super$plot_pca(key='dat', method=method, pcx=pcx, pcy=pcy,
                            color_var=color, shape_var=shape, label_var=label,
                            title=title, text_labels=text_labels, ...)
@@ -406,9 +406,9 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         plot_tsne = function(dim1=1, dim2=2,
                              color=NULL, shape=NULL, label=NULL, title=NULL,
-                             text_labels=FALSE, ...) {
+                             text_labels=NULL, ...) {
             super$plot_tsne(key='dat', dim1=dim1, dim2=dim2, color_var=color,
-                            shape_var=NULL, label_var=label, title=NULL,
+                            shape_var=shape, label_var=label, title=title,
                             text_labels=text_labels, ...)
         },
 
