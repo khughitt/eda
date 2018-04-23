@@ -346,13 +346,15 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
                 # column colors (binary variables)
                 if (sum(binary_vars) >= 1) {
-                    params[['col_side_colors']] <- mdata[, binary_vars, drop = FALSE]
+                    params[['col_side_colors']] <- mdata[rownames(cor_mat), 
+                                                         binary_vars, drop = FALSE]
                     params[['subplot_heights']] <- c(0.15, 0.3, 0.55)
                 }
 
                 # row colors (everything else)
                 if (sum(!binary_vars) >= 1) {
-                    params[['row_side_colors']] <- mdata[, !binary_vars, drop = FALSE]
+                    params[['row_side_colors']] <- mdata[rownames(cor_mat), 
+                                                         !binary_vars, drop = FALSE]
                     params[['subplot_widths']]  <- c(0.55, 0.3, 0.15)
                 }
             }
