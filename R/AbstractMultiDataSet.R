@@ -95,7 +95,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             invisible(gc())
         },
 
-        # cluster dataset and return new object instance which including the results
+        # cluster dataset and return new object instance which including the 
+        # results
         cluster = function(key=1, method='kmeans', ...) {
             # check to make sure specified clustering method is valid
             if (!method %in% names(private$cluster_methods)) {
@@ -975,7 +976,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         cluster_methods = list(
             'kmeans' = function(dat, k, ...) {
-                kmeans(dat, k, ...)$cluster
+                factor(as.numeric(kmeans(dat, k, ...)$cluster))
             },
 
             'hclust' = function(dat, cor_method='cor', 
@@ -987,7 +988,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 # methods in private, or make available somewhere else in eda
                 # package namespace)
                 #cor_mat <- private$similarity(dat, meas=cor_method)
-                cor_mat <- get(cor_method)(dat)
+                cor_mat <- get(cor_method)(t(dat))
                 
                 hc <- flashClust::flashClust(as.dist(1 - abs(cor_mat)), method=hclust_method)
 
