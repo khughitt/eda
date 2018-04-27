@@ -103,15 +103,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 stop('Unsupported clustering method specified.')
             }
 
-            # list of function arguments, excluding function name and key
-            args <- as.list(match.call())
-            args <- args[3:length(args)]
-
-            # generate hash string of form: <param1>.<val1>.<param2>.<val2>.etc;
-            # this will become the column name in a key-specific cluster result
-            # table
-            hash <- paste0(as.character(names(args)), '.', as.character(args), collapse='.')
-
             # convert key to string name, if not already provided as such
             if (is.numeric(key)) {
                 key <- names(self$edat)[key]
@@ -120,20 +111,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # key for cluster result dataset
             cluster_key <- sprintf("clusters-%s", key)
 
-            # if clustering has already been performed, retrieve result
-            if (cluster_key %in% names(self$edat)) {
-                if (hash %in% colnames(self$edat[[cluster_key]]$dat)) {
-                    return(self$edat[[cluster_key]]$dat[, hash])
-                }
-            }
-
-            # otherwise, perform clustering
+            # perform clustering
             clusters <- private$cluster_methods[[method]](self$edat[[key]]$dat, ...)
 
             # convert result to an n x 1 mapping matrix
             mat <- as.matrix(clusters)
             rownames(mat) <- rownames(self$edat[[key]])
-            colnames(mat) <- hash
 
             # if cluster table doesn't exist, create it
             if (!cluster_key %in% names(self$edat)) {
@@ -152,7 +135,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # cluster dataset and apply function to resulting clusters
-        capply = function(key, method='kmeans', fun=median, edat_suffix='auto', ...) {
+        capply = function(key, method='kmeans', fun=median, fun_args=list(), 
+                          edat_suffix='auto', ...) {
             # check for valid dataset key
             private$check_key(key)
 
@@ -178,16 +162,19 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             message("Computing cluster statistics...")
 
             # iterate over clusters
-            for (cluster in unique(clusters)) {
+            cluster_ids <- sort(unique(clusters))
+
+            for (cluster in cluster_ids) {
                 # data for cluster members
                 dat_subset <- dat[clusters == cluster,, drop = FALSE]
 
                 # compute statistic for each column and append to result
-                res <- rbind(res, apply(dat_subset, 2, fun, ...))
+                stats <- do.call(apply, c(list(X=dat_subset, MARGIN=2, FUN=fun), fun_args))
+                res <- rbind(res, stats)
             }
 
             # fix column and row names and return result
-            rownames(res) <- unique(clusters)
+            rownames(res) <- cluster_ids
             colnames(res) <- colnames(dat)
 
             # convert numeric keys
