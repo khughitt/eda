@@ -974,8 +974,26 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # Supported cluster methods
         #
         cluster_methods = list(
-            kmeans = function(dat, k, ...) {
+            'kmeans' = function(dat, k, ...) {
                 kmeans(dat, k, ...)$cluster
+            },
+
+            'hclust' = function(dat, cor_method='cor', 
+                                hclust_method='average', 
+                                cutree_method='cutree', k=NULL, h=NULL, ...) {
+                # hierachical clustering
+                # TODO: make similarity, etc. functions currently stored as
+                # private lists acessible to one another (store directly as
+                # methods in private, or make available somewhere else in eda
+                # package namespace)
+                #cor_mat <- private$similarity(dat, meas=cor_method)
+                cor_mat <- get(cor_method)(dat)
+                
+                hc <- flashClust::flashClust(as.dist(1 - abs(cor_mat)), method=hclust_method)
+
+                # tree cut
+                cutree_fxn <- get(cutree_method)
+                factor(as.numeric(cutree_fxn(hc, k=k, h=h, ...)))
             },
 
             # k-means clustering of t-SNE projected data
