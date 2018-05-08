@@ -875,7 +875,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             )
 
             # return labels in proper order
-            mapping$label[match(cnames, mapping$id)]
+            mapping$label[order(match(cnames, mapping$id))]
         },
 
 
