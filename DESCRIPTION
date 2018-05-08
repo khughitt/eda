@@ -6,7 +6,7 @@ Description: This package provides some simple helper classes for performing
     exploratory data anlaysis (EDA) in R. Datasets and metadata (when available)
     are stored together, and helper methods are provided for common EDA operations.
 Depends:
-    R (>= 3.4.3),
+    R (>= 3.4.0),
     R6,
     ggplot2,
     NMF,

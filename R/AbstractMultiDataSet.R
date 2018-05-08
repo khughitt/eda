@@ -4,7 +4,10 @@
 #' Includes fucntionality and methods that are relevant to all EDA child
 #' subclasses.
 #'
+#' @import ggplot2
 #' @importFrom R6 R6Class
+#' @importFrom reshape2 melt
+#' @importFrom NMF aheatmap nmf
 #' @name AbstractMultiDataSet
 #'
 NULL
