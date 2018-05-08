@@ -182,10 +182,32 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # add row and column metadata, if provided
             if (!is.null(row_mdata)) {
-                edats[['row_mdata']] <- EDADat$new(row_mdata, xid = 'x', yid = 'row metadata', row_names = row_mdata_row_names)
+                # create row metadata EDADat instance
+                row_edat <- EDADat$new(row_mdata, row_names = row_mdata_row_names)
+
+                # determine data orientation and assign x and y axis id's
+                if (length(intersect(rownames(edats[['dat']]$dat), rownames(row_edat$dat))) > 0) {
+                    row_edat$xid <- 'x'
+                    row_edat$yid <- 'row metadata'
+                } else {
+                    row_edat$xid <- 'row metadata'
+                    row_edat$yid <- 'x'
+                }
+                edats[['row_mdata']] <- row_edat 
             }
             if (!is.null(col_mdata)) {
-                edats[['col_mdata']] <- EDADat$new(col_mdata, xid = 'y', yid = 'column metadata', row_names = col_mdata_row_names)
+                # create column metadata EDADat instance
+                col_edat <- EDADat$new(col_mdata, row_names = col_mdata_row_names)
+
+                # determine data orientation and assign x and y axis id's
+                if (length(intersect(colnames(edats[['dat']]$dat), rownames(col_edat$dat))) > 0) {
+                    col_edat$xid <- 'y'
+                    col_edat$yid <- 'column metadata'
+                } else {
+                    col_edat$xid <- 'column metadata'
+                    col_edat$yid <- 'y'
+                }
+                edats[['col_mdata']] <- col_edat 
             }
 
             super$initialize(edats, color_pal, title, ggplot_theme)

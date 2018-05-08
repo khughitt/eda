@@ -124,7 +124,7 @@ test_that("Correlation measures work", {
     d1 <- dat1[-2, ]
     d2 <- dat2[-2, ]
 
-    # combined dataset
+    # combined /transposed dataset (with column order normalized)
     combined_dat <- t(rbind(d1, d2[, colnames(dat1)]))
 
     #
@@ -179,6 +179,23 @@ test_that("Correlation measures work", {
     expect_equal(res$edat[['a_b_pearson']]$dat, cor_mat[row_ind, col_ind])
     expect_equal(res$edat[['a_b_pearson']]$xid, 'a_x')
     expect_equal(res$edat[['a_b_pearson']]$yid, 'b_x')
+
+    # one more test of column order handling
+    a <- matrix(rnorm(20), 5)
+    b <- matrix(rnorm(20), 5)
+
+    rownames(a) <- paste0('a', 1:5)
+    colnames(a) <- paste0('col', 1:4)
+
+    rownames(b) <- paste0('b', 1:5)
+    colnames(b) <- colnames(a)
+
+    # column order shouldn't impact cross cor results
+    em1 <- EDAMultiMatrix$new(list(a=a, b=EDADat$new(b, yid='a_y')))
+    em2 <- EDAMultiMatrix$new(list(a=a, b=EDADat$new(b[, sample(4)], yid='a_y')))
+
+    expect_equal(em1$cross_cor('a', 'b')$datasets[['a_b_pearson']],
+                 em2$cross_cor('a', 'b')$datasets[['a_b_pearson']])
 })
 
 # Plot styles

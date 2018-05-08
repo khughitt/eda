@@ -59,6 +59,23 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 }
             }
 
+            # check to make sure datasets which are specified as sharing an axis
+            # have at least some row/column id's in common
+            for (k1 in keys) {
+                e1 <- self$edat[[k1]]
+                for (k2 in keys) {
+                    e2 <- self$edat[[k2]]
+                    # check for shared axis identifiers
+                    # TODO: clean up / move to separate function
+                    if ((e1$xid == e2$xid && length(intersect(rownames(e1$dat), rownames(e2$dat))) == 0) ||
+                        (e1$xid == e2$yid && length(intersect(rownames(e1$dat), colnames(e2$dat))) == 0) ||
+                        (e1$yid == e2$xid && length(intersect(colnames(e1$dat), rownames(e2$dat))) == 0) ||
+                        (e1$yid == e2$yid && length(intersect(colnames(e1$dat), colnames(e2$dat))) == 0)) {
+                        stop(sprintf("Datasets '%s' and '%s' specified as having a common axis, but no shared id's found.", k1, k2))
+                    }
+                } 
+            }
+
             # share styles
             private$color_pal    <- color_pal
             private$ggplot_theme <- ggplot_theme
@@ -1193,11 +1210,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # make sure datasets share some common ids
             if (length(unique(c(e1$xid, e2$xid, e1$yid, e2$yid))) == 4) {
-                stop("Specified datasets must share the same column ids.")
+                stop("Specified datasets must share a common axis.")
             }
 
             # determine orientation to use for comparison; similarity is
-            # measured across columns, so we want to have shared ids along rows
+            # measured across columns, so data will be rearranged such that
+            # shared ids are along rows (then column 1 from dat1 can be
+            # compared with column 1 from dat2, etc.)
             dat1_shared_axis <- ifelse(e1$xid == e2$xid || e1$xid == e2$yid, 'rows', 'columns')
             dat2_shared_axis <- ifelse(e2$xid == e1$xid || e2$xid == e1$yid, 'rows', 'columns')
 
@@ -1244,7 +1263,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 yedat  <- e2$col_edat 
             } else {
                 dat2 <- e2$tdat
-                yid <- e2$xid
+                yid  <- e2$xid
 
                 ycolor <- e2$row_color
                 yshape <- e2$row_shape
@@ -1252,6 +1271,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 yedat  <- e2$row_edat 
             }
 
+            # normalize order of shared axis entries (ordered as rows now) and
             # only operate on shared entries
             row_ind <- intersect(rownames(dat1), rownames(dat2))
 
