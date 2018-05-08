@@ -71,22 +71,22 @@ other elements.
 \item \code{clone()}: Creates a copy of the EDAMatrix instance.
 \item \code{cluster_tsne(k=10, ...)}: Clusters rows in dataset using a combination
 of t-SNE and k-means clustering.
-\item \code{detect_col_outliers(num_sd=2, ctend='median', method='pearson')}:
+\item \code{detect_col_outliers(num_sd=2, ctend='median', meas='pearson')}:
 Measures average pairwise similarities between all columns in the dataset.
 Outliers are considered to be those columns who mean similarity to
 all other columns is greater than \code{num_sd} standard deviations from the
 average of averages.
-\item \code{detect_row_outliers(num_sd=2, ctend='median', method='pearson')}:
+\item \code{detect_row_outliers(num_sd=2, ctend='median', meas='pearson')}:
 Measures average pairwise similarities between all rows in the dataset.
 Outliers are considered to be those rows who mean similarity to
 all other rows is greater than \code{num_sd} standard deviations from the
 average of averages.
 \item \code{feature_cor()}: Detects dependencies between column metadata entries
 (features) and dataset rows.
-\item \code{filter_col_outliers(num_sd=2, ctend='median', method='pearson')}:
+\item \code{filter_col_outliers(num_sd=2, ctend='median', meas='pearson')}:
 Removes column outliers from the dataset. See \code{detect_col_outliers()}
 for details of outlier detection approach.
-\item \code{filter_row_outliers(num_sd=2, ctend='median', method='pearson')}:
+\item \code{filter_row_outliers(num_sd=2, ctend='median', meas='pearson')}:
 Removes row outliers from the dataset. See \code{detect_row_outliers()}
 for details of outlier detection approach.
 \item \code{filter_cols(mask)}: Accepts a logical vector of length \code{ncol(obj$dat)}
@@ -103,19 +103,19 @@ imputation is supported.
 \item \code{pca(...)}: Performs principle component analysis (PCA) on the dataset
 and returns a new EDAMatrix instance of the projected data points.
 Any additional arguements specified are passed to the \code{prcomp()} function.
-\item \code{pca_feature_cor(method='pearson', ...)}: Measures correlation between
+\item \code{pca_feature_cor(meas='pearson', ...)}: Measures correlation between
 dataset features (column metadata fields) and dataset principle
 components.
-\item \code{plot_cor_heatmap(method='pearson', interactive=TRUE, ...)}: Plots a
+\item \code{plot_cor_heatmap(meas='pearson', interactive=TRUE, ...)}: Plots a
 correlation heatmap of the dataset.
 \item \code{plot_densities(color=NULL, title="", ...)}: Plots densities for each
 column in the dataset.
-\item \code{plot_feature_cor(method='pearson', color_scale=c('green', 'red')}:
+\item \code{plot_feature_cor(meas='pearson', color_scale=c('green', 'red')}:
 Creates a tile plot of projected data / feature correlations. See
 \code{feature_cor()} function.
 \item \code{plot_heatmap(interactive=TRUE, ...)}: Generates a heatmap plot of the
 dataset
-\item \code{plot_pairwise_column_cors(color=NULL, title="", method='pearson', mar=c(12,6,4,6))}:
+\item \code{plot_pairwise_column_cors(color=NULL, title="", meas='pearson', mar=c(12,6,4,6))}:
 Plot median pairwise column correlations for each variable (column)
 in the dataset.
 \item \code{plot_pca(pcx=1, pcy=2, scale=FALSE, color=NULL, shape=NULL, title=NULL, text_labels=FALSE, ...)}:
@@ -132,7 +132,7 @@ characteristics of a dataset.
 on the dataset and returns a new EDAMatrix instance of the projected
 data points. Any additional arguements specified are passed to the
 \code{Rtsne()} function.
-\item \code{tsne_feature_cor(method='pearson', ...)}: Measures correlation between
+\item \code{tsne_feature_cor(meas='pearson', ...)}: Measures correlation between
 dataset features (column metadata fields) and dataset t-SNE projected
 axes.
 }

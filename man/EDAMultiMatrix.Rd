@@ -32,9 +32,9 @@ the list.
 \section{Methods}{
 
 \itemize{
-\item \code{cross_cor(key1=1, key2=2, method='pearson')}: Computes cross-dataset
+\item \code{cross_cor(key1=1, key2=2, meas='pearson')}: Computes cross-dataset
 correlation matrix between rows in two specified datasets.
-\item \code{plot_cross_cor_heatmap(key1=1, key2=2, method='pearson', interactive=TRUE)}:
+\item \code{plot_cross_cor_heatmap(key1=1, key2=2, meas='pearson', interactive=TRUE)}:
 Plots multidataset correlation heatmap.
 \item \code{print()}: Prints an overview of the object instance.
 }
