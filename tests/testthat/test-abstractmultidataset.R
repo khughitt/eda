@@ -45,6 +45,10 @@ dat2 <- dat1
 rownames(dat2) <- sprintf('obs%02d', 4:6)
 colnames(dat2) <- sprintf('var%02d', 1:5)
 
+# randomize order of columns for one of the datasets
+# to ensure proper handling of mixed column order
+dat2_col_order <- sample(5)
+dat2 <- dat2[, dat2_col_order]
 
 
 # dat3 includes column labels for dat1/2
@@ -80,9 +84,10 @@ dat4 <- data.frame(
 
 # next, we will create instances of two subclasses of AbstractMultiDataset,
 # in order to test various inherited methods.
-dats <- rbind(dat1, dat2)
+dats <- rbind(dat1, dat2[, colnames(dat1)])
 
 sds <- EDAMatrix$new(dats)
+
 mds <- EDAMultiMatrix$new(list(a=dat1,
                                b=EDADat$new(dat2, xid = 'b_x', yid='a_y',
                                             row_label = 'obs_labels', row_edat = 'd',
@@ -115,12 +120,12 @@ test_that("Correlation measures work", {
     row_ind <- 1:2
     col_ind <- 3:4
 
-    # Input datasets with zero-variance entries removed
+    # Input datasets with zero-variance rows removed
     d1 <- dat1[-2, ]
     d2 <- dat2[-2, ]
 
     # combined dataset
-    combined_dat <- t(rbind(d1, d2))
+    combined_dat <- t(rbind(d1, d2[, colnames(dat1)]))
 
     #
     # Similarity matrices
@@ -189,7 +194,7 @@ test_that("Handling of plot styles works", {
     expect_equal(private$get_row_labels('b', label_var=FALSE),    rownames(dat2))
     expect_equal(private$get_row_labels('b', label_var='obs_labels'), sort(dat4$obs_labels))
     expect_equal(private$get_col_labels('b', label_var=FALSE),    colnames(dat2))
-    expect_equal(private$get_col_labels('b', label_var='var_labels'), sort(dat3$var_labels))
+    expect_equal(private$get_col_labels('b', label_var='var_labels'), sort(dat3$var_labels)[dat2_col_order])
 })
 
 # Sub-sampling
