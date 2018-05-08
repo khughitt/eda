@@ -630,7 +630,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             'num_above_cutoff' = function(x, cutoff=0) {
                 sum(x > cutoff)
             },
-            'num_below_cutoff' = function(x, cutoff=Inf) {
+            'num_below_cutoff' = function(x, cutoff=0) {
                 sum(x < cutoff)
             },
             'ratio_nonzero' = function(x) {
@@ -642,7 +642,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             'ratio_above_cutoff' = function(x, cutoff=0) {
                 sum(x > cutoff) / length(x)
             },
-            'ratio_below_cutoff' = function(x, cutoff=Inf) {
+            'ratio_below_cutoff' = function(x, cutoff=0) {
                 sum(x < cutoff) / length(x)
             }
         ),
@@ -975,7 +975,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 # methods in private, or make available somewhere else in eda
                 # package namespace)
                 #cor_mat <- private$similarity(dat, meas=cor_method)
-                cor_mat <- get(cor_method)(t(dat))
+                cor_mat <- tryCatch({
+                    get(cor_method)(t(dat))
+                }, warning = function(w) {
+                    message("Warning encountered during correlation matrix generation:")
+                    stop(w$message)
+                })
                 
                 hc <- flashClust::flashClust(as.dist(1 - abs(cor_mat)), method=hclust_method)
 

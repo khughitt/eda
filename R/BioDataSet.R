@@ -153,7 +153,8 @@ BioDataSet <- R6Class("BioDataSet",
         #   - `ratio_nonzero`       ratio of genes with values not equal to zero
         #   - `ratio_zero`          ratio of genes with values equal to zero
         #
-        aapply = function(key, annotation, fun=median, edat_suffix='auto', ...) {
+        aapply = function(key, annotation, fun=median, annotation_source=NULL,
+                          annotation_keytype='ensembl', edat_suffix='auto', ...) {
             # check for valid dataset key
             private$check_key(key)
 
@@ -186,7 +187,7 @@ BioDataSet <- R6Class("BioDataSet",
 
             # check to see if annotation has been loaded, and if not, load it
             # TODO
-            mapping <- self$load_annotations(annotation)
+            mapping <- self$load_annotations(annotation, annotation_source, annotation_keytype)
 
             # annotations are parsed into n x 2 dataframes consisting of
             # with each row containing an (annotation, gene id) pair.
@@ -196,20 +197,17 @@ BioDataSet <- R6Class("BioDataSet",
             # dataset to compute statistics on
             dat <- self$edat[[key]]$dat
 
+            # exclude mapping pairs for items not in target dataset
+            mapping <- mapping[mapping[, ITEM_IND] %in% rownames(dat), ]
+
             # exclude any annotations with less than two entries in the
             # target dataset
-            mapping <- mapping %>% 
-                filter(gene %in% rownames(dat))
-                
-            # TODO: generalize handling of mapping name
-            to_exclude <- mapping %>% 
-                group_by(pathway) %>% 
+            to_exclude <- (mapping %>% 
+                group_by_at(ANNOT_IND) %>% 
                 summarize(n=n()) %>%
-                filter(n == 1) %>%
-                pull(pathway)
+                filter(n == 1))[, ANNOT_IND]
 
-            mapping <- mapping %>%
-                filter(!pathway %in% to_exclude)
+            mapping <- mapping[!mapping[, ANNOT_IND] %in% to_exclude, ]
 
             message("Computing annotation statistics...")
 
@@ -238,9 +236,9 @@ BioDataSet <- R6Class("BioDataSet",
         },
 
         # load annotations from a supported source
-        load_annotations = function(source, source_file=NULL, keytype='ensembl') {
+        load_annotations = function(source, source_file=NULL, keytype='ensembl', ...) {
             # check to make sure annotation type is valid
-            if (!source %in% c('cpdb')) {
+            if (!source %in% c('cpdb') && (!startsWith(source, 'msigdb'))) {
                 stop("Unsupported annotation source specified.")
             }
 
@@ -261,6 +259,8 @@ BioDataSet <- R6Class("BioDataSet",
             # CPDB
             if (source == 'cpdb') {
                 private$get_cpdb_annotations(keytype, source_file)
+            } else if (startsWith(source, 'msigdb')) {
+                private$get_msigdb_annotations(keytype, source_file, ...)
             }
         },
 
@@ -394,6 +394,73 @@ BioDataSet <- R6Class("BioDataSet",
             }
         },
 
+        # load MSigDB annotations
+        get_msigdb_annotations = function(keytype, source_file=NULL,
+                                          collection='c2.all', version='6.1') {
+            # Check to make sure key type is valid
+            if (!keytype %in% c('entrez-gene', 'hgnc-symbol')) {
+                stop("Invalid key type specified.")
+            }
+
+            #
+            # Note 2018/05/01: MSigDB website requires login to download files
+            # so for now, only manually provided annotation files are supported.
+            #
+            if (is.null(source_file)) {
+                stop("Filepath to MSigDB annotation file must be provided")
+            } else if (!file.exists(source_file)) {
+                stop("Invalid filepath for MSigDB annotations specified.")
+            }
+
+            # check to make sure valid msigdb collection specified
+            #msigdb_collections <- c('h.all', 'c1.all', 'c2.all', 'c2.cgp',
+            #                        'c2.cp', 'c2.cp.biocarta', 'c2.cp.kegg',
+            #                        'c2.cp.reactome', 'c3.all', 'c3.mir',
+            #                        'c3.tft', 'c4.all', 'c4.cgn', 'c4.cm',
+            #                        'c5.all', 'c5.bp', 'c5.mf', 'c5.cc',
+            #                        'c6.all', 'c7.all') 
+
+            #if (!collection %in% msigdb_collections) {
+            #    stop(sprintf("Invalid MSigDB collection specified. Valid collections are: %s", 
+            #                 paste0(msigdb_collections, collapse=', ')))
+            #}
+
+            ## Load MSigDB pathways
+            #if (is.null(source_file)) {
+            #    if (keytype %in% c('ensembl', 'entrez-gene')) {
+            #        api_keytype <- 'entrez'
+            #    } else {
+            #        api_keytype <- 'symbols'
+            #    }
+
+            #    # Retrieve annotations from online, if needed
+            #    source_file <- sprintf('http://software.broadinstitute.org/gsea/msigdb/download_file.jsp?filePath=/resources/msigdb/%s/%s.v%s.%s.gmt', 
+            #                           version, collection, version, api_keytype)
+            #}
+
+            msigdb <- private$parse_gmt(source_file)
+            
+            # TEMP 2018/05/01: map from ENTREZ -> ENSEMBL gene id's (hard-coding
+            # for convenience for now... will generalize shortly.)
+            msigdb$gene <- annotables::grch37$ensgene[match(msigdb$gene, annotables::grch37$entrez)]
+
+            colnames(msigdb) <- c('pathway', 'gene')
+            rownames(msigdb) <- NULL
+
+            # exclude any pathways with only a single gene (not that interesting..)
+            mask <- msigdb$pathway %in% names(which(table(msigdb$pathway) > 1))
+            msigdb <- msigdb[mask, ]
+
+            # discard unused factor levels
+            msigdb$pathway <- factor(msigdb$pathway)
+
+            # store and return mapping
+            annot_key <- sprintf('msigdb-%s-v%s', collection, version)
+            self$annotations[[annot_key]] <- msigdb
+
+            msigdb
+        },
+
         # load ConsensusPathDB annotations
         get_cpdb_annotations = function(keytype, source_file=NULL) {
             # Check to make sure key type is valid
@@ -438,6 +505,33 @@ BioDataSet <- R6Class("BioDataSet",
             self$annotations[['cpdb']] <- cpdb
 
             cpdb
+        },
+
+        parse_gmt = function(infile) {
+            # determine maximum number columns
+            max_cols <- max(count.fields(infile))
+
+            # read in table, filling empty cells with NA's
+            gmt <- read.delim(infile, sep = '\t', header = FALSE,
+                              col.names = paste0("gene_", seq_len(max_cols)), 
+                              fill = TRUE, stringsAsFactors = FALSE)
+
+            # fix column names
+            colnames(gmt)[1:2] <- c('annotation', 'source')
+            
+            # convert to an n x 2 (annotation, gene) mapping
+            res <- do.call('rbind', apply(gmt, 1, function(entry) {
+                # gene gene id's starting in third column
+                gids <- entry[3:length(entry)]
+                gids <- gids[!is.na(gids)]
+
+                data.frame(annotation = entry[1], gene = gids, row.names=NULL)
+            }))
+
+            res$gene <- as.numeric(as.character(res$gene))
+
+            # return dataframe
+            res
         }
     )
 )

@@ -404,7 +404,6 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             plt
         },
 
-
         # Plot median pairwise column correlations
         #
         # Plots the median correlation of each variable (column). This is
@@ -456,10 +455,15 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             abline(v = 1:length(var_labels), lty = 3, col = "black")
         },
 
-        # computes matrix of row z-scores
-        zscores = function(key=1) {
+        # computes matrix of z-scores
+        zscores = function(key=1, target='columns') {
             # compute z-scores
-            dat <- t(scale(t(self$edat[[key]]$dat)))
+            if (target == 'columns') {
+                dat <- scale(self$edat[[key]]$dat)
+            } else {
+                dat <- t(scale(t(self$edat[[key]]$dat)))
+            }
+
             attr(dat, 'scaled:scale') <- NULL
             attr(dat, 'scaled:center') <- NULL
 
