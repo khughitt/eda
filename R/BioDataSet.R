@@ -224,8 +224,10 @@ BioDataSet <- R6Class("BioDataSet",
                 res <- rbind(res, apply(dat_subset, 2, fun, ...))
             }
 
-            # fix column and row names and return result
-            rownames(res) <- unique(mapping[, ANNOT_IND])
+            # fix column and row names and return result; annotation names
+            # may change as a result, but this will help to avoid downstream
+            # confusion when saving to CSV, etc.
+            rownames(res) <- gsub('\\.+', '\\.', make.names(unique(mapping[, ANNOT_IND])))
             colnames(res) <- colnames(dat)
 
             # clone BioDataSet instance and add new edat
@@ -480,9 +482,25 @@ BioDataSet <- R6Class("BioDataSet",
             # mappings.
             cpdb <- cpdb[!duplicated(cpdb$external_id), ]
 
-            header_key <- sprintf('%s_ids', sub('-', '_', keytype))
+            # 2018/06/08: in a few cases, there are pathways with highly
+            # similar names with non-unique associated R variable names, e.g.
+            # "MAPK6/MAPK4 signaling" and "MAPK6/MAPK4 signaling". In each
+            # case, one annotation appears to be a perfect / near-perfect subset
+            # of the other.
+            #
+            # This appears to be a bug in the CPDB annotation generation.
+            # Manually removing the annotation associated with the subset for now.
+            bad_annotations <- c(
+                'Mitotic G2-G2-M phases',
+                'BMAL1-CLOCK,NPAS2 activates circadian gene expression',
+                'MAPK6-MAPK4 signaling',
+                'Transcriptional activity of SMAD2-SMAD3-SMAD4 heterotrimer'
+            )
+            cpdb <- cpdb[!cpdb$pathway %in% bad_annotations, ]
 
             # convert to an n x 2 mapping of pathway, gene pairs
+            header_key <- sprintf('%s_ids', sub('-', '_', keytype))
+
             cpdb_pathway_list <- apply(cpdb, 1, function(x) {
                 cbind(x['pathway'], unlist(strsplit(x[header_key], ',')))
             })
