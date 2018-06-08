@@ -214,6 +214,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         tsne = function(key=1, ...) {
             dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)$Y
             colnames(dat) <- sprintf("t-SNE Dim %d", 1:ncol(dat))
+            rownames(dat) <- rownames(self$edat[[key]]$dat)
 
             obj <- private$clone_()
             obj$update(key, dat)

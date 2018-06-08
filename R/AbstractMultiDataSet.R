@@ -777,10 +777,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # otherwise, retrieve 1d vector to use for color assignment
             matched_axis <- self$edat[[key]]$xid
+            vals <- self$edat[[color_key]]$get(matched_axis, color_var, other_axis=TRUE)
 
-            styles[['color']] <- self$edat[[color_key]]$get(matched_axis,
-                                                            color_var,
-                                                            other_axis=TRUE)
+            # drop elements not found in target dataset and store result
+            matched_ids <- self$edat[[color_key]]$get(matched_axis, other_axis=TRUE)
+
+            styles[['color']] <- vals[match(rownames(self$edat[[key]]$dat), matched_ids)]
 
             # update styles with color info
             styles[['aes']]    <- modifyList(aes(color = color_var),  styles[['aes']])
@@ -808,10 +810,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # otherwise, retrieve 1d vector to use for shape assignment
             matched_axis <- self$edat[[key]]$xid
+            vals <- self$edat[[shape_key]]$get(matched_axis, shape_var, other_axis=TRUE)
 
-            styles[['shape']] <- self$edat[[shape_key]]$get(matched_axis,
-                                                            shape_var,
-                                                            other_axis=TRUE)
+            # drop elements not found in target dataset and store result
+            matched_ids <- self$edat[[shape_key]]$get(matched_axis, other_axis=TRUE)
+
+            styles[['shape']] <- vals[match(rownames(self$edat[[key]]$dat), matched_ids)]
 
             # update styles with shape info
             styles[['aes']]    <- modifyList(aes(shape = shape_var),  styles[['aes']])
@@ -1038,7 +1042,11 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         similarity_measures = list(
             #
-            # linear model fit
+            # linear model fit r^2
+            #
+            # Computes a pairwise matrix of linear model r^2 values; useful,
+            # for example, when measuring relationship between a numeric matrix
+            # and a categorical one.
             #
             'lm' = function(dat1, dat2=NULL, ...) {
                 # single dataset
@@ -1052,6 +1060,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                         # fit a linear model between the ith column of dataset1
                         # and the jth column of dataset1
                         feature_cor <- function(y) {
+                            # y is the input from apply call; similar effect
+                            # to having a nested for-loop.
                             round(summary(lm(y ~ dat1[, i]))$r.squared * 100, 2)
                         }
                         # for each column in dataset1

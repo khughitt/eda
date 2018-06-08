@@ -1,0 +1,52 @@
+---
+title: eda - Exploratory Data Analysis for R
+output: github_document
+---
+
+=====================================
+
+[![Build Status](https://travis-ci.org/khughitt/eda.svg?branch=master)](https://travis-ci.org/khughitt/eda)
+
+**Note Feb 26, 2018**: This library is currently in the early stages of development
+and is likely to change significantly over time. Feedback and suggestions are
+welcome!
+
+Overview
+--------
+
+`eda` is a package containing helper classes to assist with exploratory data 
+analysis. Object instances are constructed from one or more datasets, including 
+optional row and column metadata, and methods are provided for computing useful
+summary statistics and visualizations. The overall focus of the package is on
+simplicity, with the aim of allowing users to quickly get a feel for a new 
+dataset with as few lines of code as possible. As such, some assumptions are
+made about the types of visualizations to be made, and customization of plots
+is limited compared to those created by hand.
+
+In order to support as wide a range of datasets as possible, a class hierarchy
+has been created, including both generic data classes (`EDAMatrix` and
+`EDAMultiMatrix`), as well as domain-specific classes (e.g. `BioDataSet`).
+Users also have the ability to inherit from any of the provided classes (which
+are built on top of the [R6 class framework](https://cran.r-project.org/web/packages/R6/vignettes/Introduction.html))
+in order to construct new domain-specific classes.
+
+Installation
+------------
+
+The easiest way to install `eda` is using the `install_github()` function from
+devtools:
+
+```r
+devtools::install_github('khughitt/eda')
+```
+
+Usage Example
+-------------
+
+```{r}
+library('eda')
+data(diamonds, package='ggplot2')
+
+dat <- EDAMatrix$new(diamonds)
+```
+
