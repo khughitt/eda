@@ -186,7 +186,6 @@ BioDataSet <- R6Class("BioDataSet",
             res <- data.frame()
 
             # check to see if annotation has been loaded, and if not, load it
-            # TODO
             mapping <- self$load_annotations(annotation, annotation_source, annotation_keytype)
 
             # annotations are parsed into n x 2 dataframes consisting of
@@ -398,7 +397,7 @@ BioDataSet <- R6Class("BioDataSet",
 
         # load MSigDB annotations
         get_msigdb_annotations = function(keytype, source_file=NULL,
-                                          collection='c2.all', version='6.1') {
+                                          collection='h.all', version='6.1') {
             # Check to make sure key type is valid
             if (!keytype %in% c('entrez-gene', 'hgnc-symbol')) {
                 stop("Invalid key type specified.")
@@ -477,6 +476,10 @@ BioDataSet <- R6Class("BioDataSet",
             }
             cpdb <- read.delim(source_file, sep = '\t', header = TRUE, stringsAsFactors = FALSE)
 
+            # Replace entries with "None" for external id with a unique identifier
+            missing_ids <- cpdb$external_id == 'None'
+            cpdb[missing_ids] <- sprintf('None-%d', 1:sum(missing_ids))
+
             # There are a few pathways with multiple entries, each with a
             # different list of genes; for now, arbitrarily choose one of the
             # mappings.
@@ -494,7 +497,8 @@ BioDataSet <- R6Class("BioDataSet",
                 'Mitotic G2-G2-M phases',
                 'BMAL1-CLOCK,NPAS2 activates circadian gene expression',
                 'MAPK6-MAPK4 signaling',
-                'Transcriptional activity of SMAD2-SMAD3-SMAD4 heterotrimer'
+                'Transcriptional activity of SMAD2-SMAD3-SMAD4 heterotrimer',
+                'Nucleotide Excision Repair '
             )
             cpdb <- cpdb[!cpdb$pathway %in% bad_annotations, ]
 

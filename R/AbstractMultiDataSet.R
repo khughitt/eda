@@ -754,17 +754,44 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param styles List of color-related style info
         # @param color Color variable passed into plot function call
         add_color_styles = function(key, styles, color_var, color_key) {
-            # determine color variable and data source to use
-            if (is.null(color_var)) {
-                color_var <- self$edat[[key]]$row_color
-            }
-            if (is.null(color_key)) {
-                color_key <- self$edat[[key]]$row_edat
+            color_vec <- private$get_color_vector(key, color_var, color_key) 
+
+            # if no color variable specified, or it is disabled, return styles as-is
+            if (is.null(color_vec)) {
+                return(styles)
             }
 
-            # if no color variable specified, or disabled, return styles as-is
+            styles[['color']] <- color_vec
+
+            # update styles with color info
+            styles[['aes']]    <- modifyList(aes(color = color_var),  styles[['aes']])
+            styles[['labels']] <- modifyList(labs(color = color_var), styles[['labels']])
+
+            styles
+        },
+
+        # returns a vector of color assignments to use for plotting
+        get_color_vector = function(key, color_var, color_key, target='rows') {
+            # determine color variable and data source to use
+            if (target == 'rows') {
+                if (is.null(color_var)) {
+                    color_var <- self$edat[[key]]$row_color
+                }
+                if (is.null(color_key)) {
+                    color_key <- self$edat[[key]]$row_edat
+                }
+            } else {
+                if (is.null(color_var)) {
+                    color_var <- self$edat[[key]]$col_color
+                }
+                if (is.null(color_key)) {
+                    color_key <- self$edat[[key]]$col_edat
+                }
+            }
+
+            # if no color variable specified, or disabled, stop here
             if (is.null(color_var) || color_var == FALSE) {
-                return(styles)
+                return(NULL)
             }
 
             # convert numeric keys
@@ -776,19 +803,23 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             # otherwise, retrieve 1d vector to use for color assignment
-            matched_axis <- self$edat[[key]]$xid
+            if (target == 'rows') {
+                matched_axis <- self$edat[[key]]$xid
+            } else {
+                matched_axis <- self$edat[[key]]$yid
+            }
             vals <- self$edat[[color_key]]$get(matched_axis, color_var, other_axis=TRUE)
 
             # drop elements not found in target dataset and store result
             matched_ids <- self$edat[[color_key]]$get(matched_axis, other_axis=TRUE)
 
-            styles[['color']] <- vals[match(rownames(self$edat[[key]]$dat), matched_ids)]
-
-            # update styles with color info
-            styles[['aes']]    <- modifyList(aes(color = color_var),  styles[['aes']])
-            styles[['labels']] <- modifyList(labs(color = color_var), styles[['labels']])
-
-            styles
+            # return color vector
+            if (target == 'rows') {
+                axis_names <- rownames(self$edat[[key]]$dat)
+            } else {
+                axis_names <- colnames(self$edat[[key]]$dat)
+            }
+            vals[match(axis_names, matched_ids)]
         },
 
         # Determines shape-related style information to use for a plot
@@ -1321,14 +1352,14 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param key2 Numeric or character index of second dataset to use
         # @param meas Correlation measure to use (passed to `cor` function)
         #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', interactive=TRUE) {
+        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', show_tick_labels=c(TRUE, TRUE), interactive=TRUE) {
             # compute cross correlations
             cor_mat <- private$compute_cross_cor(key1, key2, meas)
 
            # list of parameters to pass to heatmaply
             params <- list(
                 x               = cor_mat,
-                showticklabels  = c(FALSE, FALSE),
+                showticklabels  = show_tick_labels,
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
             )

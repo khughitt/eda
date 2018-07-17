@@ -229,7 +229,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
 
         # Correlation heatmap.
         #
-        # Generates a correlation heatmap depicting the pairwise column
+        # Generates a correlation heatmap depicting the pairwise *column*
         # correlations in the data.
         #
         # method String name of correlation method to use.
@@ -237,17 +237,43 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # @seealso \code{cor} for more information about supported correlation
         #      methods.
-        plot_cor_heatmap = function(key=1, meas='pearson', interactive=TRUE, ...) {
+        plot_cor_heatmap = function(key=1, meas='pearson', color_var=NULL,
+                                    color_key=NULL, label=NULL, label_edat=NULL, 
+                                    show_tick_labels=c(TRUE, TRUE), 
+                                    interactive=TRUE, ...) {
+                                
             # generate correlation matrix
             cor_mat <- private$similarity(self$edat[[key]]$dat, meas=meas, ...)
 
-            # list of parameters to pass to heatmaply
+            # determine labels to use
+            labels <- private$get_col_labels(key, label_var = label, label_key = label_edat)
+            colnames(cor_mat) <- labels
+            rownames(cor_mat) <- labels
+
+            # list of parameters to pass to heatmaply / aheatmap
             params <- list(
                 x               = cor_mat,
-                showticklabels  = c(FALSE, FALSE),
+                showticklabels  = show_tick_labels,
                 subplot_widths  = c(0.65, 0.35),
                 subplot_heights = c(0.35, 0.65)
             )
+
+            # determine annotation colors to use, if applicable
+            colors <- private$get_color_vector(key, color_var,
+                                                          color_key,
+                                                          target='columns')
+
+            if (!is.null(colors)) {
+                if (is.null(color_var)) {
+                    color_var <- self$edat[[key]]$col_color
+                }
+
+                colors <- data.frame(colors)
+                names(colors) <- color_var
+
+                params[['row_side_colors']] <- colors 
+                params[['subplot_widths']] <- c(0.6, 0.1, 0.3)
+            }
 
             # add any additional function arguments
             params <- c(params, ...)
