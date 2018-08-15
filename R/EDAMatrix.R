@@ -382,7 +382,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, ...)
+            params <- c(params, list(...))
 
             private$construct_heatmap_plot(params, interactive)
         },
@@ -411,7 +411,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, ...)
+            params <- c(params, list(...))
 
             private$construct_heatmap_plot(params, interactive)
         },

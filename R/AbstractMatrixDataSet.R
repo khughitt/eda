@@ -237,8 +237,10 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
         #
         # @seealso \code{cor} for more information about supported correlation
         #      methods.
-        plot_cor_heatmap = function(key=1, meas='pearson', color_var=NULL,
-                                    color_key=NULL, label=NULL, label_edat=NULL, 
+        plot_cor_heatmap = function(key=1, meas='pearson', 
+                                    rowside_color_var=NULL, 
+                                    rowside_color_key=NULL, 
+                                    label=NULL, label_edat=NULL, 
                                     show_tick_labels=c(TRUE, TRUE), 
                                     interactive=TRUE, ...) {
                                 
@@ -259,24 +261,24 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             )
 
             # determine annotation colors to use, if applicable
-            colors <- private$get_color_vector(key, color_var,
-                                                          color_key,
-                                                          target='columns')
+            colors <- private$get_color_vector(key, rowside_color_var,
+                                               rowside_color_key,
+                                               target='columns')
 
             if (!is.null(colors)) {
-                if (is.null(color_var)) {
-                    color_var <- self$edat[[key]]$col_color
+                if (is.null(rowside_color_var)) {
+                    rowside_color_var <- self$edat[[key]]$col_color
                 }
 
                 colors <- data.frame(colors)
-                names(colors) <- color_var
+                names(colors) <- rowside_color_var
 
                 params[['row_side_colors']] <- colors 
                 params[['subplot_widths']] <- c(0.6, 0.1, 0.3)
             }
 
             # add any additional function arguments
-            params <- c(params, ...)
+            params <- c(params, list(...))
 
             private$construct_heatmap_plot(params, interactive)
         },
@@ -306,7 +308,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             )
 
             # add any additional function arguments
-            params <- c(params, ...)
+            params <- c(params, list(...))
 
             private$construct_heatmap_plot(params, interactive)
         },

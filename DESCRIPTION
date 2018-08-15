@@ -22,7 +22,8 @@ Imports:
     RColorBrewer,
     Rtsne,
     stringi,
-    VIM
+    VIM,
+    viridis
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

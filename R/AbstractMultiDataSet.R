@@ -5,6 +5,7 @@
 #' subclasses.
 #'
 #' @import ggplot2
+#' @import viridis
 #' @importFrom R6 R6Class
 #' @importFrom reshape2 melt
 #' @importFrom NMF aheatmap nmf
@@ -1389,13 +1390,15 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
 
             # remove irrelevant heatmaply function arguments
-            heatmaply_args <- c('showticklabels', 'subplot_widths', 'subplot_heights',
-                                'col_side_colors', 'row_side_colors')
+            heatmaply_args <- c('showticklabels', 'subplot_widths',
+                                'subplot_heights', 'col_side_colors',
+                                'row_side_colors')
             params <- params[!names(params) %in% heatmaply_args]
 
-            # set additional parameters
-            # waiting for viridis support to be added (PR submitted 2018/04/16)
-            #params$color  <- 'viridis'
+            # default to viridis color scheme
+            if (!'color' %in% names(params)) {
+                params$color <- viridis(100)
+            }
 
             # 2018/04/17 - adding border just around heatmap not working at
             # this time and results in warnings being generated
