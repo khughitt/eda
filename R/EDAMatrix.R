@@ -25,10 +25,10 @@
 #'      `rownames` (default), row names will be used as identifiers.
 #' - `col_names`: Column name or number containing column identifiers. If set to
 #'      `colnames` (default), column names will be used as identifiers.
-#' - `row_mdata_rownames`: Column name or number containing row metadata row
+#' - `row_mdata_row_names`: Column name or number containing row metadata row
 #'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
-#' - `col_mdata_rownames`: Column name or number containing col metadata row
+#' - `col_mdata_row_names`: Column name or number containing col metadata row
 #'      identifiers. If set to `rownames` (default), row names will be used
 #'      as identifiers.
 #' - `row_color`: Row metadata field to use for coloring rowwise plot elements.
@@ -338,9 +338,11 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
         #
         # @seealso \code{cor} for more information about supported correlation
         #      methods.
-        plot_cor_heatmap = function(meas='pearson', interactive=TRUE, ...) {
+        plot_cor_heatmap = function(meas='pearson', interactive=TRUE, cor_args = list(), heatmap_args = list()) {
             # generate correlation matrix
-            cor_mat <- private$similarity(self$edat[['dat']]$dat, meas = meas, ...)
+            #cor_mat <- private$similarity(self$edat[['dat']]$dat, meas = meas, ...)
+            cor_args <- c(list(self$edat[['dat']]$dat, meas = meas), cor_args)
+            cor_mat <- do.call(private$similarity, cor_args)
 
             # list of parameters to pass to heatmaply
             params <- list(
@@ -382,7 +384,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             }
 
             # add any additional function arguments
-            params <- c(params, list(...))
+            params <- c(params, heatmap_args)
 
             private$construct_heatmap_plot(params, interactive)
         },

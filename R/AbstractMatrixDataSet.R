@@ -411,7 +411,7 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             yid <- sprintf("`%s`", colnames(dat)[2])
 
             plt <- ggplot(dat, aes_string(xid, yid)) +
-                geom_point(stat = "identity", styles$aes, size = 0.5) +
+                geom_point(stat = "identity", styles$aes, size = 1) +
                 ggtitle(title) +
                 private$ggplot_theme() +
                 theme(axis.ticks = element_blank(),

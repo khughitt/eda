@@ -238,7 +238,7 @@ EDADat <- R6Class("EDADat",
         # returns data with row / column names formatted as expected
         format_data = function(dat, row_names, col_names) {
             # convert tibbles to normal data frames
-            if (class(dat)[1] == 'tbl_df') {
+            if ('tbl' %in% class(dat)) {
                 dat <- as.data.frame(dat)
             }
 
