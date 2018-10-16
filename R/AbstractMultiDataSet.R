@@ -170,9 +170,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 }
             }
 
-            # output data frame
-            res <- data.frame()
-
             # check to see if clustering has been performed, and if not,
             # compute clustering
             clusters <- self$cluster(key = key, method = method, ...)
@@ -185,18 +182,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # iterate over clusters
             cluster_ids <- sort(unique(clusters))
 
-            for (cluster in cluster_ids) {
-                # data for cluster members
-                dat_subset <- dat[clusters == cluster,, drop = FALSE]
-
-                # compute statistic for each column and append to result
-                stats <- do.call(apply, c(list(X=dat_subset, MARGIN=2, FUN=fun), fun_args))
-                res <- rbind(res, stats)
-            }
+            res <- aggregate(dat, list(cluster = cluster_ids), fun, fun_args)[, -1]
 
             # fix column and row names and return result
             rownames(res) <- cluster_ids
-            colnames(res) <- colnames(dat)
 
             # convert numeric keys
             key <- ifelse(is.numeric(key), names(self$edat)[key], key)
