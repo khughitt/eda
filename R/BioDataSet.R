@@ -397,7 +397,7 @@ BioDataSet <- R6Class("BioDataSet",
 
         # load MSigDB annotations
         get_msigdb_annotations = function(keytype, source_file=NULL,
-                                          collection='h.all', version='6.1') {
+                                          collection='h.all', version='6.2') {
             # Check to make sure key type is valid
             if (!keytype %in% c('entrez-gene', 'hgnc-symbol')) {
                 stop("Invalid key type specified.")
@@ -455,8 +455,12 @@ BioDataSet <- R6Class("BioDataSet",
             # discard unused factor levels
             msigdb$pathway <- factor(msigdb$pathway)
 
+            # NOTE: if version is used to determine key name, check should be added to ensure 
+            # version specified matches file...
+            #annot_key <- sprintf('msigdb-%s-v%s', collection, version)
+
             # store and return mapping
-            annot_key <- sprintf('msigdb-%s-v%s', collection, version)
+            annot_key <- basename(source_file)
             self$annotations[[annot_key]] <- msigdb
 
             msigdb
