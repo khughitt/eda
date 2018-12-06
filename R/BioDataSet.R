@@ -259,9 +259,10 @@ BioDataSet <- R6Class("BioDataSet",
 
             # CPDB
             if (source == 'cpdb') {
-                private$get_cpdb_annotations(keytype, source_file)
+                private$get_cpdb_annotations(source_file, keytype)
             } else if (startsWith(source, 'msigdb')) {
-                private$get_msigdb_annotations(keytype, source_file, ...)
+                # MSigDB
+                private$get_msigdb_annotations(source, source_file, keytype, ...)
             }
         },
 
@@ -396,8 +397,7 @@ BioDataSet <- R6Class("BioDataSet",
         },
 
         # load MSigDB annotations
-        get_msigdb_annotations = function(keytype, source_file=NULL,
-                                          collection='h.all', version='6.2') {
+        get_msigdb_annotations = function(annotation, source_file=NULL, keytype = 'entrez-gene') {
             # Check to make sure key type is valid
             if (!keytype %in% c('entrez-gene', 'hgnc-symbol')) {
                 stop("Invalid key type specified.")
@@ -412,32 +412,6 @@ BioDataSet <- R6Class("BioDataSet",
             } else if (!file.exists(source_file)) {
                 stop("Invalid filepath for MSigDB annotations specified.")
             }
-
-            # check to make sure valid msigdb collection specified
-            #msigdb_collections <- c('h.all', 'c1.all', 'c2.all', 'c2.cgp',
-            #                        'c2.cp', 'c2.cp.biocarta', 'c2.cp.kegg',
-            #                        'c2.cp.reactome', 'c3.all', 'c3.mir',
-            #                        'c3.tft', 'c4.all', 'c4.cgn', 'c4.cm',
-            #                        'c5.all', 'c5.bp', 'c5.mf', 'c5.cc',
-            #                        'c6.all', 'c7.all') 
-
-            #if (!collection %in% msigdb_collections) {
-            #    stop(sprintf("Invalid MSigDB collection specified. Valid collections are: %s", 
-            #                 paste0(msigdb_collections, collapse=', ')))
-            #}
-
-            ## Load MSigDB pathways
-            #if (is.null(source_file)) {
-            #    if (keytype %in% c('ensembl', 'entrez-gene')) {
-            #        api_keytype <- 'entrez'
-            #    } else {
-            #        api_keytype <- 'symbols'
-            #    }
-
-            #    # Retrieve annotations from online, if needed
-            #    source_file <- sprintf('http://software.broadinstitute.org/gsea/msigdb/download_file.jsp?filePath=/resources/msigdb/%s/%s.v%s.%s.gmt', 
-            #                           version, collection, version, api_keytype)
-            #}
 
             msigdb <- private$parse_gmt(source_file)
             
@@ -455,19 +429,14 @@ BioDataSet <- R6Class("BioDataSet",
             # discard unused factor levels
             msigdb$pathway <- factor(msigdb$pathway)
 
-            # NOTE: if version is used to determine key name, check should be added to ensure 
-            # version specified matches file...
-            #annot_key <- sprintf('msigdb-%s-v%s', collection, version)
-
             # store and return mapping
-            annot_key <- basename(source_file)
-            self$annotations[[annot_key]] <- msigdb
+            self$annotations[[annotation]] <- msigdb
 
             msigdb
         },
 
         # load ConsensusPathDB annotations
-        get_cpdb_annotations = function(keytype, source_file=NULL) {
+        get_cpdb_annotations = function(source_file = NULL, keytype = 'entrez-gene') {
             # Check to make sure key type is valid
             if (!keytype %in% c('ensembl', 'entrez-gene', 'hgnc-symbol')) {
                 stop("Invalid key type specified.")

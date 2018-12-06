@@ -179,13 +179,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             message("Computing cluster statistics...")
 
-            # iterate over clusters
-            cluster_ids <- sort(unique(clusters))
+            # apply function to each cluster and drop "cluster" column from result
+            fun_args <- c(fun_args, list(x = dat, by = list(cluster = clusters), FUN = fun))
+            res <- do.call(aggregate, fun_args)[, -1]
 
-            res <- aggregate(dat, list(cluster = cluster_ids), fun, fun_args)[, -1]
-
-            # fix column and row names and return result
-            rownames(res) <- cluster_ids
+            # fix row names and return result
+            #cluster_ids <- sort(unique(clusters))
+            #rownames(res) <- cluster_ids
 
             # convert numeric keys
             key <- ifelse(is.numeric(key), names(self$edat)[key], key)
