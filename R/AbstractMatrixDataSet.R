@@ -223,6 +223,33 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             obj
         },
 
+        #
+        # Uniform Manifold Approximation and Projection (UMAP)
+        #
+        # From the UMAP docs:
+        #
+        # "Uniform Manifold Approximation and Projection (UMAP) is a dimension reduction technique
+        # that can be used for visualisation similarly to t-SNE, but also for general non-linear
+        # dimension reduction. The algorithm is founded on three assumptions about the data:
+        #  
+        #   1. The data is uniformly distributed on Riemannian manifold;
+        #   2. The Riemannian metric is locally constant (or can be approximated as such);
+        #   3. The manifold is locally connected."
+        #
+        # See: https://umap-learn.readthedocs.io/en/latest/
+        #
+        umap = function(key=1, ...) {
+          dat <- uwot::umap(self$edat[[key]]$dat, ...)
+          colnames(dat) <- sprintf("UMAP Dim %d", 1:ncol(dat))
+          rownames(dat) <- rownames(self$edat[[key]]$dat)
+
+          obj <- private$clone_()
+          obj$update(key, dat)
+          obj$edat[[key]]$ylab <- 'UMAP dimensions'
+
+          obj
+        },
+
         ######################################################################
         # plotting methods
         ######################################################################
@@ -378,6 +405,40 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             }
 
             self$tsne(key = key, ...)$scatter_plot(
+                key = 1, x = dim1, y = dim2,
+                color_var = color_var, color_key = color_key, 
+                shape_var = shape_var, shape_key = shape_key,
+                label_var = label_var, label_key = label_key, 
+                title = title, text_labels = text_labels)
+        },
+
+        # Generates a two-dimensional UMAP plot from the dataset
+        #
+        # color Column metadata field to use for coloring points.
+        # shape Column metadata field to use to assign shapes to points
+        # title Plot title.
+        # text_labels Whether or not to include individual point labels
+        #     plot (default: FALSE).
+        # ...
+        #
+        # return ggplot plot instance
+        plot_umap = function(key=1, dim1=1, dim2=2,
+                             color_var=NULL, color_key=NULL,
+                             shape_var=NULL, shape_key=NULL,
+                             label_var=NULL, label_key=NULL,
+                             title=NULL, text_labels=NULL, ...) {
+            # plot title
+            if (is.null(title)) {
+                key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+
+                if (private$title != '') {
+                    title <- sprintf("t-SNE: %s (%s)", key, private$title)
+                } else {
+                    title <- sprintf("t-SNE: %s", key)
+                }
+            }
+
+            self$umap(key = key, ...)$scatter_plot(
                 key = 1, x = dim1, y = dim2,
                 color_var = color_var, color_key = color_key, 
                 shape_var = shape_var, shape_key = shape_key,
