@@ -1219,7 +1219,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         ),
 
         check_input = function() {
-            # TODO: Check to make sure all datasets overalp in keys with dat
+            # TODO: Check to make sure all datasets overlap in keys with dat
         },
 
         # Computes cross-dataset correlation matrix

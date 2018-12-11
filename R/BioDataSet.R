@@ -127,9 +127,35 @@ BioDataSet <- R6Class("BioDataSet",
         # List of loaded annotations
         annotations = list(),
 
-        # EDADataSet constructor
-        initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            super$initialize(datasets, color_pal, title, ggplot_theme)
+        # BioDataSet constructor
+        initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw,
+                              row_keytypes = c('ensgene'), col_keytypes = c('sample_id')) {
+          # if a single Bioconductor object instance is passed in, wrap it in a list
+          if (class(datasets) %in% c('RangedSummarizedExperiment', 'ExpressionSet')) {
+            datasets <- list(datasets) 
+          }
+
+          # if data passed in as a known bioconductor class, unpack it
+          for (i in 1:length(datasets)) {
+            dat <- datasets[[i]]
+
+            # range summarized experiment
+            if (class(dat) == 'RangedSummarizedExperiment') {
+              datasets[[i]] <- NULL
+
+              # TODO: check to make sure keys are not already in use
+              datasets <- c(datasets, list(
+                dat          = EDADat$new(SummarizedExperiment::assays(dat)[[1]], xid = row_keytypes, yid = col_keytypes),
+                col_mdata = EDADat$new(SummarizedExperiment::colData(dat), xid = col_keytypes),
+                row_mdata = EDADat$new(SummarizedExperiment::rowData(dat), xid = row_keytypes)
+              ))
+            } else if (class(dat) == 'ExpressionSet') {
+              # expression set (TODO)
+            }
+          }
+
+          # call parent constructor
+          super$initialize(datasets, color_pal, title, ggplot_theme)
         },
 
         # Computes pathway- or annotation-level statistics for a given dataset and
