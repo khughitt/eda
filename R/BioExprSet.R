@@ -41,47 +41,6 @@ BioExprSet <- R6Class("BioExprSet",
     public = list(
         # EDAMultiMatrix constructor
         initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
-            # Unpack any ExpressionSet inputs
-            num_esets <- 0
-
-            for (i in seq_along(datasets)) {
-                if (class(datasets[[i]])[1] == 'ExpressionSet') {
-                    num_esets <- num_esets + 1
-
-					# get eset
-                    dat <- datasets[[i]]
-                    datasets[[i]] <- NULL
-
-					# in cases where multiple ExpressionSets are provided, make
-					# sure keys don't overlap
-                    key <- c('exprs', 'pdata', 'fdata')
-
-					phenotype_xid <- 'samples'
-					phenotype_yid <- 'phenotypes'
-					feature_xid   <- 'features'
-					feature_yid   <- 'feature_annotations'
-
-                    if (num_esets > 1) {
-                        keys          <- sprintf('%s_%d', keys, num_esets)
-						phenotype_xid <- sprintf('%s_%d', phenotype_xid, num_esets)
-						phenotype_yid <- sprintf('%s_%d', phenotype_yid, num_esets)
-						feature_xid   <- sprintf('%s_%d', feature_xid, num_esets)
-						feature_yid   <- sprintf('%s_%d', feature_yid, num_esets)
-                    }
-
-					# add expression data
-                    data[[keys[1]]] = EDADat$new(exprs(dat), xid = feature_xid, yid = phenotype_xid)
-
-					# add phenotype data 
-                    if (!is.null(pData(dat))) {
-                        datasets[[keys[2]]] = EDADat$new(pData(dat), xid = phenotype_xid, yid = phenotype_yid)
-                    }
-					# add feature data 
-                    if (!is.null(fData(dat))) {
-                        datasets[[keys[3]]] = EDADat$new(fData(dat), xid = feature_xid, yid = feature_yid)
-					}
-                }
-            }
             super$initialize(datasets, color_pal, title, ggplot_theme)
         },
 
@@ -128,7 +87,7 @@ BioExprSet <- R6Class("BioExprSet",
     active = list(
         # Make datasets publically visible for EDAMultiMatrix instances
         datasets = function() {
-			lapply(self$edat, function(x) { x$dat })
+            lapply(self$edat, function(x) { x$dat })
         }
     )
 )
