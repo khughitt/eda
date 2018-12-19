@@ -146,7 +146,7 @@ BioDataSet <- R6Class("BioDataSet",
         dat <- datasets[[i]]
 
         # skip anything that isn't a supported bioc object instance
-        if (!class(dat) %in% c('RangedSummarizedExperiment', 'ExpressionSet')) {
+        if (!any(class(dat) %in% c('RangedSummarizedExperiment', 'ExpressionSet'))) {
           next
         }
 
@@ -158,12 +158,12 @@ BioDataSet <- R6Class("BioDataSet",
                       pheno_xid = 'samples', pheno_yid = 'phenotypes')
 
         # unpack bioconductor object and determine base EDADat keys to use 
-        if (class(dat) == 'ExpressionSet') {
+        if ('ExpressionSet' %in% class(dat)) {
           edat_keys   <- c(assay = 'exprs', col_dat = 'pdata', row_dat = 'fdata')
           bioc_dat     <- Biobase::exprs(dat)
           bioc_row_dat <- Biobase::fData(dat)
           bioc_col_dat <- Biobase::pData(dat)
-        } else if (class(dat) == 'RangedSummarizedExperiment') {
+        } else if ('RangedSummarizedExperiment' %in% class(dat)) {
           edat_keys    <- c(assay = 'assays', col_dat = 'coldata', row_dat = 'rowdata')
           # TODO: extend support for RSE objects with multiple datasets
           bioc_dat     <- SummarizedExperiment::assays(dat)[[1]]
