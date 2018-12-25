@@ -1,9 +1,10 @@
-language: R
+language: r
 sudo: false
 cache: packages
 install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then Rscript -e "if (!require('devtools')) install.packages('devtools')"; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then Rscript -e "devtools::install_github('jlmelville/uwot')"; fi 
+  - Rscript -e "devtools::install_deps(dep = TRUE)"
 os:
   - linux
   - osx
