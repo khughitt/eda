@@ -1,0 +1,94 @@
+---
+output: github_document
+---
+
+# eda - Exploratory Data Analysis for R
+
+The `eda` package for R provides general purposes, as well as domain-specific classes for
+performing basic exploratory data analysis in R. It is built on the [R6 class
+system](https://cran.r-project.org/web/packages/R6/index.html), as well as a number of other
+powerful statistics, machine learning, and visualization packages.
+
+The primary goals of `eda` are to provide a simple interface for exploring one or more related
+datasets, with an emphasis on:
+
+- Quick and easy summary statistics and visualization
+- Integration of multiple related datasets
+- Streamlined data transformation and visualization using function chaining
+- Generalized base classes that can be extended for domain-specific application
+
+This package is still in the early stages of development. While a reasonable overall class
+hierarchy has been implemented, significant work is still required with respect to normalization of
+function calls (especially those relating to plotting), and documentation.
+
+# Installation
+
+You can install `eda` using Bioconductor with:
+
+```r
+BiocManager::install('github.com/khughitt/eda')
+```
+
+# Example Usage
+
+I still need to write a fair bit of documentation for how to actually use this package. That should
+happen soon (probably Jan 2019).
+
+In the meantime, here are some example use cases to give you a sense for how this package can be
+used.
+
+The below examples make use of the high-throughput biology (transcriptomic) data made available 
+through the [recount2](http://bioconductor.org/packages/release/bioc/html/recount.html) package.
+
+```{r setup, eval=FALSE}
+library(eda)
+library(recount)
+
+# download TCGA RNA-Seq data from ReCount
+download_study('TCGA')
+```
+
+```{r setup_dev, echo = FALSE}
+devtools::load_all(file.path(Sys.getenv('NIH'), 'eda'))
+```
+
+```{r data_overview}
+# make output reproducible
+set.seed(1)
+
+# load TCGA RangedSummarizedExperiment
+load(file.path('TCGA', 'rse_gene.Rdata'))
+
+# to speed things up, let's grab a random subsample of the data;
+# this can also be done within eda, but there is currently an issue
+# relating to transposition of subsampled data, so for now, we will
+# handle this externally
+SAMPLE_NROWS <- 1000
+SAMPLE_NCOLS <- 100
+
+rse_gene <- rse_gene[sample(nrow(rse_gene), SAMPLE_NROWS), sample(ncol(rse_gene), SAMPLE_NCOLS)]
+
+# convert RSE object to an BioDataSet instance
+bdat <- BioDataSet$new(rse_gene)
+
+# the expression data and gene / sample metadata are eached stored as
+# separate dataset in the BioDataSet object
+bdat
+
+# each of these can be accessed through the "datasets" property
+bdat$datasets$assays[1:3, 1:3]
+bdat$datasets$coldata[1:3, 1:3]
+head(bdat$datasets$rowdata, 3)
+
+# subsample data, log-transform, and plot a heatmap
+#bdat$subsample(row_n = 500, col_n = 100)$log1p()$plot_heatmap(interactive = FALSE)
+
+# generate a sample PCA, t-SNE, and UMAP plots, colored by cancer 
+# TODO: currently an issue with RSE ingestion / handling of colors.. need to look
+# into this when I have more time..
+#bdat$t()$plot_pca(color_var = 'gdc_cases.project.primary_site', color_key = 'coldata')
+```
+
+
+
+
