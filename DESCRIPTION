@@ -15,6 +15,7 @@ Imports:
     corpcor,
     data.table,
     flashClust,
+    GSVA,
     heatmaply,
     infotheo,
     minerva,

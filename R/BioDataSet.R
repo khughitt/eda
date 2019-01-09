@@ -228,24 +228,26 @@ BioDataSet <- R6Class("BioDataSet",
     #
     aapply = function(key, annotation, fun=median, annotation_source=NULL,
               annotation_keytype='ensembl', edat_suffix='auto', ...) {
+      # annotations are parsed into n x 2 dataframes consisting of
+      # with each row containing an (annotation, gene id) pair.
+      ANNOT_IND <- 1
+      ITEM_IND  <- 2
+
       # check for valid dataset key
       private$check_key(key)
-
-      # determine function to use
-      if (!is.function(fun)) {
-        if (fun %in% names(private$stat_fxns)) {
-          fun <- private$stat_fxns[[fun]]
-        } else {
-          stop("Invalid function specified.")
-        }
-      }
 
       # convert numeric keys
       key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
       # key form: <old key>_<annotation_name>_<edat_suffix>
       if (edat_suffix == 'auto') {
-        edat_suffix <- stringi::stri_rand_strings(n=1, length=6, pattern="[A-Za-z0-9]")
+        # if string aggregation function provided, use that for suffix
+        if (!is.function(fun)) {
+          edat_suffix <- fun
+        } else {
+          # otherwise use a random six character string
+          edat_suffix <- stringi::stri_rand_strings(n=1, length=6, pattern="[A-Za-z0-9]")
+        }
       }
       res_key <- paste(c(key, annotation, edat_suffix), collapse='_')
 
@@ -255,16 +257,8 @@ BioDataSet <- R6Class("BioDataSet",
         return(self)
       }
 
-      # output data frame
-      res <- data.frame()
-
       # check to see if annotation has been loaded, and if not, load it
       mapping <- self$load_annotations(annotation, annotation_source, annotation_keytype)
-
-      # annotations are parsed into n x 2 dataframes consisting of
-      # with each row containing an (annotation, gene id) pair.
-      ANNOT_IND <- 1
-      ITEM_IND  <- 2
 
       # dataset to compute statistics on
       dat <- self$edat[[key]]$dat
@@ -274,33 +268,63 @@ BioDataSet <- R6Class("BioDataSet",
 
       # exclude any annotations with less than two entries in the
       # target dataset
-      to_exclude <- (mapping %>% 
-        group_by_at(ANNOT_IND) %>% 
-        summarize(n=n()) %>%
-        filter(n == 1))[, ANNOT_IND]
+      gset_counts <- table(mapping[, ANNOT_IND])
+      to_exclude <- names(gset_counts)[gset_counts == 1]
 
       mapping <- mapping[!mapping[, ANNOT_IND] %in% to_exclude, ]
 
       message("Computing annotation statistics...")
 
-      # iterate over annotations
-      for (annot in unique(mapping[, ANNOT_IND])) {
-        # get list of genes, etc. associated with the annotation
-        annot_items <- mapping[mapping[, ANNOT_IND] == annot, ITEM_IND]
+      #
+      # GSVA-based aggregation
+      #
+      if (!is.function(fun) && fun == 'gsva') {
+        # convert gene set mapping dataframe to a list
+        gset_list <- split(mapping$gene, mapping$pathway)
 
-        # get data values for relevant genes
-        dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
+        # get any addition function arguments, and set verbose to FALSE
+        gsva_args <- list(expr = dat, gset.idx.list = gset_list, verbose = FALSE)
+        gsva_args <- modifyList(gsva_args, list(...))
 
-        # compute statistic for each column (often, samples) and append
-        # to result
-        res <- rbind(res, apply(dat_subset, 2, fun, ...))
+        # call GSVA
+        res <- do.call(GSVA::gsva, gsva_args)
+      } else {
+        #
+        # All other aggegration methods
+        #
+        if (!is.function(fun)) {
+          # built-in aggregation functions
+          if (fun %in% names(private$stat_fxns)) {
+            fun <- private$stat_fxns[[fun]]
+          } else {
+            # invalid function name specified
+            stop("Invalid function specified.")
+          }
+        }
+
+        # output data frame
+        res <- data.frame()
+
+        # iterate over annotations
+        for (annot in unique(mapping[, ANNOT_IND])) {
+          # get list of genes, etc. associated with the annotation
+          annot_items <- mapping[mapping[, ANNOT_IND] == annot, ITEM_IND]
+
+          # get data values for relevant genes
+          dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
+
+          # compute statistic for each column (often, samples) and append
+          # to result
+          res <- rbind(res, apply(dat_subset, 2, fun, ...))
+        }
+        rownames(res) <- unique(mapping[, ANNOT_IND])
+        colnames(res) <- colnames(dat)
       }
 
-      # fix column and row names and return result; annotation names
+      # fix row names and return result; annotation names
       # may change as a result, but this will help to avoid downstream
       # confusion when saving to CSV, etc.
-      rownames(res) <- gsub('\\.+', '\\.', make.names(unique(mapping[, ANNOT_IND])))
-      colnames(res) <- colnames(dat)
+      rownames(res) <- gsub('\\.+', '\\.', make.names(rownames(res)))
 
       # clone BioDataSet instance and add new edat
       obj <- private$clone_()
@@ -524,7 +548,7 @@ BioDataSet <- R6Class("BioDataSet",
 
       # Replace entries with "None" for external id with a unique identifier
       missing_ids <- cpdb$external_id == 'None'
-      cpdb[missing_ids] <- sprintf('None-%d', 1:sum(missing_ids))
+      cpdb$external_id[missing_ids] <- sprintf('None-%d', 1:sum(missing_ids))
 
       # There are a few pathways with multiple entries, each with a
       # different list of genes; for now, arbitrarily choose one of the

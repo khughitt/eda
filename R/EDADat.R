@@ -245,6 +245,7 @@ EDADat <- R6Class("EDADat",
             # normalize rownames
             if (row_names != 'rownames') {
                 ind <- private$get_names_index(dat, row_names, colnames)
+
                 if (sum(duplicated(dat[, ind])) > 0) {
                     stop("Row identifiers must be unique.")
                 }
@@ -254,6 +255,7 @@ EDADat <- R6Class("EDADat",
             # normalize colnames
             if (col_names != 'colnames') {
                 ind <- private$get_names_index(dat, col_names, rownames)
+
                 if (sum(duplicated(dat[ind, ])) > 0) {
                     stop("Column identifiers must be unique.")
                 }

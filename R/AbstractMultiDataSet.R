@@ -654,7 +654,17 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             },
             'ratio_below_cutoff' = function(x, cutoff=0) {
                 sum(x < cutoff) / length(x)
-            }
+            },
+
+            # aliases for built-in functions
+            'mad'     = mad,
+            'mean'    = mean,
+            'median'  = median,
+            'max'     = max,
+            'min'     = min,
+            'sd'      = sd,
+            'sum'     = sum,
+            'var'     = var
         ),
 
         # check for valid dataset key
