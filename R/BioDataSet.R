@@ -209,9 +209,8 @@ BioDataSet <- R6Class("BioDataSet",
     # annotation mapping.
     #
     # @param key Name of dataset to analyze.
-    # @param annot A n x 2 gene/pathway mapping where each row is a pathway,gene
-    #   pair; should contain columns named 'pathway' and 'gene'.
-    # @param stat The pathway-level statistic to compute. Can either be a
+    # @param annot 
+    # @param stat The annotation-level statistic to compute. Can either be a
     #   function (e.g. sum, median, or var), or a string indicating a specific statistic
     #   to compute.
     #
@@ -226,8 +225,7 @@ BioDataSet <- R6Class("BioDataSet",
     #   - `ratio_nonzero`     ratio of genes with values not equal to zero
     #   - `ratio_zero`      ratio of genes with values equal to zero
     #
-    aapply = function(key, annot, fun=median, annot_file=NULL,
-                      annot_keytype='ensgene', edat_suffix=NULL, ...) {
+    aapply = function(key, fun, annot_key, annot_keytype='ensgene', result_key=NULL, ...) {
       # annotations are parsed into n x 2 dataframes consisting of
       # with each row containing an (annotation, gene id) pair.
       ANNOT_IND <- 1
@@ -239,27 +237,24 @@ BioDataSet <- R6Class("BioDataSet",
       # convert numeric keys
       key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
-      # key form: <old key>_<annot_name>_<edat_suffix>
-      if (is.null(edat_suffix)) {
-        # if a function is provided, require manually specifying edat suffix
+      # key form: <old key>_<annot_name>_<fun>
+      if (is.null(result_key)) {
+        # if a function is provided, require manually specifying result key
         if (is.function(fun)) {
-          stop("When a function is specified for 'fun', 'edat_suffix' must also be provided")
+          stop("When a function is specified for 'fun', 'result_key' must also be provided")
         }
-        # if string aggregation function provided, use that for suffix
-        edat_suffix <- fun
+        result_key <- paste(c(key, annot_key, fun), collapse='_')
       }
-      res_key <- paste(c(key, annot, edat_suffix), collapse='_')
 
-      # check to see if result has already been computed, and if so, return self-reference
-      if (res_key %in% names(self$edat)) {
+      # check to see if result has already been computed, and if so, move to front and return
+      if (result_key %in% names(self$edat)) {
         # move dataset key to top of list and return self-reference
-        self$edat <- self$edat[c(res_key, names(self$edat)[names(self$edat) != res_key])]
+        self$edat <- self$edat[c(result_key, names(self$edat)[names(self$edat) != result_key])]
         return(self)
       }
 
       # get annotation mapping
-      mapping <- self$get_annotations(annot, keytype = self$edat[[res_key]]$xid, 
-                                      annot_file = annot_file, annot_keytype = annot_keytype)
+      mapping <- self$load_annotations(annot_key, keytype = self$edat[[result_key]]$xid)
 
       # dataset to compute statistics on
       dat <- self$edat[[key]]$dat
@@ -280,7 +275,7 @@ BioDataSet <- R6Class("BioDataSet",
       #
       if (!is.function(fun) && fun == 'gsva') {
         # convert gene set mapping dataframe to a list
-        gset_list <- split(mapping$gene, mapping$pathway)
+        gset_list <- split(mapping$gene, mapping$annotation)
 
         # get any addition function arguments, and set verbose to FALSE
         gsva_args <- list(expr = dat, gset.idx.list = gset_list, verbose = FALSE)
@@ -306,9 +301,9 @@ BioDataSet <- R6Class("BioDataSet",
         res <- data.frame()
 
         # iterate over annotations
-        for (annot in unique(mapping[, ANNOT_IND])) {
+        for (annot_key in unique(mapping[, ANNOT_IND])) {
           # get list of genes, etc. associated with the annotation
-          annot_items <- mapping[mapping[, ANNOT_IND] == annot, ITEM_IND]
+          annot_items <- mapping[mapping[, ANNOT_IND] == annot_key, ITEM_IND]
 
           # get data values for relevant genes
           dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
@@ -328,67 +323,18 @@ BioDataSet <- R6Class("BioDataSet",
 
       # clone BioDataSet instance and add new edat
       obj <- private$clone_()
-      obj$add(res_key, EDADat$new(res, xid=annot, yid=self$edat[[key]]$yid))
+      obj$add(result_key, EDADat$new(res, xid=annot_key, yid=self$edat[[key]]$yid))
 
       obj
     },
 
-    # load annotations from a supported source
-    load_annotations = function(annot, annot_file=NULL, annot_keytype='ensgene', ...) {
-      # If annotation specified, check that valid filepath provided
-      if (!is.null(annot_file)) {
-        if (!file.exists(annot_file)) {
-          stop(sprintf("Invalid annotation filepath specified: %s", annot_file))
-        }
-      }
-
-      message(sprintf("Loading %s annotations...", annot))
-
-      # CPDB
-      if (annot == 'cpdb') {
-        mapping <- private$get_cpdb_annotations(annot_file, annot_keytype)
-      } else if (startsWith(annot, 'msigdb')) {
-        # MSigDB
-        mapping <- private$get_msigdb_annotations(annot_file)
-      }
-
-      # store and return mapping
-      if (!annot %in% names(self$annotations)) {
-        self$annotations[[annot]] <- list()
-      }
-      self$annotations[[annot]][[annot_keytype]] <- mapping
-
-      mapping
-    },
-
-    # maps gene identifiers for a specified annotation mapping
-    map_gene_ids = function(annot_mapping, from, to) {
-      # annotation mapping indices
-      GID_IND  <- 2
-
-      # map identifier names, if needed
-      if (from == 'entrez-gene') {
-        from <- 'entrez'
-      } else if (from == 'hgnc-symbol') {
-        from <- 'symbol'
-      }
-
-      if (to == 'entrez-gene') {
-        to <- 'entrez'
-      } else if (to == 'hgnc-symbol') {
-        to <- 'symbol'
-      }
-
-      # mapping gene identifiers and return result
-      annotables::grch37[, to][match(annot_mapping[, GID_IND], annotables::grch37[, from])]
-    },
-
     # returns annotation mapping using specified gene identifiers
-    get_annotations = function(annot, keytype='ensgene', annot_file=NULL, annot_keytype='ensgene'...) {
-      # check to make sure annotation type is valid
-      if (!annot %in% c('cpdb') && (!startsWith(annot, 'msigdb'))) {
-        stop("Unsupported annotation type specified.\nSupported annotation types: cpdb, msigdb-xx")
-      }
+    load_annotations = function(annot, keytype='ensgene', annot_file=NULL, annot_keytype='ensgene',
+                                annot_filetype='gmt', annot_field=1, gene_field=2, 
+                                exclude_annotations=NULL) {
+      #
+      # TODO: decide on best place for exclude annotations logic...
+      #
 
       # check if annotations have been previously loaded
       if (annot %in% names(self$annotations)) {
@@ -397,28 +343,30 @@ BioDataSet <- R6Class("BioDataSet",
           return(self$annotations[[annot]][[keytype]])
         } 
 
-        # if they have been loaded for a different key type, map identifiers and return result
+        # if annotations have been loaded for a different key type, map identifiers and return
         from <- names(self$annotations[[annot]])[1]
-        self$annotations[[annot]][[keytype]] <- map_gene_ids(annot, from, keytype)
-
+        self$annotations[[annot]][[keytype]] <- private$map_gene_ids(self$annotations[[annot]][[from]], 
+                                                                     from, keytype)
         return(self$annotations[[annot]][[keytype]])
+      } 
+
+      # 
+      if (is.null(annot_file)) {
+        stop("Missing required parameter: annot_file")
       }
 
-      # if annotation file is specified, check that valid filepath provided
-      if (!is.null(annot_file)) {
-        if (!file.exists(annot_file)) {
-          stop(sprintf("Invalid annotation filepath specified: %s", annot_file))
-        }
+      # make sure valid filepath provided (TODO: extend support to URLs?)
+      if (!file.exists(annot_file)) {
+        stop(sprintf("Invalid annotation filepath specified: %s", annot_file))
       }
 
       message(sprintf("Loading %s annotations...", annot))
 
-      # CPDB
-      if (annot == 'cpdb') {
-        mapping <- private$get_cpdb_annotations(annot_file, annot_keytype)
-      } else if (startsWith(annot, 'msigdb')) {
-        # MSigDB
-        mapping <- private$get_msigdb_annotations(annot_file)
+      # load annotations from file
+      if (annot_filetype == 'gmt') {
+        mapping <- private$load_gmt(annot_file) 
+      } else if (annot_filetype == 'tsv') {
+        mapping <- private$load_tsv(annot_file, annot_field, gene_field, exclude_annotations)
       }
 
       # store returned annotation mapping
@@ -429,8 +377,7 @@ BioDataSet <- R6Class("BioDataSet",
 
       # if dataset keytype differs from annotation keytype, map ids
       if (keytype != annot_keytype) {
-        from <- names(mapping)[1]
-        self$annotations[[annot]][[keytype]] <- map_gene_ids(annot, from, keytype)
+        self$annotations[[annot]][[keytype]] <- private$map_gene_ids(mapping, annot_keytype, keytype)
       }
 
       return(self$annotations[[annot]][[keytype]])
@@ -566,98 +513,87 @@ BioDataSet <- R6Class("BioDataSet",
       }
     },
 
-    # load MSigDB annotations
-    get_msigdb_annotations = function(annot_file=NULL) {
-      #
-      # Note 2018/05/01: MSigDB website requires login to download files
-      # so for now, only manually provided annotation files are supported.
-      #
+    # load gene set gmt file
+    load_gmt = function(annot_file=NULL) {
+      # check for valid annotation filepath
       if (is.null(annot_file)) {
-        stop("Filepath to MSigDB annotation gmt file must be provided.")
+        stop("Filepath to annotation gmt file must be provided.")
       } else if (!file.exists(annot_file)) {
-        stop("Invalid filepath for MSigDB annotations specified.")
+        stop("Invalid filepath for annotations specified.")
       }
 
-      msigdb <- private$parse_gmt(annot_file)
+      mapping <- private$parse_gmt(annot_file)
       
-      colnames(msigdb) <- c('pathway', 'gene')
-      rownames(msigdb) <- NULL
+      colnames(mapping) <- c('annotation', 'gene')
+      rownames(mapping) <- NULL
 
-      # exclude any pathways with only a single gene (not interesting...)
-      mask <- msigdb$pathway %in% names(which(table(msigdb$pathway) > 1))
-      msigdb <- msigdb[mask, ]
+      # exclude any annotations with only a single gene (not interesting...)
+      mask <- mapping$annotation %in% names(which(table(mapping$annotation) > 1))
+      mapping <- mapping[mask, ]
 
       # discard unused factor levels and return result
-      msigdb$pathway <- factor(msigdb$pathway)
+      mapping$annotation <- factor(mapping$annotation)
 
-      msigdb
+      mapping
     },
 
-    # load ConsensusPathDB annotations
-    get_cpdb_annotations = function(annot_file = NULL, annot_keytype = 'entrez-gene') {
-      # check to make sure key type is valid
-      supported_keytypes <- c('ensgene', 'entrez-gene', 'hgnc-symbol')
+    load_tsv = function(infile, annot_field, gene_field, exclude_annotations=NULL) {
+      # load annotation tab-delimited file
+      mapping <- read.delim(infile, sep = '\t', header = TRUE, stringsAsFactors = FALSE)
+      mapping <- mapping[, c(annot_field, gene_field)]
 
-      if (!annot_keytype %in% supported_keytypes) {
-        stop(paste0("Invalid key type specified for CPDB annotations.\n",
-                    "Must be one of: ", paste(supported_keytypes, collapse = ', ')))
+      # for some annotation sources (e.g. CPDB), there are multiple entries for the same annotation
+      # name, each with a different list of genes; for now, arbitrarily choose one of the mappings
+      # to use
+      mapping <- mapping[!duplicated(mapping[, annot_field]), ]
+
+      # exclude specific annotations, if requested
+      if (!is.null(exclude_annotations)) {
+        mapping <- mapping[!mapping[, annot_field] %in% exclude_annotations, ]
       }
 
-      # load CPDB pathways
-      if (is.null(annot_file)) {
-        # if not file specified, retrieve annotations from online
-        annot_file <- sprintf('http://cpdb.molgen.mpg.de/CPDB/getPathwayGenes?idtype=%s', annot_keytype)
-      }
-      cpdb <- read.delim(annot_file, sep = '\t', header = TRUE, stringsAsFactors = FALSE)
-
-      # replace entries with "None" for external id with a unique identifier
-      missing_ids <- cpdb$external_id == 'None'
-      cpdb$external_id[missing_ids] <- sprintf('None-%d', 1:sum(missing_ids))
-
-      # there are a few pathways with multiple entries, each with a
-      # different list of genes; for now, arbitrarily choose one of the
-      # mappings.
-      cpdb <- cpdb[!duplicated(cpdb$external_id), ]
-
-      # 2018/06/08: in a few cases, there are pathways with highly
-      # similar names with non-unique associated R variable names, e.g.
-      # "MAPK6/MAPK4 signaling" and "MAPK6/MAPK4 signaling". In each
-      # case, one annotation appears to be a perfect / near-perfect subset
-      # of the other.
-      #
-      # This appears to be a bug in the CPDB annotation generation.
-      # Manually removing the annotation associated with the subset for now.
-      bad_annotations <- c(
-        'Mitotic G2-G2-M phases',
-        'BMAL1-CLOCK,NPAS2 activates circadian gene expression',
-        'MAPK6-MAPK4 signaling',
-        'Transcriptional activity of SMAD2-SMAD3-SMAD4 heterotrimer',
-        'Nucleotide Excision Repair '
-      )
-      cpdb <- cpdb[!cpdb$pathway %in% bad_annotations, ]
-
-      # convert to an n x 2 mapping of pathway, gene pairs
-      header_key <- sprintf('%s_ids', sub('-', '_', annot_keytype))
-
-      cpdb_pathway_list <- apply(cpdb, 1, function(x) {
-        cbind(x['pathway'], unlist(strsplit(x[header_key], ',')))
+      # convert to an n x 2 mapping of (annotation, gene) pairs
+      mapping_list <- apply(mapping, 1, function(x) {
+        cbind(x[annot_field], unlist(strsplit(x[gene_field], ',')))
       })
-      cpdb <- as.data.frame(do.call('rbind', cpdb_pathway_list))
+      mapping <- as.data.frame(do.call('rbind', mapping_list))
 
-      colnames(cpdb) <- c('pathway', 'gene')
-      rownames(cpdb) <- NULL
+      colnames(mapping) <- c('annotation', 'gene')
+      rownames(mapping) <- NULL
 
-      # For now, remove all genes from mapping that are not in our dataset
-      #cpdb <- cpdb[cpdb$gene %in% rownames(self$dat),]
-
-      # exclude any pathways with only a single gene (not that interesting..)
-      mask <- cpdb$pathway %in% names(which(table(cpdb$pathway) > 1))
-      cpdb <- cpdb[mask, ]
+      # exclude any annotations with only a single gene (not that interesting..)
+      mask <- mapping$annotation %in% names(which(table(mapping$annotation) > 1))
+      mapping <- mapping[mask, ]
 
       # discard unused factor levels
-      cpdb$pathway <- factor(cpdb$pathway)
+      mapping$annotation <- factor(mapping$annotation)
 
-      cpdb
+      mapping
+    },
+
+    # maps gene identifiers for a specified annotation mapping
+    map_gene_ids = function(annot_mapping, from, to) {
+      # annotation mapping indices
+      GID_IND  <- 2
+
+      # map identifier names, if needed
+      if (from == 'entrez-gene') {
+        from <- 'entrez'
+      } else if (from == 'hgnc-symbol') {
+        from <- 'symbol'
+      }
+
+      if (to == 'entrez-gene') {
+        to <- 'entrez'
+      } else if (to == 'hgnc-symbol') {
+        to <- 'symbol'
+      }
+
+      # mapping gene identifiers and return result
+      ind <- match(annot_mapping[, GID_IND], annotables::grch37[, from, drop = TRUE])
+      annot_mapping$gene <- annotables::grch37[, to, drop = TRUE][ind]
+
+      annot_mapping
     },
 
     parse_gmt = function(infile) {
@@ -665,9 +601,9 @@ BioDataSet <- R6Class("BioDataSet",
       max_cols <- max(count.fields(infile))
 
       # read in table, filling empty cells with NA's
-      gmt <- read.delim(infile, sep = '\t', header = FALSE,
-                col.names = paste0("gene_", seq_len(max_cols)), 
-                fill = TRUE, stringsAsFactors = FALSE)
+      gmt <- read.delim(infile, sep = '\t', header = FALSE, 
+                        col.names = paste0("gene_", seq_len(max_cols)), 
+                        fill = TRUE, stringsAsFactors = FALSE)
 
       # fix column names
       colnames(gmt)[1:2] <- c('annotation', 'source')
