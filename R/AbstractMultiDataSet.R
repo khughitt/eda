@@ -156,10 +156,18 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # cluster dataset and apply function to resulting clusters
-        capply = function(key, method='kmeans', fun=median, fun_args=list(), 
-                          edat_suffix='auto', ...) {
+        capply = function(key, method='kmeans', fun=median, result_key=NULL, fun_args=list(), ...) {
             # check for valid dataset key
             private$check_key(key)
+
+            # key form: <old key>_<annot_name>_<fun>
+            if (is.null(result_key)) {
+              # if a function is provided, require manually specifying result key
+              if (is.function(fun)) {
+                stop("When a function is specified for 'fun', 'result_key' must also be provided")
+              }
+              result_key <- paste(c(key, annot_key, fun), collapse='_')
+            }
 
             # determine function to use
             if (!is.function(fun)) {
@@ -190,15 +198,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # convert numeric keys
             key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
-            # key form: <old key>_<cluster_method>_<edat_suffix>
-            if (edat_suffix == 'auto') {
-                edat_suffix <- stringi::stri_rand_strings(n=1, length=6, pattern="[A-Za-z0-9]")
-            }
-            res_key <- paste(c(key, method, edat_suffix), collapse='_')
-
             # clone dataset instance and add new edat
             obj <- private$clone_()
-            obj$add(res_key, EDADat$new(res, xid=method, yid=self$edat[[key]]$yid))
+            obj$add(result_key, EDADat$new(res, xid=method, yid=self$edat[[key]]$yid))
 
             obj
         },

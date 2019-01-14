@@ -225,7 +225,7 @@ BioDataSet <- R6Class("BioDataSet",
     #   - `ratio_nonzero`     ratio of genes with values not equal to zero
     #   - `ratio_zero`      ratio of genes with values equal to zero
     #
-    aapply = function(key, fun, annot_key, annot_keytype='ensgene', result_key=NULL, ...) {
+    aapply = function(key, fun, annot_key, annot_keytype='ensgene', result_key=NULL, fun_args=list(), ...) {
       # annotations are parsed into n x 2 dataframes consisting of
       # with each row containing an (annotation, gene id) pair.
       ANNOT_IND <- 1
@@ -279,7 +279,7 @@ BioDataSet <- R6Class("BioDataSet",
 
         # get any addition function arguments, and set verbose to FALSE
         gsva_args <- list(expr = dat, gset.idx.list = gset_list, verbose = FALSE)
-        gsva_args <- modifyList(gsva_args, list(...))
+        gsva_args <- modifyList(gsva_args, fun_args)
 
         # call GSVA
         res <- do.call(GSVA::gsva, gsva_args)
@@ -308,9 +308,11 @@ BioDataSet <- R6Class("BioDataSet",
           # get data values for relevant genes
           dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
 
-          # compute statistic for each column (often, samples) and append
-          # to result
-          res <- rbind(res, apply(dat_subset, 2, fun, ...))
+          # combine arguments to apply and the aggregation function into a single list
+          fun_args <- c(list(X = dat_subset, MARGIN = 2, FUN = fun), fun_args)
+
+          # compute statistic for each column (often, samples) and append to result
+          res <- rbind(res, do.call(apply, fun_args))
         }
         rownames(res) <- unique(mapping[, ANNOT_IND])
         colnames(res) <- colnames(dat)
@@ -485,11 +487,14 @@ BioDataSet <- R6Class("BioDataSet",
       if (length(self$annotations) > 0) {
         cat("= Annotations:\n")
         cat("=\n")
-        for (source in names(self$annotations)) {
-          annot <- self$annotations[[source]]
-          cat(sprintf("= - %s (%d annotations, %d genes)\n", source,
-                length(unique(annot[, 1])),
-                length(annot[, 2])))
+        for (annot_name in names(self$annotations)) {
+          for (annot_keytype in names(self$annotations[[annot_name]])) {
+            annot <- self$annotations[[annot_name]][[annot_keytype]]
+
+            cat(sprintf("= - %s (%d annotations, %d genes)\n", annot_name,
+                  length(unique(annot[, 1])),
+                  length(unique(annot[, 2]))))
+          }
         }
         cat("=\n")
       }
