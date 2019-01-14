@@ -253,8 +253,8 @@ BioDataSet <- R6Class("BioDataSet",
         return(self)
       }
 
-      # get annotation mapping
-      mapping <- self$load_annotations(annot_key, keytype = self$edat[[result_key]]$xid)
+      # get annotation mapping 
+      mapping <- self$load_annotations(annot_key, keytype = self$edat[[key]]$xid)
 
       # dataset to compute statistics on
       dat <- self$edat[[key]]$dat
@@ -316,10 +316,15 @@ BioDataSet <- R6Class("BioDataSet",
         colnames(res) <- colnames(dat)
       }
 
+      # fix rownames and remove any duplicates after converting to valid rownames
+      rn <- gsub('\\.+', '\\.', make.names(rownames(res)))
+      mask <- !duplicated(rn)
+
       # fix row names and return result; annotation names
       # may change as a result, but this will help to avoid downstream
       # confusion when saving to CSV, etc.
-      rownames(res) <- gsub('\\.+', '\\.', make.names(rownames(res)))
+      res <- res[mask, ]
+      rownames(res) <- rn[mask]
 
       # clone BioDataSet instance and add new edat
       obj <- private$clone_()
