@@ -30,7 +30,8 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Remotes:
-    jlmelville/uwot
+    jlmelville/uwot,
+    bioc::release/GSVA
 URL: https://github.com/khughitt/eda
 BugReports: https://github.com/khughitt/eda/issues
 Roxygen: list(markdown=TRUE)
