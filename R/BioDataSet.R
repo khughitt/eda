@@ -309,10 +309,10 @@ BioDataSet <- R6Class("BioDataSet",
           dat_subset <- dat[rownames(dat) %in% annot_items,, drop = FALSE]
 
           # combine arguments to apply and the aggregation function into a single list
-          fun_args <- c(list(X = dat_subset, MARGIN = 2, FUN = fun), fun_args)
+          iter_args <- c(list(X = dat_subset, MARGIN = 2, FUN = fun), fun_args)
 
           # compute statistic for each column (often, samples) and append to result
-          res <- rbind(res, do.call(apply, fun_args))
+          res <- rbind(res, do.call(apply, iter_args))
         }
         rownames(res) <- unique(mapping[, ANNOT_IND])
         colnames(res) <- colnames(dat)

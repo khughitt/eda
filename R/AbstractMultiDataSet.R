@@ -77,7 +77,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                         (e1$yid == e2$yid && length(intersect(colnames(e1$dat), colnames(e2$dat))) == 0)) {
                         stop(sprintf("Datasets '%s' and '%s' specified as having a common axis, but no shared id's found.", k1, k2))
                     }
-                } 
+                }
             }
 
             # share styles
@@ -116,7 +116,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             invisible(gc())
         },
 
-        # cluster dataset and return new object instance which including the 
+        # cluster dataset and return new object instance which including the
         # results
         cluster = function(key=1, method='kmeans', ...) {
             # check to make sure specified clustering method is valid
@@ -464,7 +464,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 if (unique) {
                     # iterate until either all rows/cols have been added, or
                     # the requested number of bottom hits have been included
-                    while (length(row_ind) < min(nrow(dat), (top + bottom)) || 
+                    while (length(row_ind) < min(nrow(dat), (top + bottom)) ||
                            length(col_ind) < min(ncol(dat), (top + bottom))) {
                         ind <- head(which(dat == min(dat, na.rm=TRUE), arr.ind=TRUE), 1)
 
@@ -756,7 +756,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # @param styles List of color-related style info
         # @param color Color variable passed into plot function call
         add_color_styles = function(key, styles, color_var, color_key) {
-            color_vec <- private$get_color_vector(key, color_var, color_key) 
+            color_vec <- private$get_color_vector(key, color_var, color_key)
 
             # if no color variable specified, or it is disabled, return styles as-is
             if (is.null(color_vec)) {
@@ -906,7 +906,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # determine key and variable name associated with labels, if specified
             if (is.null(label_var)) {
-                label_var <- edat$col_label 
+                label_var <- edat$col_label
             }
             if (is.null(label_key)) {
                 label_key <- edat$col_edat
@@ -985,7 +985,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # determine key and variable name associated with labels, if specified
             if (is.null(label_var)) {
-                label_var <- edat$row_label 
+                label_var <- edat$row_label
             }
             if (is.null(label_key)) {
                 label_key <- edat$row_edat
@@ -1019,13 +1019,13 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # Supported cluster methods
         #
         cluster_methods = list(
-            'kmeans' = function(dat, k, ...) {
-                factor(as.numeric(kmeans(dat, k, ...)$cluster))
+            'kmeans' = function(dat, num_clusters, ...) {
+                factor(as.numeric(kmeans(dat, num_clusters, ...)$cluster))
             },
 
-            'hclust' = function(dat, cor_method='cor', 
-                                hclust_method='average', 
-                                cutree_method='cutree', k=NULL, h=NULL, ...) {
+            'hclust' = function(dat, cor_method='cor',
+                                hclust_method='average',
+                                cutree_method='cutree', num_clusters=NULL, cut_height=NULL, ...) {
                 # hierachical clustering
                 # TODO: make similarity, etc. functions currently stored as
                 # private lists acessible to one another (store directly as
@@ -1038,12 +1038,12 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                     message("Warning encountered during correlation matrix generation:")
                     stop(w$message)
                 })
-                
+
                 hc <- flashClust::flashClust(as.dist(1 - abs(cor_mat)), method=hclust_method)
 
                 # tree cut
                 cutree_fxn <- get(cutree_method)
-                factor(as.numeric(cutree_fxn(hc, k=k, h=h, ...)))
+                factor(as.numeric(cutree_fxn(hc, k=num_clusters, h=h, ...)))
             },
 
             # k-means clustering of t-SNE projected data
@@ -1053,10 +1053,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #
             # return Vector of cluster assignments with length equal to the
             #     number of rows in the dataset.
-            'tsne-kmeans' = function(dat, k=10, ...) {
+            'tsne-kmeans' = function(dat, num_clusters=10, ...) {
                 tsne <- Rtsne::Rtsne(dat, ...)
                 res <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
-                kmeans(res, k)$cluster
+                kmeans(res, k=num_clusters)$cluster
             }
         ),
 
@@ -1281,7 +1281,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 xcolor <- e1$col_color
                 xshape <- e1$col_shape
                 xlabel <- e1$col_label
-                xedat  <- e1$col_edat 
+                xedat  <- e1$col_edat
             } else {
                 # if dat1 shared its column names with dat2, transpose to
                 # match expected orientation
@@ -1294,7 +1294,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 xcolor <- e1$row_color
                 xshape <- e1$row_shape
                 xlabel <- e1$row_label
-                xedat  <- e1$row_edat 
+                xedat  <- e1$row_edat
             }
 
             # similar logic to above, but for dat2 which will appear as column
@@ -1306,7 +1306,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 ycolor <- e2$col_color
                 yshape <- e2$col_shape
                 ylabel <- e2$col_label
-                yedat  <- e2$col_edat 
+                yedat  <- e2$col_edat
             } else {
                 dat2 <- e2$tdat
                 yid  <- e2$xid
@@ -1314,7 +1314,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 ycolor <- e2$row_color
                 yshape <- e2$row_shape
                 ylabel <- e2$row_label
-                yedat  <- e2$row_edat 
+                yedat  <- e2$row_edat
             }
 
             # normalize order of shared axis entries (ordered as rows now) and
@@ -1339,10 +1339,10 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             # add new matrix to front of edat list and return
             obj$add(new_key,
-                    EDADat$new(cor_mat, xid = xid, yid = yid, 
-                               row_color = xcolor, row_shape = xshape, 
+                    EDADat$new(cor_mat, xid = xid, yid = yid,
+                               row_color = xcolor, row_shape = xshape,
                                row_label = xlabel, row_edat  = xedat,
-                               col_color = ycolor, col_shape = yshape, 
+                               col_color = ycolor, col_shape = yshape,
                                col_label = ylabel, col_edat  = yedat))
 
             obj
