@@ -36,9 +36,9 @@ bset <- BioExprSet$new(list(dat = mat, row_mdata = row_mdat, col_mdata = col_mda
 ##############################
 
 test_that("pathway statistics works", {
-    expect_error(bset$aapply(key='foo', annotation=NULL), 
+    expect_error(bset$aapply(key='foo', annot_key=NULL), 
                  "Invalid dataset specified: foo", fixed = TRUE)
-    expect_error(bset$aapply(key=1, annotation=NULL, fun='nonexistent_stat'), 
+    expect_error(bset$aapply(key=1, fun='nonexistent_stat', annot_key=NULL), 
                  "Invalid function specified.", fixed = TRUE)
 })
 

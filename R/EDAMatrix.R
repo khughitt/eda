@@ -55,7 +55,7 @@
 #' @section Methods:
 #'  - `clear_cache()`: Clears EDAMatrix cache.
 #'  - `clone()`: Creates a copy of the EDAMatrix instance.
-#'  - `cluster_tsne(k=10, ...)`: Clusters rows in dataset using a combination
+#'  - `cluster_tsne(num_clusters=10, ...)`: Clusters rows in dataset using a combination
 #'      of t-SNE and k-means clustering.
 #' - `detect_col_outliers(num_sd=2, ctend='median', meas='pearson')`:
 #'      Measures average pairwise similarities between all columns in the dataset.
@@ -213,8 +213,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             super$initialize(edats, color_pal, title, ggplot_theme)
         },
 
-        cluster_tsne = function(k=10, ...) {
-            super$cluster_tsne(key='dat', k=k, ...)
+        cluster_tsne = function(num_clusters=10, ...) {
+            super$cluster_tsne(key='dat', num_clusters=k, ...)
         },
 
         detect_col_outliers = function(num_sd=2, ctend=median, meas='pearson', ...) {

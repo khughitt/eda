@@ -31,7 +31,7 @@
 #' @section Methods:
 #' - `clear_cache()`: Clears BioEDADataSet cache.
 #' - `clone()`: Creates a copy of the BioEDADataSet instance.
-#' - `cluster_tsne(k=10, ...)`: Clusters rows in dataset using a combination
+#' - `cluster_tsne(num_clusters=10, ...)`: Clusters rows in dataset using a combination
 #'    of t-SNE and k-means clustering.
 #' - `cpm()`: Performs counts-per-million (CPM) transformation.
 #' - `detect_col_outliers(num_sd=2, avg='median', meas='pearson')`:

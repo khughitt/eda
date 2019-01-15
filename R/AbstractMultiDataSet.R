@@ -1020,7 +1020,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         #
         cluster_methods = list(
             'kmeans' = function(dat, num_clusters, ...) {
-                factor(as.numeric(kmeans(dat, num_clusters, ...)$cluster))
+                factor(as.numeric(kmeans(dat, centers = num_clusters, ...)$cluster))
             },
 
             'hclust' = function(dat, cor_method='cor',
@@ -1056,7 +1056,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             'tsne-kmeans' = function(dat, num_clusters=10, ...) {
                 tsne <- Rtsne::Rtsne(dat, ...)
                 res <- setNames(as.data.frame(tsne$Y), c('x', 'y'))
-                kmeans(res, k=num_clusters)$cluster
+                kmeans(res, centers = num_clusters)$cluster
             }
         ),
 
