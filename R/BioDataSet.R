@@ -465,11 +465,11 @@ BioDataSet <- R6Class("BioDataSet",
         keys[is.na(keys)] <- seq_along(keys)[is.na(keys)]
       }
 
-      # determine lengtht to use for justification
+      # determine length to use for justification
       key_format <- sprintf("%%%ds", max(nchar(keys)) + 1)
 
       # entry output string
-      entry_template <- sprintf("= %s : %%s (%%d x %%d)\n", key_format)
+      entry_template <- sprintf("= %s : %%s (%%d x %%d) %s\n", key_format)
 
       cat("=========================================\n")
       cat("=\n")
@@ -479,7 +479,8 @@ BioDataSet <- R6Class("BioDataSet",
         ds <- self$edat[[i]]$dat
 
         # print dataset entry
-        cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
+        missing_flag <- ifelse(sum(is.na(ds)) > 0, '[M]', '')
+        cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds), missing_flag))
       }
 
       cat("=\n")

@@ -559,7 +559,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             key_format <- sprintf("%%%ds", max(nchar(keys)) + 1)
 
             # entry output string
-            entry_template <- sprintf("= %s : %%s (%%d x %%d)\n", key_format)
+            entry_template <- sprintf("= %s : %%s (%%d x %%d) %s\n", key_format)
 
             cat("=========================================\n")
             cat("=\n")
@@ -568,7 +568,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             for (i in seq_along(self$edat)) {
                 # print dataset entry
                 ds <- self$edat[[i]]$dat
-                cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds)))
+                missing_flag <- ifelse(sum(is.na(ds)) > 0, '[M]', '')
+                cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds), missing_flag))
             }
             cat("=\n")
             cat("=========================================\n")

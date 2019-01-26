@@ -443,6 +443,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             rm <- ifelse(!is.null(self$row_mdata), '(m)', '')
             cm <- ifelse(!is.null(self$col_mdata), '(m)', '')
 
+            cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds), missing_flag))
+
             cat("=========================================\n")
             cat("=\n")
             cat("= EDAMatrix\n")
@@ -450,6 +452,13 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             cat(sprintf("=   rows   : %d %s\n", nrow(self$dat), rm))
             cat(sprintf("=   columns: %d %s\n", ncol(self$dat), cm))
             cat("=\n")
+
+            # if data is incomplete, include number of missing entries
+            num_nas <- sum(is.na(self$dat))
+            if (num_nas > 0) {
+              cat(sprintf("= # missing: %d\n", num_nas))
+            }
+
             cat("=========================================\n")
         },
 
