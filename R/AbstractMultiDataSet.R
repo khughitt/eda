@@ -275,14 +275,14 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         # For removing specific rows and columns, see the `filter_rows` and
         # `filter_cols` functions.
         #
-        # @param key    Dataset key
         # @param row_n  Number of rows to randomly select
         # @param col_n  Number of columns to randomly select
+        # @param key    Dataset key
         # @param row_ratio Ratio of rows to randomly select
         # @param col_ratio Ratio of columns to randomly select
         #
         # @return An EDADataSet instance
-        subsample = function(key=1, row_n=NULL, col_n=NULL, row_ratio=NULL, col_ratio=NULL) {
+        subsample = function(row_n=NULL, col_n=NULL, key=1, row_ratio=NULL, col_ratio=NULL) {
             # clone and subsample dataset
             obj <- private$clone_()
             obj$edat[[key]]$subsample(row_n, col_n, row_ratio, col_ratio)
