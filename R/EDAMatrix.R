@@ -443,8 +443,6 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             rm <- ifelse(!is.null(self$row_mdata), '(m)', '')
             cm <- ifelse(!is.null(self$col_mdata), '(m)', '')
 
-            cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds), missing_flag))
-
             cat("=========================================\n")
             cat("=\n")
             cat("= EDAMatrix\n")
