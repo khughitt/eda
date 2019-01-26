@@ -243,8 +243,8 @@ BioDataSet <- R6Class("BioDataSet",
         }
       }
 
-      # convert numeric keys
-      key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+      # convert numeric key to string name, if possible
+      key <- private$convert_key(key)
 
       # key form: <old key>_<annot_name>_<fun>
       if (is.null(result_key)) {
@@ -483,7 +483,7 @@ BioDataSet <- R6Class("BioDataSet",
         ds <- self$edat[[i]]$dat
 
         # print dataset entry
-        missing_flag <- ifelse(sum(is.na(ds)) > 0, '[M]', '')
+        missing_flag <- ifelse(any(is.na(ds)), '[M]', '')
         cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds), missing_flag))
       }
 

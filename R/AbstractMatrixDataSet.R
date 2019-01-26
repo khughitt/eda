@@ -359,10 +359,12 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                             shape_var=NULL, shape_key=NULL,
                             label_var=NULL, label_key=NULL,
                             title=NULL, text_labels=NULL, ...) {
+
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
             # plot title
             if (is.null(title)) {
-                key <- ifelse(is.numeric(key), names(self$edat)[key], key)
-
                 if (private$title != '') {
                     title <- sprintf("PCA: %s (%s)", key, private$title)
                 } else {
@@ -393,10 +395,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                              shape_var=NULL, shape_key=NULL,
                              label_var=NULL, label_key=NULL,
                              title=NULL, text_labels=NULL, ...) {
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
             # plot title
             if (is.null(title)) {
-                key <- ifelse(is.numeric(key), names(self$edat)[key], key)
-
                 if (private$title != '') {
                     title <- sprintf("t-SNE: %s (%s)", key, private$title)
                 } else {
@@ -427,10 +430,11 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
                              shape_var=NULL, shape_key=NULL,
                              label_var=NULL, label_key=NULL,
                              title=NULL, text_labels=NULL, ...) {
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
             # plot title
             if (is.null(title)) {
-                key <- ifelse(is.numeric(key), names(self$edat)[key], key)
-
                 if (private$title != '') {
                     title <- sprintf("t-SNE: %s (%s)", key, private$title)
                 } else {
@@ -560,8 +564,8 @@ AbstractMatrixDataSet <- R6Class("AbstractMatrixDataSet",
             # clone object and add new dataset
             obj <- private$clone_()
 
-            # map numeric keys to string names
-            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
 
             # determine key to use for storing result
             new_key <- sprintf('%s_zscores', key)

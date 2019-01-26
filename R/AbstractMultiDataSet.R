@@ -98,8 +98,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             edat <- self$edat[[key]]
             edat$dat <- dat
 
-            # convert numeric key to string
-            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
 
             self$edat[[key]] <- NULL
             self$edat <- c(edat, self$edat)
@@ -124,10 +124,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 stop('Unsupported clustering method specified.')
             }
 
-            # convert key to string name, if not already provided as such
-            if (is.numeric(key)) {
-                key <- names(self$edat)[key]
-            }
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
 
             # key for cluster result dataset
             cluster_key <- sprintf("clusters-%s", key)
@@ -195,8 +193,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             #cluster_ids <- sort(unique(clusters))
             #rownames(res) <- cluster_ids
 
-            # convert numeric keys
-            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
 
             # clone dataset instance and add new edat
             obj <- private$clone_()
@@ -286,6 +284,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # clone and subsample dataset
             obj <- private$clone_()
             obj$edat[[key]]$subsample(row_n, col_n, row_ratio, col_ratio)
+
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
 
             # move to front of edat list
             edat <- obj$edat[[key]]
@@ -581,14 +582,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             orig_xid <- self$edat[[old_key]]$xid
             orig_yid <- self$edat[[old_key]]$yid
 
-            # Remove any additional datasets which use the same
-            # identifiers as the target dataset
-            for (ds in names(self$edat)) {
-                if (self$edat[[ds]]$xid == orig_xid || self$edat[[ds]]$yid == orig_yid) {
-                    self$edat[[ds]] <- NULL
-                }
-            }
-
             # determine new row and column ids
             xid <- ifelse(is.null(xid), orig_xid, xid)
             yid <- ifelse(is.null(yid), orig_yid, yid)
@@ -676,6 +669,14 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             if (!key %in% c(1:length(self$edat), names(self$edat))) {
                 stop(sprintf("Invalid dataset specified: %s", key))
             }
+        },
+
+        # gets string name associated with numeric dataset key, if available
+        convert_key = function(key) {
+          if (is.numeric(key) && !is.null(names(self$edat)) && names(self$edat)[key] != '') {
+            key <- names(self$edat)[key]
+          }
+          key
         },
 
         # clone object
@@ -797,8 +798,9 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 return(NULL)
             }
 
-            # convert numeric keys
-            key <- ifelse(is.numeric(key), names(self$edat)[key], key)
+            # if numeric key is provided and is associated with a string key name, use
+            # the string name instead to preserve it in updated datasets list
+            key <- private$convert_key(key)
 
             # check to make sure valid style key specified
             if (!color_key %in% names(self$edat)) {
@@ -1332,8 +1334,8 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             obj <- private$clone_()
 
             # map numeric keys to string names
-            key1 <- ifelse(is.numeric(key1), names(self$edat)[key1], key1)
-            key2 <- ifelse(is.numeric(key2), names(self$edat)[key2], key2)
+            key1 <- private$convert_key(key1)
+            key2 <- private$convert_key(key2)
 
             # determine key to use for storing result
             new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, meas), new_key)
