@@ -167,8 +167,8 @@ BioDataSet <- R6Class("BioDataSet",
           edat_keys    <- c(assay = 'assays', col_dat = 'coldata', row_dat = 'rowdata')
           # TODO: extend support for RSE objects with multiple datasets
           bioc_dat     <- SummarizedExperiment::assays(dat)[[1]]
-          bioc_row_dat <- SummarizedExperiment::rowData(dat)
-          bioc_col_dat <- SummarizedExperiment::colData(dat)
+          bioc_row_dat <- as.data.frame(SummarizedExperiment::rowData(dat))
+          bioc_col_dat <- as.data.frame(SummarizedExperiment::colData(dat))
         }
 
         # if multiple instances of the same object are passed in, append a numeric suffix
@@ -475,7 +475,7 @@ BioDataSet <- R6Class("BioDataSet",
       # entry output string
       entry_template <- sprintf("= %s : %%s (%%d x %%d) %%s\n", key_format)
 
-      cat("=========================================\n")
+      cat("=============================================\n")
       cat("=\n")
       cat(sprintf("= %s (n=%d)\n", cls, length(self$edat)))
       cat("=\n")
@@ -503,7 +503,7 @@ BioDataSet <- R6Class("BioDataSet",
         }
         cat("=\n")
       }
-      cat("=========================================\n")
+      cat("=============================================\n")
     },
 
     # Plots multidataset correlation heatmap

@@ -561,7 +561,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             # entry output string
             entry_template <- sprintf("= %s : %%s (%%d x %%d) %%s\n", key_format)
 
-            cat("=========================================\n")
+            cat("=============================================\n")
             cat("=\n")
             cat(sprintf("= %s (n = %d)\n", cls, length(self$edat)))
             cat("=\n")
@@ -572,7 +572,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 cat(sprintf(entry_template, keys[i], class(ds), nrow(ds), ncol(ds), missing_flag))
             }
             cat("=\n")
-            cat("=========================================\n")
+            cat("=============================================\n")
         },
 
         # replaces a dataset with a new one, in-place

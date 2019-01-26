@@ -443,7 +443,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             rm <- ifelse(!is.null(self$row_mdata), '(m)', '')
             cm <- ifelse(!is.null(self$col_mdata), '(m)', '')
 
-            cat("=========================================\n")
+            cat("=============================================\n")
             cat("=\n")
             cat("= EDAMatrix\n")
             cat("=\n")
@@ -457,7 +457,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
               cat(sprintf("= # missing: %d\n", num_nas))
             }
 
-            cat("=========================================\n")
+            cat("=============================================\n")
         },
 
         # Subsample dataset

@@ -4,6 +4,8 @@ output: github_document
 
 # eda - Exploratory Data Analysis for R
 
+[![Build Status](https://travis-ci.org/khughitt/eda.svg?branch=master)](https://travis-ci.org/khughitt/eda)
+
 The `eda` package for R provides general purposes, as well as domain-specific classes for
 performing basic exploratory data analysis in R. It is built on the [R6 class
 system](https://cran.r-project.org/web/packages/R6/index.html), as well as a number of other
