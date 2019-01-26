@@ -559,7 +559,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             key_format <- sprintf("%%%ds", max(nchar(keys)) + 1)
 
             # entry output string
-            entry_template <- sprintf("= %s : %%s (%%d x %%d) %s\n", key_format)
+            entry_template <- sprintf("= %s : %%s (%%d x %%d) %%s\n", key_format)
 
             cat("=========================================\n")
             cat("=\n")

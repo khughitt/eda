@@ -234,6 +234,15 @@ BioDataSet <- R6Class("BioDataSet",
       # check for valid dataset key
       private$check_key(key)
 
+      # check for valid function
+      if (!is.function(fun)) {
+        valid_funcs <- c('gsva', names(private$stat_fxns))
+
+        if (!fun %in% valid_funcs) {
+          stop("Invalid function specified.")
+        }
+      }
+
       # convert numeric keys
       key <- ifelse(is.numeric(key), names(self$edat)[key], key)
 
@@ -289,12 +298,7 @@ BioDataSet <- R6Class("BioDataSet",
         #
         if (!is.function(fun)) {
           # built-in aggregation functions
-          if (fun %in% names(private$stat_fxns)) {
-            fun <- private$stat_fxns[[fun]]
-          } else {
-            # invalid function name specified
-            stop("Invalid function specified.")
-          }
+          fun <- private$stat_fxns[[fun]]
         }
 
         # output data frame
@@ -469,7 +473,7 @@ BioDataSet <- R6Class("BioDataSet",
       key_format <- sprintf("%%%ds", max(nchar(keys)) + 1)
 
       # entry output string
-      entry_template <- sprintf("= %s : %%s (%%d x %%d) %s\n", key_format)
+      entry_template <- sprintf("= %s : %%s (%%d x %%d) %%s\n", key_format)
 
       cat("=========================================\n")
       cat("=\n")

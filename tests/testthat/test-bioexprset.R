@@ -35,7 +35,7 @@ bset <- BioExprSet$new(list(dat = mat, row_mdata = row_mdat, col_mdata = col_mda
 # Tests
 ##############################
 
-test_that("pathway statistics works", {
+test_that("pathway aggregation works", {
     expect_error(bset$aapply(key='foo', annot_key=NULL), 
                  "Invalid dataset specified: foo", fixed = TRUE)
     expect_error(bset$aapply(key=1, fun='nonexistent_stat', annot_key=NULL), 
