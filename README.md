@@ -57,17 +57,17 @@ SAMPLE_NCOLS <- 100
 
 rse_gene <- rse_gene[sample(nrow(rse_gene), SAMPLE_NROWS), sample(ncol(rse_gene), SAMPLE_NCOLS)]
 
-# convert RSE object to an BioDataSet instance
-bdat <- BioDataSet$new(rse_gene)
+# convert RSE object to an BioEDA instance
+bdat <- BioEDA$new(rse_gene)
 
 # the expression data and gene / sample metadata are eached stored as
-# separate dataset in the BioDataSet object
+# separate dataset in the BioEDA object
 bdat
 ```
 
     ## =========================================
     ## =
-    ## = BioDataSet (n=3)
+    ## = BioEDA (n=3)
     ## =
     ## =   assays : matrix (1000 x 100)
     ## =  rowdata : DataFrame (1000 x 3)

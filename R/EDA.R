@@ -1,26 +1,22 @@
-#' An R6 class representing a generic collection of datasets linked by
-#' either column or row identifiers.
-#'
-#' Includes fucntionality and methods that are relevant to all EDA child
-#' subclasses.
+#' An R6 class representing one or more datasets linked by either column or row identifiers.
 #'
 #' @import ggplot2
 #' @import viridis
 #' @importFrom R6 R6Class
 #' @importFrom reshape2 melt
 #' @importFrom NMF aheatmap nmf
-#' @name AbstractMultiDataSet
+#' @name EDA
 #'
 NULL
 
-AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
+EDA <- R6Class("EDA",
     # ------------------------------------------------------------------------
     # public
     # ------------------------------------------------------------------------
     public = list(
         edat = NULL,
 
-        # AbstractMultiDataSet constructor
+        # EDA constructor
         initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
 
             # if a single dataset was provided, wrap as a list for consistency
@@ -86,11 +82,28 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             private$title        <- title
         },
 
+        ######################################################################
+        #
+        # General
+        #
+        ######################################################################
+
         # Adds a new dataset to front of datasets list, in-place
         add = function (key, edat) {
             edat_names <- c(key, names(self$edat))
             self$edat <- c(edat, self$edat)
             names(self$edat) <- edat_names
+        },
+
+        #check_input = function() {
+            # TODO: Check to make sure all datasets overlap in keys with dat
+        #},
+
+        # Clears any cached resuts and performs garbage collection to free
+        # up memory.
+        clear_cache = function() {
+            private$cache <- list()
+            invisible(gc())
         },
 
         # update edat data and move to front of the edat list
@@ -109,12 +122,610 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             private$remove_unlinked(key)
         },
 
-        # Clears any cached resuts and performs garbage collection to free
-        # up memory.
-        clear_cache = function() {
-            private$cache <- list()
-            invisible(gc())
+        ######################################################################
+        #
+        # Dimension reduction
+        #
+        ######################################################################
+
+        # NMF
+        nmf = function(key=1, rank, ...) {
+            res <- NMF::nmf(self$edat[[key]]$dat, rank = rank, ...)@fit@W
+
+            # clone object and replace original matrix
+            obj <- private$clone_()
+            obj$update(key, res)
+            obj$edat[[key]]$ylab <- 'NMF factors'
+
+            obj
         },
+
+        # PCA
+        #
+        # Methods:
+        #
+        # 1. prcomp - regular PCA
+        #
+        pca = function(key=1, method='prcomp', ...) {
+            dat <- self$edat[[key]]$dat
+
+            # compute PCA
+            if (method == 'prcomp') {
+                # regular PCA
+                res <- prcomp(dat, ...)
+                pca_dat <- res$x
+
+                # update colnames to include variance explained
+                var_explained <- round(summary(res)$importance[2, ] * 100, 2)
+
+                colnames(pca_dat) <- sprintf("PC%d (%.2f%% variance)", 
+                                             1:ncol(pca_dat),
+                                             var_explained[1:ncol(pca_dat)])
+            } else if (method == 'kpca') {
+                # kernal PCA
+                pca_dat <- kernlab::pcv(kernlab::kpca(dat, ...))
+            } else if (method == 'nsprcomp') {
+                # sparse PCA
+                res <- nsprcomp::nsprcomp(dat, ...)
+
+                pca_dat <- res$x
+
+                # update colnames to include variance explained
+                var_explained <- round(summary(res)$importance[2, ] * 100, 2)
+
+                colnames(pca_dat) <- sprintf("PC%d (%.2f%% variance)", 
+                                             1:ncol(pca_dat),
+                                             var_explained[1:ncol(pca_dat)])
+            } else if (method == 'robpca') {
+                # robust PCA
+                pca_dat <- rospca::robpca(t(dat), ...)$loadings
+            } else if (method == 'rospca') {
+                # robust sparse PCA
+                pca_dat <- rospca::rospca(t(dat), ...)$loadings
+            }
+
+            # clone object and append result
+            obj <- private$clone_()
+            obj$update(key, pca_dat)
+            obj$edat[[key]]$ylab <- 'Priniple Components'
+
+            obj
+        },
+
+        #
+        # t-SNE
+        #
+        tsne = function(key=1, ...) {
+            dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)$Y
+            colnames(dat) <- sprintf("t-SNE Dim %d", 1:ncol(dat))
+            rownames(dat) <- rownames(self$edat[[key]]$dat)
+
+            obj <- private$clone_()
+            obj$update(key, dat)
+            obj$edat[[key]]$ylab <- 't-SNE dimensions'
+
+            obj
+        },
+
+        #
+        # Uniform Manifold Approximation and Projection (UMAP)
+        #
+        # From the UMAP docs:
+        #
+        # "Uniform Manifold Approximation and Projection (UMAP) is a dimension reduction technique
+        # that can be used for visualisation similarly to t-SNE, but also for general non-linear
+        # dimension reduction. The algorithm is founded on three assumptions about the data:
+        #  
+        #   1. The data is uniformly distributed on Riemannian manifold;
+        #   2. The Riemannian metric is locally constant (or can be approximated as such);
+        #   3. The manifold is locally connected."
+        #
+        # See: https://umap-learn.readthedocs.io/en/latest/
+        #
+        umap = function(key=1, ...) {
+          dat <- uwot::umap(self$edat[[key]]$dat, ...)
+          colnames(dat) <- sprintf("UMAP Dim %d", 1:ncol(dat))
+          rownames(dat) <- rownames(self$edat[[key]]$dat)
+
+          obj <- private$clone_()
+          obj$update(key, dat)
+          obj$edat[[key]]$ylab <- 'UMAP dimensions'
+
+          obj
+        },
+
+        ######################################################################
+        #
+        # Plotting
+        #
+        ######################################################################
+
+        # Correlation heatmap.
+        #
+        # Generates a correlation heatmap depicting the pairwise *column*
+        # correlations in the data.
+        #
+        # method String name of correlation method to use.
+        # ... Additional arguments
+        #
+        # @seealso \code{cor} for more information about supported correlation
+        #      methods.
+        plot_cor_heatmap = function(key=1, meas='pearson', 
+                                    rowside_color_var=NULL, 
+                                    rowside_color_key=NULL, 
+                                    label=NULL, label_edat=NULL, 
+                                    show_tick_labels=c(TRUE, TRUE), 
+                                    interactive=TRUE, ...) {
+                                
+            # generate correlation matrix
+            cor_mat <- private$similarity(self$edat[[key]]$dat, meas=meas, ...)
+
+            # determine labels to use
+            labels <- private$get_col_labels(key, label_var = label, label_key = label_edat)
+            colnames(cor_mat) <- labels
+            rownames(cor_mat) <- labels
+
+            # list of parameters to pass to heatmaply / aheatmap
+            params <- list(
+                x               = cor_mat,
+                showticklabels  = show_tick_labels,
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
+            )
+
+            # determine annotation colors to use, if applicable
+            colors <- private$get_color_vector(key, rowside_color_var,
+                                               rowside_color_key,
+                                               target='columns')
+
+            if (!is.null(colors)) {
+                if (is.null(rowside_color_var)) {
+                    rowside_color_var <- self$edat[[key]]$col_color
+                }
+
+                colors <- data.frame(colors)
+                names(colors) <- rowside_color_var
+
+                params[['row_side_colors']] <- colors 
+                params[['subplot_widths']] <- c(0.6, 0.1, 0.3)
+            }
+
+            # add any additional function arguments
+            params <- c(params, list(...))
+
+            private$construct_heatmap_plot(params, interactive)
+        },
+
+        # Plots multidataset correlation heatmap
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param meas Correlation measure to use (passed to `cor` function)
+        #
+        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', show_tick_labels=c(TRUE, TRUE), interactive=TRUE) {
+            # compute cross correlations
+            cor_mat <- private$cross_cor(key1, key2, meas)
+
+           # list of parameters to pass to heatmaply
+            params <- list(
+                x               = cor_mat,
+                showticklabels  = show_tick_labels,
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
+            )
+
+            # add any additional function arguments
+            private$construct_heatmap_plot(params, interactive)
+        },
+
+        # Generates a heatmap plot of the dataset
+        #
+        # ... Additional arguments
+        plot_heatmap = function(key=1,
+                                row_label=NULL, row_edat=NULL,
+                                col_label=NULL, col_edat=NULL,
+                                interactive=TRUE, ...) {
+
+            # determine row and column labels to use
+            row_labels <- private$get_row_labels(key, label_var = row_label, label_key = row_edat)
+            col_labels <- private$get_col_labels(key, label_var = col_label, label_key = col_edat)
+
+            dat <- self$edat[[key]]$dat
+
+            rownames(dat) <- row_labels
+            colnames(dat) <- col_labels
+
+            # list of parameters to pass to heatmaply
+            params <- list(
+                x               = dat,
+                subplot_widths  = c(0.65, 0.35),
+                subplot_heights = c(0.35, 0.65)
+            )
+
+            # add any additional function arguments
+            params <- c(params, list(...))
+
+            private$construct_heatmap_plot(params, interactive)
+        },
+
+        # Generates a two-dimensional PCA plot from the dataset
+        #
+        # pcx integer PC number to plot along x-axis (default: 1)
+        # pcy integer PC number to plot along x-axis (default: 2)
+        # scale Whether or not to scale variables prior to performing
+        #     pca; passed to `prcomp` function.
+        # color Column metadata field to use for coloring points.
+        # shape Column metadata field to use to assign shapes to points
+        # title Plot title.
+        # text_labels Whether or not to include individual point labels
+        #     plot (default: FALSE).
+        # ...
+        #
+        # return ggplot plot instance
+        plot_pca = function(key=1, method='prcomp', pcx=1, pcy=2,
+                            color_var=NULL, color_key=NULL,
+                            shape_var=NULL, shape_key=NULL,
+                            label_var=NULL, label_key=NULL,
+                            title=NULL, text_labels=NULL, ...) {
+
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
+            # plot title
+            if (is.null(title)) {
+                if (private$title != '') {
+                    title <- sprintf("PCA: %s (%s)", key, private$title)
+                } else {
+                    title <- sprintf("PCA: %s", key)
+                }
+            }
+
+            self$pca(key = key, method = method, ...)$scatter_plot(
+                key = 1, x = pcx, y = pcy,
+                color_var = color_var, color_key = color_key, 
+                shape_var = shape_var, shape_key = shape_key,
+                label_var = label_var, label_key = label_key, 
+                title = title, text_labels = text_labels)
+        },
+
+        # Generates a two-dimensional t-SNE plot from the dataset
+        #
+        # color Column metadata field to use for coloring points.
+        # shape Column metadata field to use to assign shapes to points
+        # title Plot title.
+        # text_labels Whether or not to include individual point labels
+        #     plot (default: FALSE).
+        # ...
+        #
+        # return ggplot plot instance
+        plot_tsne = function(key=1, dim1=1, dim2=2,
+                             color_var=NULL, color_key=NULL,
+                             shape_var=NULL, shape_key=NULL,
+                             label_var=NULL, label_key=NULL,
+                             title=NULL, text_labels=NULL, ...) {
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
+            # plot title
+            if (is.null(title)) {
+                if (private$title != '') {
+                    title <- sprintf("t-SNE: %s (%s)", key, private$title)
+                } else {
+                    title <- sprintf("t-SNE: %s", key)
+                }
+            }
+
+            self$tsne(key = key, ...)$scatter_plot(
+                key = 1, x = dim1, y = dim2,
+                color_var = color_var, color_key = color_key, 
+                shape_var = shape_var, shape_key = shape_key,
+                label_var = label_var, label_key = label_key, 
+                title = title, text_labels = text_labels)
+        },
+
+        # Generates a two-dimensional UMAP plot from the dataset
+        #
+        # color Column metadata field to use for coloring points.
+        # shape Column metadata field to use to assign shapes to points
+        # title Plot title.
+        # text_labels Whether or not to include individual point labels
+        #     plot (default: FALSE).
+        # ...
+        #
+        # return ggplot plot instance
+        plot_umap = function(key=1, dim1=1, dim2=2,
+                             color_var=NULL, color_key=NULL,
+                             shape_var=NULL, shape_key=NULL,
+                             label_var=NULL, label_key=NULL,
+                             title=NULL, text_labels=NULL, ...) {
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
+            # plot title
+            if (is.null(title)) {
+                if (private$title != '') {
+                    title <- sprintf("t-SNE: %s (%s)", key, private$title)
+                } else {
+                    title <- sprintf("t-SNE: %s", key)
+                }
+            }
+
+            self$umap(key = key, ...)$scatter_plot(
+                key = 1, x = dim1, y = dim2,
+                color_var = color_var, color_key = color_key, 
+                shape_var = shape_var, shape_key = shape_key,
+                label_var = label_var, label_key = label_key, 
+                title = title, text_labels = text_labels)
+        },
+
+        # Plot median pairwise column correlations
+        #
+        # Plots the median correlation of each variable (column). This is
+        # useful for visually inspecting columns for possible outliers, when
+        # the total number of columns is relatively small.
+        #
+        # @author V. Keith Hughitt, \email{keith.hughitt@nih.gov}
+        #
+        # return None
+        plot_pairwise_column_cors = function(key=1,
+                                             color_var=NULL, color_key=NULL,
+                                             label_var=NULL, label_key=NULL,
+                                             title="", meas='pearson',
+                                             mar=c(12, 6, 4, 6), ...) {
+            dat <- self$edat[[key]]$dat
+
+            # compute pairwise variable correlations
+            cor_mat <- private$similarity(dat, meas = meas, ...)
+            median_pairwise_cor <- apply(cor_mat, 1, median)
+
+            quantiles <- quantile(median_pairwise_cor, probs = c(0.25, 0.75))
+            iqr <- diff(quantiles)
+
+            #outlimit
+            cutoff <- quantiles[1] - 1.5 * iqr
+
+            ylimit <- c(pmin(min(median_pairwise_cor), cutoff),
+                        max(median_pairwise_cor))
+
+            # determine colors and labels to use
+            color_vector <- private$get_row_colors(key, color_var, color_key)
+            label_vector <- private$get_row_labels(key, label_var, label_key)
+
+            # variable labels
+            if (!all(colnames(dat) == label_vector)) {
+                var_labels <- sprintf("%s (%s)", colnames(dat), label_vector)
+            } else {
+                var_labels <- colnames(dat)
+            }
+
+            # render plot
+            par(mar = mar)
+            plot(median_pairwise_cor, xaxt = "n", ylim = ylimit,
+                 ylab = "Median Pairwise Correlation", xlab = "", main = title,
+                 col = color_vector, pch = 16, cex = 2.2)
+            axis(side = 1, at = seq(along = median_pairwise_cor),
+                 labels = var_labels, las = 2)
+            abline(h = cutoff, lty = 2)
+            abline(v = 1:length(var_labels), lty = 3, col = "black")
+        },
+
+        # creates a scatter plot of from two columns in a specified dataset
+        scatter_plot = function(key=1, x=1, y=2, 
+                                color_var=NULL, color_key=NULL,
+                                shape_var=NULL, shape_key=NULL, 
+                                label_var=NULL, label_key=NULL, 
+                                title=NULL, text_labels=NULL) {
+
+            dat <- as.data.frame(self$edat[[key]]$dat[, c(x, y)])
+
+            # get color/shape styles
+            styles <- private$get_geom_point_styles(key,
+                                                    color_var, color_key,
+                                                    shape_var, shape_key)
+
+            if (!is.null(styles$color)) {
+                dat <- cbind(dat, color_var = styles$color)
+            }
+            if (!is.null(styles$shape)) {
+                dat <- cbind(dat, shape_var = styles$shape)
+            }
+
+            # generate scatter plot
+            xid <- sprintf("`%s`", colnames(dat)[1])
+            yid <- sprintf("`%s`", colnames(dat)[2])
+
+            plt <- ggplot(dat, aes_string(xid, yid)) +
+                geom_point(stat = "identity", styles$aes, size = 1) +
+                ggtitle(title) +
+                private$ggplot_theme() +
+                theme(axis.ticks = element_blank(),
+                      axis.text.x = element_text(angle = -90))
+
+            # text labels
+            if (is.null(text_labels)) {
+                # be default, show text labels for plots with 50 or fewer points
+                text_labels <- nrow(dat) <= 50
+            }
+            if (text_labels) {
+                plt <- plt + geom_text(aes_q(label = rownames(dat)), angle = 45, size = 1, vjust = 2)
+            }
+
+            # legend labels
+            if (length(styles$labels) > 0) {
+                plt <- plt + styles$labels
+            }
+            plt
+        },
+
+        ######################################################################
+        #
+        # Filtering and outlier detection
+        #
+        ######################################################################
+
+        # Applies a filter to rows of the dataset
+        #
+        # @param mask Logical vector of length equal to the number of rows in
+        #      the dataset.
+        #
+        # @return A filtered version of the original EDADataSet object.
+        filter_rows = function(key=1, mask) {
+            obj <- private$clone_()
+            obj$update(key, obj$edat[[key]]$dat[mask,, drop = FALSE])
+            obj
+        },
+
+        # Applies a filter to columns of the dataset
+        #
+        # @param mask Logical vector of length equal to the number of columns
+        #     in the dataset.
+        #
+        # @return A filtered version of the original EDADataSet object.
+        filter_cols = function(key=1, mask) {
+            obj <- private$clone_()
+            obj$update(key, obj$edat[[key]]$dat[, mask, drop = FALSE])
+            obj
+        },
+
+        # Detects column outliers in the dataset
+        #
+        # Computes pairwise correlations between all columns in the dataset.
+        # Columns whose average pairwise correlation with all other columns
+        # is greater than `num_sd` standard deviations from the average
+        # average correlation are considered to be outliers.
+        #
+        # num_sd    Number of standard deviations to use to determine outliers.
+        # ctend     Measure of central tendency to use (default: median)
+        # method
+        #
+        # return Character vector or column ids for columns with low
+        #     average pairwise correlations.
+        detect_col_outliers = function(key=1, num_sd=2, ctend=median, meas='pearson', ...) {
+            # TODO: include correlation in results?
+            # TODO: Write alternative version for data frame datasets?
+            dat <- self$edat[[key]]$dat
+            cor_mat <- private$similarity(dat, meas = meas, ...)
+
+            avg_column_cors <- apply(cor_mat, 1, ctend)
+            cutoff <- mean(avg_column_cors) - (num_sd * sd(avg_column_cors))
+            colnames(dat)[avg_column_cors < cutoff]
+        },
+
+        # Detects row outliers in the dataset
+        #
+        # Computes pairwise correlations between all rows in the dataset.
+        # Rows whose median pairwise correlation with all other rows
+        # is greater than `num_sd` standard deviations from the average
+        # median correlation are considered to be outliers.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return Character vector or row ids for rows with low
+        #     average pairwise correlations.
+        detect_row_outliers = function(key=1, num_sd=2, ctend=median, meas='pearson', ...) {
+            dat <- self$edat[[key]]$dat
+            cor_mat <- private$similarity(t(dat), meas = meas, ...)
+
+            avg_row_cors <- apply(cor_mat, 1, ctend)
+            cutoff <- mean(avg_row_cors) - num_sd * sd(avg_row_cors)
+            rownames(dat)[avg_row_cors < cutoff]
+        },
+
+        # Removes column outliers from the dataset
+        #
+        # Computes pairwise correlations between all columns in the dataset.
+        # Columns whose median pairwise correlation with all other columns
+        # is greater than `num_sd` standard deviations from the average
+        # median correlation are removed.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return A filtered version of the original EDAMatrix object.
+        filter_col_outliers = function(key=1, num_sd=2, ctend=median, meas='pearson') {
+            obj <- private$clone_()
+            outliers <- obj$detect_col_outliers(key, num_sd, avg, meas)
+            obj$filter_cols(!colnames(obj$dat) %in% outliers)
+        },
+
+        # Removes row outliers from the dataset
+        #
+        # Computes pairwise correlations between all rows in the dataset.
+        # rows whose median pairwise correlation with all other rows
+        # is greater than `num_sd` standard deviations from the average
+        # median correlation are removed.
+        #
+        # num_sd Number of standard deviations to use to determine
+        #      outliers.
+        #
+        # return A filtered version of the original EDAMatrix object.
+        filter_row_outliers = function(num_sd=2, ctend=median, meas='pearson') {
+            obj <- private$clone_()
+            outliers <- obj$detect_row_outliers(num_sd, ctend, meas)
+            obj$filter_rows(!rownames(obj$dat) %in% outliers)
+        },
+
+        ######################################################################
+        #
+        # Transformations
+        #
+        ######################################################################
+
+        # Log-transforms data
+        #
+        # base Numeric logarithm base to use (default: e)
+        # offset Numeric offset to apply to data before taking the
+        #     logarithm (default: 0)
+        #
+        # return A log-transformed version of the object.
+        log = function(key=1, base=exp(1), offset=0) {
+            obj <- private$clone_()
+            obj$update(key, log(obj$edat[[key]]$dat + offset, base))
+            obj
+        },
+
+        # Log(x + 1) transforms data
+        #
+        # return A log(x + 1) transformed version of the object.
+        log1p = function() {
+            obj <- private$clone_()
+            obj$update(key, log(obj$edat[[key]]$dat + 1))
+            obj
+        },
+
+        # computes matrix of z-scores
+        zscores = function(key=1, target='columns') {
+            # compute z-scores
+            if (target == 'columns') {
+                dat <- scale(self$edat[[key]]$dat)
+            } else {
+                dat <- t(scale(t(self$edat[[key]]$dat)))
+            }
+
+            attr(dat, 'scaled:scale') <- NULL
+            attr(dat, 'scaled:center') <- NULL
+
+            # clone object and add new dataset
+            obj <- private$clone_()
+
+            # convert numeric key to string name, if possible
+            key <- private$convert_key(key)
+
+            # determine key to use for storing result
+            new_key <- sprintf('%s_zscores', key)
+
+            # add new matrix to front of edat list and return
+            obj$add(new_key, EDADat$new(dat, xid = self$edat[[key]]$xid, yid = self$edat[[key]]$yid))
+
+            obj
+        },
+
+        ######################################################################
+        #
+        # Clustering
+        #
+        ######################################################################
 
         # cluster dataset and return new object instance which including the
         # results
@@ -203,33 +814,15 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             obj
         },
 
+        ######################################################################
+        #
+        # Correlations
+        #
+        ######################################################################
+
         # Measure similarity between columns
         cor = function(key=1, meas='pearson', ...) {
             private$similarity(self$edat[[key]]$dat, meas=meas, ...)
-        },
-
-        # Applies a filter to rows of the dataset
-        #
-        # @param mask Logical vector of length equal to the number of rows in
-        #      the dataset.
-        #
-        # @return A filtered version of the original EDADataSet object.
-        filter_rows = function(key=1, mask) {
-            obj <- private$clone_()
-            obj$update(key, obj$edat[[key]]$dat[mask,, drop = FALSE])
-            obj
-        },
-
-        # Applies a filter to columns of the dataset
-        #
-        # @param mask Logical vector of length equal to the number of columns
-        #     in the dataset.
-        #
-        # @return A filtered version of the original EDADataSet object.
-        filter_cols = function(key=1, mask) {
-            obj <- private$clone_()
-            obj$update(key, obj$edat[[key]]$dat[, mask, drop = FALSE])
-            obj
         },
 
         # Imputes missing values in the dataset
@@ -577,19 +1170,19 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         },
 
         # replaces a dataset with a new one, in-place
-        replace = function(old_key, new_key, dat, xid=NULL, yid=NULL) {
-            # Assume original dataset row and column ids, unless specified
-            orig_xid <- self$edat[[old_key]]$xid
-            orig_yid <- self$edat[[old_key]]$yid
+        #replace = function(old_key, new_key, dat, xid=NULL, yid=NULL) {
+        #    # Assume original dataset row and column ids, unless specified
+        #    orig_xid <- self$edat[[old_key]]$xid
+        #    orig_yid <- self$edat[[old_key]]$yid
 
-            # determine new row and column ids
-            xid <- ifelse(is.null(xid), orig_xid, xid)
-            yid <- ifelse(is.null(yid), orig_yid, yid)
+        #    # determine new row and column ids
+        #    xid <- ifelse(is.null(xid), orig_xid, xid)
+        #    yid <- ifelse(is.null(yid), orig_yid, yid)
 
-            # replace original dataset with annotation stat result matrix
-            self$edat[[old_key]] <- NULL
-            self$edat[[new_key]] <- EDADat$new(dat, xid=xid, yid=yid)
-        },
+        #    # replace original dataset with annotation stat result matrix
+        #    self$edat[[old_key]] <- NULL
+        #    self$edat[[new_key]] <- EDADat$new(dat, xid=xid, yid=yid)
+        #},
 
         # transpose (out-of-place)
         t = function(key=NULL) {
@@ -609,6 +1202,126 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 self$edat[[id]]$transpose()
                 }
             }
+        },
+
+        ######################################################################
+        #
+        # Cross-data analyses
+        #
+        ######################################################################
+
+        # Computes cross-dataset correlation matrix
+        #
+        # Measures similarity between rows or columns in two datasets which
+        # share the same set of column or row ids.
+        #
+        # @param key1 Numeric or character index of first dataset to use
+        # @param key2 Numeric or character index of second dataset to use
+        # @param meas Correlation measure to use. Supported options:
+        #   - kendall  (Kendall correlation)
+        #   - pearson  (Pearson correlation)
+        #   - spearman (Spearman correlation)
+        #   - lm       (Linear model)
+        #   - cmi      (Mututal information)
+        #
+        # @return Matrix of pairwise dataset1 - dataset2 correlations
+        cross_cor = function(key1=1, key2=2, meas='pearson', new_key=NULL, ...) {
+            # shortcuts to edats
+            e1 <- self$edat[[key1]]
+            e2 <- self$edat[[key2]]
+
+            # make sure datasets share some common ids
+            if (length(unique(c(e1$xid, e2$xid, e1$yid, e2$yid))) == 4) {
+                stop("Specified datasets must share a common axis.")
+            }
+
+            # determine orientation to use for comparison; similarity is
+            # measured across columns, so data will be rearranged such that
+            # shared ids are along rows (then column 1 from dat1 can be
+            # compared with column 1 from dat2, etc.)
+            dat1_shared_axis <- ifelse(e1$xid == e2$xid || e1$xid == e2$yid, 'rows', 'columns')
+            dat2_shared_axis <- ifelse(e2$xid == e1$xid || e2$xid == e1$yid, 'rows', 'columns')
+
+            # get row-oriented datasets and associated style information
+            if (dat1_shared_axis == 'rows') {
+                # if dat1 is already oriented with shared row ids, then it
+                # is in the expected orientation
+                dat1 <- e1$dat
+
+                # each row in the resulting correlation matrix will correspond
+                # to a column in dat1
+                xid <- e1$yid
+
+                # similarly, the styles and labels for the rows in the cor
+                # matrix correspond to that for the columns in dat1
+                xcolor <- e1$col_color
+                xshape <- e1$col_shape
+                xlabel <- e1$col_label
+                xedat  <- e1$col_edat
+            } else {
+                # if dat1 shared its column names with dat2, transpose to
+                # match expected orientation
+                dat1 <- e1$tdat
+
+                # in this case, each row in the resulting dataset will correspond
+                # to a single row in dat1
+                xid <- e1$xid
+
+                xcolor <- e1$row_color
+                xshape <- e1$row_shape
+                xlabel <- e1$row_label
+                xedat  <- e1$row_edat
+            }
+
+            # similar logic to above, but for dat2 which will appear as column
+            # entries in the resulting correlation matrix
+            if (dat2_shared_axis == 'rows') {
+                dat2 <- e2$dat
+                yid <- e1$yid
+
+                ycolor <- e2$col_color
+                yshape <- e2$col_shape
+                ylabel <- e2$col_label
+                yedat  <- e2$col_edat
+            } else {
+                dat2 <- e2$tdat
+                yid  <- e2$xid
+
+                ycolor <- e2$row_color
+                yshape <- e2$row_shape
+                ylabel <- e2$row_label
+                yedat  <- e2$row_edat
+            }
+
+            # normalize order of shared axis entries (ordered as rows now) and
+            # only operate on shared entries
+            row_ind <- intersect(rownames(dat1), rownames(dat2))
+
+            dat1 <- dat1[order(match(rownames(dat1), row_ind)),, drop = FALSE]
+            dat2 <- dat2[order(match(rownames(dat2), row_ind)),, drop = FALSE]
+
+            # measure similarity between rows in datasets 1 and rows in dataset 2
+            cor_mat <- private$similarity(dat1, dat2, meas = meas, ...)
+
+            # clone object and add new dataset
+            obj <- private$clone_()
+
+            # map numeric keys to string names
+            key1 <- private$convert_key(key1)
+            key2 <- private$convert_key(key2)
+
+            # determine key to use for storing result
+            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, meas), new_key)
+
+            # add new matrix to front of edat list and return
+            obj$add(new_key,
+                    EDADat$new(cor_mat, xid = xid, yid = yid,
+                               row_color = xcolor, row_shape = xshape,
+                               row_label = xlabel, row_edat  = xedat,
+                               col_color = ycolor, col_shape = yshape,
+                               col_label = ylabel, col_edat  = yedat))
+
+            obj
         }
     ),
 
@@ -624,7 +1337,7 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
         cache        = list(),
 
         # Helper functions for computing various statistics; used by the
-        # `AbstractMultiDataSet$capply` and `BioDataSet$aapply`
+        # `EDA$capply` and `BioEDA$aapply`
         # method.
         stat_fxns = list(
             'num_nonzero' = function(x) {
@@ -671,6 +1384,45 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
         },
 
+        # Creates a static or interactive heatmap plot
+        #
+        # @param params A list of plotting parameters
+        # @param interactive Logical indicating whether an interactive heatmap
+        #     should be generated.
+        construct_heatmap_plot = function(params, interactive) {
+            # interactive heatmap
+            if (interactive) {
+                return(do.call(heatmaply::heatmaply, params))
+            }
+
+            # rename column and row annotation matrix parameters, if present
+            if ('col_side_colors' %in% names(params)) {
+                params$annCol <- params$col_side_colors
+            }
+
+            if ('row_side_colors' %in% names(params)) {
+                params$annRow <- params$row_side_colors
+            }
+
+            # remove irrelevant heatmaply function arguments
+            heatmaply_args <- c('showticklabels', 'subplot_widths',
+                                'subplot_heights', 'col_side_colors',
+                                'row_side_colors')
+            params <- params[!names(params) %in% heatmaply_args]
+
+            # default to viridis color scheme
+            if (!'color' %in% names(params)) {
+                params$color <- viridis(100)
+            }
+
+            # 2018/04/17 - adding border just around heatmap not working at
+            # this time and results in warnings being generated
+            #params$border <- list(matrix = TRUE)
+
+            do.call(NMF::aheatmap, params)
+        },
+
+
         # gets string name associated with numeric dataset key, if available
         convert_key = function(key) {
           if (is.numeric(key) && !is.null(names(self$edat)) && names(self$edat)[key] != '') {
@@ -700,6 +1452,36 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
                 value
             }
         },
+
+        # Removes any datasets which are not linked to the target dataset by
+        # either shared row or column ids
+        remove_unlinked = function(key) {
+            # iterate over datasets
+            edat_keys <- names(self$edat)
+
+            if (is.numeric(key)) {
+                edat_keys <- edat_keys[-key]
+            } else {
+                edat_keys <- edat_keys[names(edat_keys) != key]
+            }
+
+            for (eid in edat_keys) {
+                # create a vector of axis ids for all other datasets
+                axis_ids <- c()
+
+                for (edat in self$edat[names(self$edat) != eid]) {
+                    axis_ids <- c(axis_ids, edat$xid, edat$yid)
+                }
+
+                # if a dataset does not overlap in ids with any of the other
+                # datasets (e.g. after a projection which replaces the original
+                # dataset), remove it.
+                if (length(intersect(axis_ids, c(self$edat[[eid]]$xid, self$edat[[eid]]$yid))) == 0) {
+                    self$edat[[eid]] <- NULL
+                }
+            }
+        },
+
 
         # Generates ggplot aesthetics for bar plots
         #
@@ -1233,213 +2015,6 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
             }
         ),
 
-        check_input = function() {
-            # TODO: Check to make sure all datasets overlap in keys with dat
-        },
-
-        # Computes cross-dataset correlation matrix
-        #
-        # Measures similarity between rows or columns in two datasets which
-        # share the same set of column or row ids.
-        #
-        # @param key1 Numeric or character index of first dataset to use
-        # @param key2 Numeric or character index of second dataset to use
-        # @param meas Correlation measure to use. Supported options:
-        #   - kendall  (Kendall correlation)
-        #   - pearson  (Pearson correlation)
-        #   - spearman (Spearman correlation)
-        #   - lm       (Linear model)
-        #   - cmi      (Mututal information)
-        #
-        # @return Matrix of pairwise dataset1 - dataset2 correlations
-        compute_cross_cor = function(key1=1, key2=2, meas='pearson', new_key=NULL, ...) {
-            # shortcuts to edats
-            e1 <- self$edat[[key1]]
-            e2 <- self$edat[[key2]]
-
-            # make sure datasets share some common ids
-            if (length(unique(c(e1$xid, e2$xid, e1$yid, e2$yid))) == 4) {
-                stop("Specified datasets must share a common axis.")
-            }
-
-            # determine orientation to use for comparison; similarity is
-            # measured across columns, so data will be rearranged such that
-            # shared ids are along rows (then column 1 from dat1 can be
-            # compared with column 1 from dat2, etc.)
-            dat1_shared_axis <- ifelse(e1$xid == e2$xid || e1$xid == e2$yid, 'rows', 'columns')
-            dat2_shared_axis <- ifelse(e2$xid == e1$xid || e2$xid == e1$yid, 'rows', 'columns')
-
-            # get row-oriented datasets and associated style information
-            if (dat1_shared_axis == 'rows') {
-                # if dat1 is already oriented with shared row ids, then it
-                # is in the expected orientation
-                dat1 <- e1$dat
-
-                # each row in the resulting correlation matrix will correspond
-                # to a column in dat1
-                xid <- e1$yid
-
-                # similarly, the styles and labels for the rows in the cor
-                # matrix correspond to that for the columns in dat1
-                xcolor <- e1$col_color
-                xshape <- e1$col_shape
-                xlabel <- e1$col_label
-                xedat  <- e1$col_edat
-            } else {
-                # if dat1 shared its column names with dat2, transpose to
-                # match expected orientation
-                dat1 <- e1$tdat
-
-                # in this case, each row in the resulting dataset will correspond
-                # to a single row in dat1
-                xid <- e1$xid
-
-                xcolor <- e1$row_color
-                xshape <- e1$row_shape
-                xlabel <- e1$row_label
-                xedat  <- e1$row_edat
-            }
-
-            # similar logic to above, but for dat2 which will appear as column
-            # entries in the resulting correlation matrix
-            if (dat2_shared_axis == 'rows') {
-                dat2 <- e2$dat
-                yid <- e1$yid
-
-                ycolor <- e2$col_color
-                yshape <- e2$col_shape
-                ylabel <- e2$col_label
-                yedat  <- e2$col_edat
-            } else {
-                dat2 <- e2$tdat
-                yid  <- e2$xid
-
-                ycolor <- e2$row_color
-                yshape <- e2$row_shape
-                ylabel <- e2$row_label
-                yedat  <- e2$row_edat
-            }
-
-            # normalize order of shared axis entries (ordered as rows now) and
-            # only operate on shared entries
-            row_ind <- intersect(rownames(dat1), rownames(dat2))
-
-            dat1 <- dat1[order(match(rownames(dat1), row_ind)),, drop = FALSE]
-            dat2 <- dat2[order(match(rownames(dat2), row_ind)),, drop = FALSE]
-
-            # measure similarity between rows in datasets 1 and rows in dataset 2
-            cor_mat <- private$similarity(dat1, dat2, meas = meas, ...)
-
-            # clone object and add new dataset
-            obj <- private$clone_()
-
-            # map numeric keys to string names
-            key1 <- private$convert_key(key1)
-            key2 <- private$convert_key(key2)
-
-            # determine key to use for storing result
-            new_key <- ifelse(is.null(new_key), sprintf('%s_%s_%s', key1, key2, meas), new_key)
-
-            # add new matrix to front of edat list and return
-            obj$add(new_key,
-                    EDADat$new(cor_mat, xid = xid, yid = yid,
-                               row_color = xcolor, row_shape = xshape,
-                               row_label = xlabel, row_edat  = xedat,
-                               col_color = ycolor, col_shape = yshape,
-                               col_label = ylabel, col_edat  = yedat))
-
-            obj
-        },
-
-        # Plots multidataset correlation heatmap
-        #
-        # @param key1 Numeric or character index of first dataset to use
-        # @param key2 Numeric or character index of second dataset to use
-        # @param meas Correlation measure to use (passed to `cor` function)
-        #
-        plot_cross_cor_heatmap = function(key1=1, key2=2, meas='pearson', show_tick_labels=c(TRUE, TRUE), interactive=TRUE) {
-            # compute cross correlations
-            cor_mat <- private$compute_cross_cor(key1, key2, meas)
-
-           # list of parameters to pass to heatmaply
-            params <- list(
-                x               = cor_mat,
-                showticklabels  = show_tick_labels,
-                subplot_widths  = c(0.65, 0.35),
-                subplot_heights = c(0.35, 0.65)
-            )
-
-            # add any additional function arguments
-            private$construct_heatmap_plot(params, interactive)
-        },
-
-        # Creates a static or interactive heatmap plot
-        #
-        # @param params A list of plotting parameters
-        # @param interactive Logical indicating whether an interactive heatmap
-        #     should be generated.
-        construct_heatmap_plot = function(params, interactive) {
-            # interactive heatmap
-            if (interactive) {
-                return(do.call(heatmaply::heatmaply, params))
-            }
-
-            # rename column and row annotation matrix parameters, if present
-            if ('col_side_colors' %in% names(params)) {
-                params$annCol <- params$col_side_colors
-            }
-
-            if ('row_side_colors' %in% names(params)) {
-                params$annRow <- params$row_side_colors
-            }
-
-            # remove irrelevant heatmaply function arguments
-            heatmaply_args <- c('showticklabels', 'subplot_widths',
-                                'subplot_heights', 'col_side_colors',
-                                'row_side_colors')
-            params <- params[!names(params) %in% heatmaply_args]
-
-            # default to viridis color scheme
-            if (!'color' %in% names(params)) {
-                params$color <- viridis(100)
-            }
-
-            # 2018/04/17 - adding border just around heatmap not working at
-            # this time and results in warnings being generated
-            #params$border <- list(matrix = TRUE)
-
-            do.call(NMF::aheatmap, params)
-        },
-
-        # Removes any datasets which are not linked to the target dataset by
-        # either shared row or column ids
-        remove_unlinked = function(key) {
-            # iterate over datasets
-            edat_keys <- names(self$edat)
-
-            if (is.numeric(key)) {
-                edat_keys <- edat_keys[-key]
-            } else {
-                edat_keys <- edat_keys[names(edat_keys) != key]
-            }
-
-            for (eid in edat_keys) {
-                # create a vector of axis ids for all other datasets
-                axis_ids <- c()
-
-                for (edat in self$edat[names(self$edat) != eid]) {
-                    axis_ids <- c(axis_ids, edat$xid, edat$yid)
-                }
-
-                # if a dataset does not overlap in ids with any of the other
-                # datasets (e.g. after a projection which replaces the original
-                # dataset), remove it.
-                if (length(intersect(axis_ids, c(self$edat[[eid]]$xid, self$edat[[eid]]$yid))) == 0) {
-                    self$edat[[eid]] <- NULL
-                }
-            }
-        },
-
         #
         # Measures similarity between columns within or across datasets
         #
@@ -1479,5 +2054,16 @@ AbstractMultiDataSet <- R6Class("AbstractMultiDataSet",
 
             cor_mat
         }
+    ),
+
+    # ------------------------------------------------------------------------
+    # active
+    # ------------------------------------------------------------------------
+    active = list(
+        # Make list of datasets publically visible 
+        datasets = function() {
+            lapply(self$edat, function(x) { x$dat })
+        }
     )
+
 )

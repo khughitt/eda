@@ -12,8 +12,7 @@ and representation.
 The purpose of this class is to provide a way for each atomic dataset to
 carry its own relevant metadata, as needed by the other major \code{eda} classes.
 This class is different from all other \code{eda} classes in that it does not
-inherit from \code{AbstractMultiDataSet}, and, aside from being passed into other
-\code{eda} class constructors, it is not intended to be used directly by the user.
+inherit from \code{EDA} and is not intended to be used directly by the user.
 }
 \section{Arguments}{
 

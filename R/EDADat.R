@@ -7,8 +7,7 @@
 #' The purpose of this class is to provide a way for each atomic dataset to
 #' carry its own relevant metadata, as needed by the other major `eda` classes.
 #' This class is different from all other `eda` classes in that it does not
-#' inherit from `AbstractMultiDataSet`, and, aside from being passed into other
-#' `eda` class constructors, it is not intended to be used directly by the user.
+#' inherit from `EDA` and is not intended to be used directly by the user.
 #'
 #' @section Arguments:
 #' - `dat`: A data frame or matrix

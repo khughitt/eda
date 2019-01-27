@@ -1,7 +1,7 @@
 #
-# AbstractMultiDataSet Unit Tests
+# EDA Unit Tests
 #
-context("AbstractMultiDataSet")
+context("EDA")
 
 ##############################
 # Setup
@@ -82,13 +82,13 @@ dat4 <- data.frame(
     row.names  = c('obs05', 'obs06', 'obs04')
 )
 
-# next, we will create instances of two subclasses of AbstractMultiDataset,
+# next, we will create instances of two subclasses of EDA
 # in order to test various inherited methods.
 dats <- rbind(dat1, dat2[, colnames(dat1)])
 
-sds <- EDAMatrix$new(dats)
+#sds <- EDAMatrix$new(dats)
 
-mds <- EDAMultiMatrix$new(list(a=dat1,
+mds <- EDA$new(list(a=dat1,
                                b=EDADat$new(dat2, xid = 'b_x', yid='a_y',
                                             row_label = 'obs_labels', row_edat = 'd',
                                             col_label = 'var_labels', col_edat = 'c'),
@@ -101,7 +101,7 @@ mds <- EDAMultiMatrix$new(list(a=dat1,
 # Tests
 ##############################
 
-# AbstractMultiDataSet construction
+# EDA construction
 test_that("initialization works", {
     expect_equal(mds$datasets[[1]], dat1)
     expect_equal(mds$datasets[[2]], dat2)
@@ -109,7 +109,7 @@ test_that("initialization works", {
 
 # Filtering
 test_that("Filtering works", {
-    expect_equal(sds$filter_rows(rep(c(T, F), 3))$dat, dats[rep(c(T, F), 3),])
+    #expect_equal(sds$filter_rows(rep(c(T, F), 3))$dat, dats[rep(c(T, F), 3),])
     expect_equal(mds$filter_cols(1, c(F, T, F, T, F))$datasets[[1]],
                  dat1[, c(F, T, F, T, F)])
 })
@@ -145,9 +145,9 @@ test_that("Correlation measures work", {
     colnames(lm_mat) <- colnames(combined_dat)
 
     # cor() operates on columns, so we transpose before comparing
-    expect_equal(sds$t()$cor(meas = 'pearson'), cor_mat)
-    expect_equal(sds$t()$cor(meas = 'cmi'),     mut_mat)
-    expect_equal(expect_warning(sds$t()$cor(meas = 'lm')), lm_mat)
+    #expect_equal(sds$t()$cor(meas = 'pearson'), cor_mat)
+    #expect_equal(sds$t()$cor(meas = 'cmi'),     mut_mat)
+    #expect_equal(expect_warning(sds$t()$cor(meas = 'lm')), lm_mat)
 
     #
     # Cross correlation
@@ -191,8 +191,8 @@ test_that("Correlation measures work", {
     colnames(b) <- colnames(a)
 
     # column order shouldn't impact cross cor results
-    em1 <- EDAMultiMatrix$new(list(a=a, b=EDADat$new(b, yid='a_y')))
-    em2 <- EDAMultiMatrix$new(list(a=a, b=EDADat$new(b[, sample(4)], yid='a_y')))
+    em1 <- EDA$new(list(a=a, b=EDADat$new(b, yid='a_y')))
+    em2 <- EDA$new(list(a=a, b=EDADat$new(b[, sample(4)], yid='a_y')))
 
     expect_equal(em1$cross_cor('a', 'b')$datasets[['a_b_pearson']],
                  em2$cross_cor('a', 'b')$datasets[['a_b_pearson']])
@@ -230,27 +230,27 @@ test_that("Sub-sampling works", {
     colnames(row_mdat) <- paste0('row_mdat_col_', 1:ncol(row_mdat))
     colnames(col_mdat) <- paste0('col_mdat_col_', 1:ncol(col_mdat))
 
-    edm <- EDAMatrix$new(mat, row_mdata=row_mdat, col_mdata=col_mdat)
+    #edm <- EDAMatrix$new(mat, row_mdata=row_mdat, col_mdata=col_mdat)
 
     # create sub-sampled verison of data
-    edm_s1 <- edm$subsample(10, 3)
+    #edm_s1 <- edm$subsample(10, 3)
 
-    expect_equal(dim(edm_s1$dat), c(10, 3))
-    expect_equal(dim(edm_s1$row_mdata), c(10, 3))
-    expect_equal(dim(edm_s1$col_mdata), c(3, 1))
-    expect_equal(sort(rownames(edm_s1$dat)), sort(rownames(edm_s1$row_mdata)))
-    expect_equal(sort(colnames(edm_s1$dat)), sort(rownames(edm_s1$col_mdata)))
+    #expect_equal(dim(edm_s1$dat), c(10, 3))
+    #expect_equal(dim(edm_s1$row_mdata), c(10, 3))
+    #expect_equal(dim(edm_s1$col_mdata), c(3, 1))
+    #expect_equal(sort(rownames(edm_s1$dat)), sort(rownames(edm_s1$row_mdata)))
+    #expect_equal(sort(colnames(edm_s1$dat)), sort(rownames(edm_s1$col_mdata)))
 
-    # transpose and then sub-sample
-    edm_s2 <- edm$t()$subsample(3, 10)
+    ## transpose and then sub-sample
+    #edm_s2 <- edm$t()$subsample(3, 10)
 
-    expect_equal(dim(edm_s2$dat), c(3, 10))
-    expect_equal(dim(edm_s2$row_mdata), c(3, 1))
-    expect_equal(dim(edm_s2$col_mdata), c(10, 3))
-    expect_equal(sort(rownames(edm_s2$dat)), sort(rownames(edm_s2$row_mdata)))
-    expect_equal(sort(colnames(edm_s2$dat)), sort(rownames(edm_s2$col_mdata)))
+    #expect_equal(dim(edm_s2$dat), c(3, 10))
+    #expect_equal(dim(edm_s2$row_mdata), c(3, 1))
+    #expect_equal(dim(edm_s2$col_mdata), c(10, 3))
+    #expect_equal(sort(rownames(edm_s2$dat)), sort(rownames(edm_s2$row_mdata)))
+    #expect_equal(sort(colnames(edm_s2$dat)), sort(rownames(edm_s2$col_mdata)))
 
-    # EDAMultiMatrix$subsample()
-    emm <- EDAMultiMatrix$new(list(foo=mat))
-    expect_equal(dim(edm$subsample(row_ratio=0.6, col_ratio=0.4)$dat), c(6, 4))
+    ## EDA$subsample()
+    #emm <- EDA$new(list(foo=mat))
+    #expect_equal(dim(edm$subsample(row_ratio=0.6, col_ratio=0.4)$dat), c(6, 4))
 })

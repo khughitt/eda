@@ -1,6 +1,6 @@
 #' An R6 class representing collection of related biological datasets
 #'
-#' BioEDADataSet is a class for interacting with one or more biological
+#' BioEDA is a class for interacting with one or more biological
 #' datasets, typically those collected from high-throughput experiments.
 #'
 #' @section Arguments:
@@ -29,8 +29,8 @@
 #'  - `annotations`: A list of gene, etc. annotations from external sources.
 #'
 #' @section Methods:
-#' - `clear_cache()`: Clears BioEDADataSet cache.
-#' - `clone()`: Creates a copy of the BioEDADataSet instance.
+#' - `clear_cache()`: Clears BioEDA cache.
+#' - `clone()`: Creates a copy of the BioEDA instance.
 #' - `cluster_tsne(num_clusters=10, ...)`: Clusters rows in dataset using a combination
 #'    of t-SNE and k-means clustering.
 #' - `cpm()`: Performs counts-per-million (CPM) transformation.
@@ -53,10 +53,10 @@
 #'    Removes row outliers from the dataset. See `detect_row_outliers()`
 #'    for details of outlier detection approach.
 #'  - `filter_cols(mask)`: Accepts a logical vector of length `ncol(obj$dat)`
-#'    and returns a new BioEDADataSet instance with only the columns associated
+#'    and returns a new BioEDA instance with only the columns associated
 #'    with `TRUE` values in the mask.
 #'  - `filter_rows(mask)`: Accepts a logical vector of length `nrow(obj$dat)`
-#'    and returns a new BioEDADataSet instance with only the rowsumns associated
+#'    and returns a new BioEDA instance with only the rowsumns associated
 #'    with `TRUE` values in the mask.
 #'  - `impute(method='knn')`: Imputes missing values in the dataset and stores
 #'    the result _in-place_. Currently only k-Nearest Neighbors (kNN)
@@ -65,7 +65,7 @@
 #'  - `log1p()`: Logn(x + 1)-transforms data.
 #'  - `log2p()`: Log2(x + 1)-transforms data.
 #'  - `pca(...)`: Performs principle component analysis (PCA) on the dataset
-#'    and returns a new BioEDADataSet instance of the projected data points.
+#'    and returns a new BioEDA instance of the projected data points.
 #'    Any additional arguements specified are passed to the `prcomp()` function.
 #'  - `pca_feature_cor(meas='pearson', ...)`: Measures correlation between
 #'    dataset features (column metadata fields) and dataset principle
@@ -94,7 +94,7 @@
 #'    characteristics of a dataset.
 #'  - `t()`: Transposes dataset rows and columns.
 #'  - `tsne(...)`: Performs T-distributed stochastic neighbor embedding (t-SNE)
-#'    on the dataset and returns a new BioEDADataSet instance of the projected
+#'    on the dataset and returns a new BioEDA instance of the projected
 #'     data points. Any additional arguements specified are passed to the
 #'    `Rtsne()` function.
 #'  - `tsne_feature_cor(meas='pearson', ...)`: Measures correlation between
@@ -112,13 +112,13 @@
 #' ```
 #'
 #' @importFrom R6 R6Class
-#' @name BioDataSet
+#' @name BioEDA
 #' @export
 #'
 NULL
 
-BioDataSet <- R6Class("BioDataSet",
-  inherit = eda:::EDAMultiMatrix,
+BioEDA <- R6Class("BioEDA",
+  inherit = eda:::EDA,
 
   # ------------------------------------------------------------------------
   # public
@@ -127,7 +127,7 @@ BioDataSet <- R6Class("BioDataSet",
     # List of loaded annotations
     annotations = list(),
 
-    # BioDataSet constructor
+    # BioEDA constructor
     initialize = function(datasets, color_pal='Set1', title="", ggplot_theme=theme_bw) {
       # supported bioconductor data types
       bioc_types <- c('RangedSummarizedExperiment', 'ExpressionSet')
@@ -332,7 +332,7 @@ BioDataSet <- R6Class("BioDataSet",
       res <- res[mask, ]
       rownames(res) <- rn[mask]
 
-      # clone BioDataSet instance and add new edat
+      # clone BioEDA instance and add new edat
       obj <- private$clone_()
       obj$add(result_key, EDADat$new(res, xid=annot_key, yid=self$edat[[key]]$yid))
 
@@ -524,7 +524,7 @@ BioDataSet <- R6Class("BioDataSet",
     # Verifies that input data is an acceptable format.
     check_input = function(dat) {
       if (!is.matrix(dat) && (class(dat) != 'ExpressionSet')) {
-        stop("Invalid input for BioEDADataSet: dat must be a matrix or ExpressionSet.")
+        stop("Invalid input for BioEDA: dat must be a matrix or ExpressionSet.")
       }
     },
 

@@ -23,10 +23,9 @@ dataset with as few lines of code as possible. As such, some assumptions are
 made about the types of visualizations to be made, and customization of plots
 is limited compared to those created by hand.
 
-In order to support as wide a range of datasets as possible, a class hierarchy
-has been created, including both generic data classes (`EDAMatrix` and
-`EDAMultiMatrix`), as well as domain-specific classes (e.g. `BioDataSet`).
-Users also have the ability to inherit from any of the provided classes (which
+In order to support as wide a range of datasets as possible, a class hierarchy has been created,
+including both generic data classes like `EDAMultiMatrix`, as well as domain-specific classes such
+as `BioEDA`.  Users also have the ability to inherit from any of the provided classes (which
 are built on top of the [R6 class framework](https://cran.r-project.org/web/packages/R6/vignettes/Introduction.html))
 in order to construct new domain-specific classes.
 
