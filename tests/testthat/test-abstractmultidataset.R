@@ -216,12 +216,39 @@ test_that("Handling of plot styles works", {
 
 # Sub-sampling
 test_that("Sub-sampling works", {
-    # 10 x 10 matrix
-    mat <- matrix(rep(0, 100), 10)
+    # EDAMatrix test data
+    mat      <- matrix(0, 20, 5)
+    row_mdat <- matrix(0, 20, 3)
+    col_mdat <- matrix(0, 5, 1)
 
-    # EDAMatrix$subsample()
-    edm <- EDAMatrix$new(mat)
-    expect_equal(dim(edm$subsample(3, 5)$dat), c(3,5))
+    rownames(mat) <- paste0("row_", 1:nrow(mat))
+    colnames(mat) <- paste0("col_", 1:ncol(mat))
+
+    rownames(row_mdat) <- rownames(mat)
+    rownames(col_mdat) <- colnames(mat)
+
+    colnames(row_mdat) <- paste0('row_mdat_col_', 1:ncol(row_mdat))
+    colnames(col_mdat) <- paste0('col_mdat_col_', 1:ncol(col_mdat))
+
+    edm <- EDAMatrix$new(mat, row_mdata=row_mdat, col_mdata=col_mdat)
+
+    # create sub-sampled verison of data
+    edm_s1 <- edm$subsample(10, 3)
+
+    expect_equal(dim(edm_s1$dat), c(10, 3))
+    expect_equal(dim(edm_s1$row_mdata), c(10, 3))
+    expect_equal(dim(edm_s1$col_mdata), c(3, 1))
+    expect_equal(sort(rownames(edm_s1$dat)), sort(rownames(edm_s1$row_mdata)))
+    expect_equal(sort(colnames(edm_s1$dat)), sort(rownames(edm_s1$col_mdata)))
+
+    # transpose and then sub-sample
+    edm_s2 <- edm$t()$subsample(3, 10)
+
+    expect_equal(dim(edm_s2$dat), c(3, 10))
+    expect_equal(dim(edm_s2$row_mdata), c(3, 1))
+    expect_equal(dim(edm_s2$col_mdata), c(10, 3))
+    expect_equal(sort(rownames(edm_s2$dat)), sort(rownames(edm_s2$row_mdata)))
+    expect_equal(sort(colnames(edm_s2$dat)), sort(rownames(edm_s2$col_mdata)))
 
     # EDAMultiMatrix$subsample()
     emm <- EDAMultiMatrix$new(list(foo=mat))

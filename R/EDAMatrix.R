@@ -440,8 +440,8 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
         # Prints class greeting to the screen
         print = function() {
-            rm <- ifelse(!is.null(self$row_mdata), '(m)', '')
-            cm <- ifelse(!is.null(self$col_mdata), '(m)', '')
+            rm <- ifelse(!is.null(self$row_mdata), '(mdata)', '')
+            cm <- ifelse(!is.null(self$col_mdata), '(mdata)', '')
 
             cat("=============================================\n")
             cat("=\n")
@@ -455,6 +455,7 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
             num_nas <- sum(is.na(self$dat))
             if (num_nas > 0) {
               cat(sprintf("= # missing: %d\n", num_nas))
+              cat("=\n")
             }
 
             cat("=============================================\n")
@@ -468,12 +469,12 @@ EDAMatrix <- R6::R6Class("EDAMatrix",
 
             # update metadata
             if ('row_mdata' %in% names(obj$edat)) {
-                row_ind <- rownames(obj$row_mdata) %in% rownames(obj$dat)
-                obj$row_mdata <- obj$row_mdata[row_ind, ]
+                ind <- rownames(obj$row_mdata) %in% rownames(obj$dat)
+                obj$row_mdata <- obj$row_mdata[ind,, drop = FALSE]
             }
             if ('col_mdata' %in% names(obj$edat)) {
-                col_ind <- colnames(obj$col_mdata) %in% colnames(obj$dat)
-                obj$col_mdata <- obj$col_mdata[, col_ind]
+                ind <- rownames(obj$col_mdata) %in% colnames(obj$dat)
+                obj$col_mdata <- obj$col_mdata[ind,, drop = FALSE]
             }
 
             obj

@@ -77,16 +77,18 @@ bdat <- BioDataSet$new(rse_gene)
 # separate dataset in the BioDataSet object
 bdat
 
-# DEV
-x <- bdat$subsample(10, 5)
-
 # each of these can be accessed through the "datasets" property
 bdat$datasets$assays[1:3, 1:3]
 bdat$datasets$coldata[1:3, 1:3]
 head(bdat$datasets$rowdata, 3)
 
 # subsample data, log-transform, and plot a heatmap
-#bdat$subsample(row_n = 500, col_n = 100)$log1p()$plot_heatmap(interactive = FALSE)
+bdat$subsample(row_n = 500, col_n = 100)$log1p()$plot_heatmap(interactive = FALSE)
+
+bdat$subsample(500)$t()$plot_pca(color_var='gdc_cases.project.name', color_key='coldata')
+bdat$subsample(500)$t()$plot_tsne(color_var='gdc_cases.project.name', color_key='coldata')
+bdat$subsample(500)$t()$plot_umap(color_var='gdc_cases.project.name', color_key='coldata')
+
 
 # generate a sample PCA, t-SNE, and UMAP plots, colored by cancer 
 # TODO: currently an issue with RSE ingestion / handling of colors.. need to look
