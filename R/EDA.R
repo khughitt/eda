@@ -146,7 +146,7 @@ EDA <- R6Class("EDA",
         #
         # 1. prcomp - regular PCA
         #
-        pca = function(key=1, method='prcomp', ...) {
+        pca = function(key=1, method='prcomp', ndim=NULL, ...) {
             dat <- self$edat[[key]]$dat
 
             # compute PCA
@@ -184,10 +184,18 @@ EDA <- R6Class("EDA",
                 pca_dat <- rospca::rospca(t(dat), ...)$loadings
             }
 
+            # if specific number of dimensions requested, only return those
+            # TODO: make use of internal methods of achieving this (e.g. 'rank' for prcomp)
+            # TODO: generalize dim reduction methods with an "embed" function, and split
+            # pca method into separate functions..
+            if (!is.null(ndim)) {
+              pca_dat <- pca_dat[, 1:ndim, drop = FALSE]
+            }
+
             # clone object and append result
             obj <- private$clone_()
             obj$update(key, pca_dat)
-            obj$edat[[key]]$ylab <- 'Priniple Components'
+            obj$edat[[key]]$ylab <- 'Principle Components'
 
             obj
         },
@@ -195,10 +203,15 @@ EDA <- R6Class("EDA",
         #
         # t-SNE
         #
-        tsne = function(key=1, ...) {
+        tsne = function(key=1, ndim=NULL, ...) {
             dat <- Rtsne::Rtsne(self$edat[[key]]$dat, ...)$Y
             colnames(dat) <- sprintf("t-SNE Dim %d", 1:ncol(dat))
             rownames(dat) <- rownames(self$edat[[key]]$dat)
+
+            # if specific number of dimensions requested, only return those
+            if (!is.null(ndim)) {
+              dat <- dat[, 1:ndim, drop = FALSE]
+            }
 
             obj <- private$clone_()
             obj$update(key, dat)
@@ -222,10 +235,15 @@ EDA <- R6Class("EDA",
         #
         # See: https://umap-learn.readthedocs.io/en/latest/
         #
-        umap = function(key=1, ...) {
+        umap = function(key=1, ndim=NULL, ...) {
           dat <- uwot::umap(self$edat[[key]]$dat, ...)
           colnames(dat) <- sprintf("UMAP Dim %d", 1:ncol(dat))
           rownames(dat) <- rownames(self$edat[[key]]$dat)
+
+          # if specific number of dimensions requested, only return those
+          if (!is.null(ndim)) {
+            dat <- dat[, 1:ndim, drop = FALSE]
+          }
 
           obj <- private$clone_()
           obj$update(key, dat)
@@ -570,8 +588,15 @@ EDA <- R6Class("EDA",
         #
         # @return A filtered version of the original EDADataSet object.
         filter_rows = function(key=1, mask) {
+            # clone and filter rows
             obj <- private$clone_()
             obj$update(key, obj$edat[[key]]$dat[mask,, drop = FALSE])
+            
+            # show a warning if filtering resulted in all rows being removed
+            if (nrow(obj$datasets[[key]]) == 0) {
+              warning("No rows remaining after filtering.")
+            }
+
             obj
         },
 
@@ -582,8 +607,14 @@ EDA <- R6Class("EDA",
         #
         # @return A filtered version of the original EDADataSet object.
         filter_cols = function(key=1, mask) {
+            # clone and filter rows
             obj <- private$clone_()
             obj$update(key, obj$edat[[key]]$dat[, mask, drop = FALSE])
+
+            # show a warning if filtering resulted in all rows being removed
+            if (nrow(obj$datasets[[key]]) == 0) {
+              warning("No rows remaining after filtering.")
+            }
             obj
         },
 
@@ -980,6 +1011,9 @@ EDA <- R6Class("EDA",
 
         # returns a new object instance with only the top N rows / columns
         # of specified dataset
+        #
+        # TODO: rename to indicate use of apply to aggregate (vs. sorting by a single column)
+        # 
         top_n = function(key=1, num_rows=NULL, num_cols=NULL, fxn=sum) {
             dat <- self$edat[[key]]$dat
 
