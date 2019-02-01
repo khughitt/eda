@@ -827,6 +827,8 @@ EDA <- R6Class("EDA",
 
             message("Computing cluster statistics...")
 
+            # TODO: include na.rm = TRUE by default for relevant functions?..
+
             # apply function to each cluster and drop "cluster" column from result
             fun_args <- c(fun_args, list(x = dat, by = list(cluster = clusters), FUN = fun))
             res <- do.call(aggregate, fun_args)[, -1]

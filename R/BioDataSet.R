@@ -340,9 +340,9 @@ BioEDA <- R6Class("BioEDA",
     },
 
     # returns annotation mapping using specified gene identifiers
-    load_annotations = function(annot, keytype='ensgene', annot_file=NULL, annot_keytype='ensgene',
-                                annot_filetype='gmt', annot_field=1, gene_field=2, 
-                                exclude_annotations=NULL) {
+    load_annotations = function(annot, keytype='ensgene', annot_data=NULL, annot_file=NULL,
+                                annot_filetype='gmt', annot_keytype='ensgene', annot_field=1,
+                                gene_field=2, exclude_annotations=NULL) {
       #
       # TODO: decide on best place for exclude annotations logic...
       #
@@ -361,23 +361,32 @@ BioEDA <- R6Class("BioEDA",
         return(self$annotations[[annot]][[keytype]])
       } 
 
-      # 
-      if (is.null(annot_file)) {
-        stop("Missing required parameter: annot_file")
-      }
-
-      # make sure valid filepath provided (TODO: extend support to URLs?)
-      if (!file.exists(annot_file)) {
-        stop(sprintf("Invalid annotation filepath specified: %s", annot_file))
+      # if neither an annotation mapping or file is specified, throw an error
+      if (is.null(annot_data) && is.null(annot_file)) {
+        stop("Missing required parameter: Must specify either annot_data or annot_file ")
       }
 
       message(sprintf("Loading %s annotations...", annot))
 
-      # load annotations from file
-      if (annot_filetype == 'gmt') {
-        mapping <- private$load_gmt(annot_file) 
-      } else if (annot_filetype == 'tsv') {
-        mapping <- private$load_tsv(annot_file, annot_field, gene_field, exclude_annotations)
+      # load annotations from file, if specified
+      if (!is.null(annot_file)) {
+        # make sure valid filepath provided (TODO: extend support to URLs?)
+        if (!file.exists(annot_file)) {
+          stop(sprintf("Invalid annotation filepath specified: %s", annot_file))
+        }
+
+        # load annotations from file
+        if (annot_filetype == 'gmt') {
+          mapping <- private$load_gmt(annot_file, annot_keytype) 
+        } else if (annot_filetype == 'tsv') {
+          mapping <- private$load_tsv(annot_file, annot_field, gene_field, exclude_annotations)
+        }
+      }
+
+      # if annotation mapping specified, use as-is
+      # todo: decide whether annotations should be specified at 1:1 or 1:many mapping
+      if (!is.null(annot_data)) {
+        mapping <- annot_data
       }
 
       # store returned annotation mapping
@@ -529,7 +538,7 @@ BioEDA <- R6Class("BioEDA",
     },
 
     # load gene set gmt file
-    load_gmt = function(annot_file=NULL) {
+    load_gmt = function(annot_file, keytype) {
       # check for valid annotation filepath
       if (is.null(annot_file)) {
         stop("Filepath to annotation gmt file must be provided.")
@@ -537,7 +546,7 @@ BioEDA <- R6Class("BioEDA",
         stop("Invalid filepath for annotations specified.")
       }
 
-      mapping <- private$parse_gmt(annot_file)
+      mapping <- private$parse_gmt(annot_file, keytype)
       
       colnames(mapping) <- c('annotation', 'gene')
       rownames(mapping) <- NULL
@@ -587,33 +596,52 @@ BioEDA <- R6Class("BioEDA",
     },
 
     # maps gene identifiers for a specified annotation mapping
-    map_gene_ids = function(annot_mapping, from, to) {
+    map_gene_ids = function(annot_mapping, from_keytype, to_keytype) {
       # annotation mapping indices
       GID_IND  <- 2
 
       # map identifier names, if needed
-      if (from == 'entrez-gene') {
-        from <- 'entrez'
-      } else if (from == 'hgnc-symbol') {
-        from <- 'symbol'
+      if (from_keytype == 'entrez-gene') {
+        from_keytype <- 'entrez'
+      } else if (from_keytype == 'hgnc-symbol') {
+        from_keytype <- 'symbol'
       }
 
-      if (to == 'entrez-gene') {
-        to <- 'entrez'
-      } else if (to == 'hgnc-symbol') {
-        to <- 'symbol'
+      if (to_keytype == 'entrez-gene') {
+        to_keytype <- 'entrez'
+      } else if (to_keytype == 'hgnc-symbol') {
+        to_keytype <- 'symbol'
       }
 
-      # mapping gene identifiers and return result
-      ind <- match(annot_mapping[, GID_IND], annotables::grch37[, from, drop = TRUE])
-      annot_mapping$gene <- annotables::grch37[, to, drop = TRUE][ind]
+      # get gids to map
+      from_gids <- annot_mapping[, GID_IND]
+
+      # map gene identifiers
+      if (from_keytype == 'symbol') {
+        # lowercase used to catch different case conventions used (e.g. C22ORF42 vs. C22orf42)
+        ind <- match(tolower(from_gids), tolower(annotables::grch37[, from_keytype, drop = TRUE]))
+      } else {
+        ind <- match(from_gids, annotables::grch37[, from_keytype, drop = TRUE])
+      }
+
+      annot_mapping[, GID_IND] <- annotables::grch37[, to_keytype, drop = TRUE][ind]
+
+      # drop any unmappable entries
+      unmapped <- from_gids[is.na(annot_mapping[, GID_IND])]
+
+      if (length(unmapped) > 0) {
+        message(sprintf("Dropping %d un-mappable annotation entries associated with %d unique gene ids",
+                        length(unmapped), length(unique(unmapped))))
+        annot_mapping <- annot_mapping[complete.cases(annot_mapping), ]
+      }
 
       annot_mapping
     },
 
-    parse_gmt = function(infile) {
-      # determine maximum number columns
-      max_cols <- max(count.fields(infile))
+    parse_gmt = function(infile, keytype) {
+      # determine maximum number columns (empty column in gmt file may be skipped, so adding
+      # one to be safe)
+      max_cols <- max(count.fields(infile)) + 1
 
       # read in table, filling empty cells with NA's
       gmt <- read.delim(infile, sep = '\t', header = FALSE, 
@@ -622,6 +650,11 @@ BioEDA <- R6Class("BioEDA",
 
       # fix column names
       colnames(gmt)[1:2] <- c('annotation', 'source')
+
+      # drop last column if it's empty
+      if (all(is.na(gmt[, max_cols]))) {
+        gmt <- gmt[, -max_cols]
+      }
       
       # convert to an n x 2 (annotation, gene) mapping
       res <- do.call('rbind', apply(gmt, 1, function(entry) {
@@ -632,8 +665,10 @@ BioEDA <- R6Class("BioEDA",
         data.frame(annotation = entry[1], gene = gids, row.names=NULL)
       }))
 
-      # TODO: Don't assume entrez ids!!!
-      res$gene <- as.numeric(as.character(res$gene))
+      # convert entrez gene ids to numer
+      if (startsWith(keytype, 'entrez')) {
+        res$gene <- as.numeric(as.character(res$gene))
+      }
 
       # return dataframe
       res
