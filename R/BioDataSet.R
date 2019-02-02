@@ -277,7 +277,13 @@ BioEDA <- R6Class("BioEDA",
 
       mapping <- mapping[!mapping[, ANNOT_IND] %in% to_exclude, ]
 
-      message("Computing annotation statistics...")
+      # if no gene set / gene entries remain after filtering, skip
+      if (nrow(mapping) == 0) {
+        warning(sprintf("Insufficient genes in %s / %s to apply aggregation on. Skipping...", annot_key, key))
+        return(self) 
+      }
+
+      message(sprintf("Computing annotation statistics for %s...", annot_key))
 
       #
       # GSVA-based aggregation
@@ -641,24 +647,37 @@ BioEDA <- R6Class("BioEDA",
     parse_gmt = function(infile, keytype) {
       # determine maximum number columns (empty column in gmt file may be skipped, so adding
       # one to be safe)
-      max_cols <- max(count.fields(infile)) + 1
+      max_cols <- max(count.fields(infile, sep='\t'), na.rm = TRUE) + 1
+
+      cnames <- c('annotation', 'source', paste0('gene_', 1:(max_cols - 2)))
 
       # read in table, filling empty cells with NA's
-      gmt <- read.delim(infile, sep = '\t', header = FALSE, 
-                        col.names = paste0("gene_", seq_len(max_cols)), 
+      gmt <- read.delim(infile, sep = '\t', header = FALSE, col.names = cnames,
                         fill = TRUE, stringsAsFactors = FALSE)
 
-      # fix column names
-      colnames(gmt)[1:2] <- c('annotation', 'source')
+      # drop any empty columns after the first two
+      na_cols <- which(apply(gmt, 2, function(x) { all(is.na(x)) }))
+      na_cols <- na_cols[!na_cols %in% 1:2]
 
-      # drop last column if it's empty
-      if (all(is.na(gmt[, max_cols]))) {
-        gmt <- gmt[, -max_cols]
+      if (length(na_cols) > 0) {
+        gmt <- gmt[, -na_cols]
       }
+
+      # Check first column of genes to see if weights are specified for each entry
+      #  (e.g. <SYMBOL>,1.0)
+      if (all(grepl(',', gmt$gene_1))) {
+        # for now, we will simply discard the weights and keep the annotation - term mapping 
+        for (i in 3:ncol(gmt)) {
+            message(i)
+            gmt[, i] <- unlist(lapply(strsplit(gmt[, i], ','), '[', 1))
+        } 
+      }
+
+      # drop any 
       
       # convert to an n x 2 (annotation, gene) mapping
       res <- do.call('rbind', apply(gmt, 1, function(entry) {
-        # gene gene id's starting in third column
+        # gene id's starting in third column
         gids <- entry[3:length(entry)]
         gids <- gids[!is.na(gids)]
 
